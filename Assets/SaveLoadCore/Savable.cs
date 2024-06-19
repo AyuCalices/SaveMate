@@ -6,6 +6,7 @@ using UnityEngine;
 namespace SaveLoadCore
 {
     //TODO: there might be another case, when the buffer and the serializeField must be triggered!
+    //TODO: prefab: delete element -> restart editor -> reapply element will result in changed id!
     public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
     {
         [SerializeField] private string hierarchyPath;
@@ -18,9 +19,9 @@ namespace SaveLoadCore
         private readonly List<ComponentsContainer> _resetBufferCurrentSavableList = new();
         
         [SerializeField] private List<ComponentsContainer> serializeFieldRemovedSavableList = new();
-        private readonly List<ComponentsContainer> _resetBufferRemovedSavableList = new();
 
-        private string ChangingGuidError(string fieldName) => $"The parameter {fieldName} on {hierarchyPath}/{gameObject.name} has changed!";
+        private void ChangingGuidWarning(string fieldName) => Debug.LogWarning($"The parameter {fieldName} on {hierarchyPath}/{gameObject.name} has changed! This may be normal, if you opened e.g. a prefab.");
+        private void UnaccountedComponentError(string guid) => Debug.LogError($"There is an unaccounted guid `{guid}` registered. Maybe you removed a component and then restarted the scene/editor?");
         
         private void Reset()
         {
@@ -30,10 +31,11 @@ namespace SaveLoadCore
 
         private void OnValidate()
         {
-            ApplyScriptReloadBuffer();
-            
             if (Application.isPlaying) return;
             
+            ApplyScriptReloadBuffer();
+            _resetBufferSceneGuid = serializeFieldSceneGuid;
+            CheckForUnaccountedRemovedSavableElement();
             SetupAll(false);
         }
         
@@ -73,13 +75,6 @@ namespace SaveLoadCore
             {
                 serializeFieldCurrentSavableList.Add(savableContainer);
             }
-            
-            
-            serializeFieldRemovedSavableList.Clear();
-            foreach (var savableContainer in _resetBufferRemovedSavableList)
-            {
-                serializeFieldRemovedSavableList.Add(savableContainer);
-            }
         }
 
         /// <summary>
@@ -97,74 +92,77 @@ namespace SaveLoadCore
                     _resetBufferCurrentSavableList.Add(savableContainer);
                 }
             }
-            
-            if (serializeFieldRemovedSavableList.Count != _resetBufferRemovedSavableList.Count)
+        }
+        
+        private void CheckForUnaccountedRemovedSavableElement()
+        {
+            foreach (var componentsContainer in serializeFieldRemovedSavableList)
             {
-                _resetBufferRemovedSavableList.Clear();
-                foreach (var savableContainer in serializeFieldRemovedSavableList)
+                if (componentsContainer.component == null)
                 {
-                    _resetBufferRemovedSavableList.Add(savableContainer);
+                    UnaccountedComponentError(componentsContainer.identifier);
                 }
             }
         }
 
         private void SetupAll(bool isCreateCall)
         {
-            SetupSceneGuid(isCreateCall);
             prefabSource = PrefabUtility.GetCorrespondingObjectFromOriginalSource(gameObject);
             
-            UpdateScenePath();
             UpdateSavableComponents(isCreateCall);
-        }
-        
-        private void UpdateScenePath()
-        {
-            string GetHierarchyPath(GameObject obj)
-            {
-                string path = obj.name;
-                Transform current = obj.transform;
 
-                // Traverse up the hierarchy
-                while (current.parent != null)
-                {
-                    current = current.parent;
-                    path = current.name + "/" + path;
-                }
-
-                return path + "/";
-            }
-            
             if (gameObject.scene.name != null)
             {
-                hierarchyPath = GetHierarchyPath(gameObject);
+                SetupSceneGuid(isCreateCall);
+                SetupScenePath();
             }
             else
             {
-                hierarchyPath = "";
+                ResetSceneGuid();
+                ResetScenePath();
             }
+            
+            SetDirty(this);
+        }
+        
+        private void SetupScenePath()
+        {
+            string path = gameObject.name;
+            Transform current = gameObject.transform;
+
+            // Traverse up the hierarchy
+            while (current.parent != null)
+            {
+                current = current.parent;
+                path = current.name + "/" + path;
+            }
+                
+            hierarchyPath = path + "/";
+        }
+
+        private void ResetScenePath()
+        {
+            hierarchyPath = "";
         }
 
         private void SetupSceneGuid(bool isCreatCall)
         {
-            if (gameObject.scene.name != null)
+            if (isCreatCall || string.IsNullOrEmpty(serializeFieldSceneGuid))
             {
-                if (string.IsNullOrEmpty(serializeFieldSceneGuid))
+                // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
+                // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
+                if (!isCreatCall && string.IsNullOrEmpty(_resetBufferSceneGuid))
                 {
-                    // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
-                    // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                    if (!isCreatCall && string.IsNullOrEmpty(_resetBufferSceneGuid))
-                    {
-                        Debug.LogError(ChangingGuidError(nameof(serializeFieldSceneGuid))); 
-                    }
-
-                    SetSceneGuidGroup(Guid.NewGuid().ToString());
-                    SetDirty(this);
+                    ChangingGuidWarning(nameof(serializeFieldSceneGuid)); 
                 }
+
+                SetSceneGuidGroup(Guid.NewGuid().ToString());
             }
-            else
-            {
-                serializeFieldSceneGuid = "";
-            }
+        }
+
+        private void ResetSceneGuid()
+        {
+            SetSceneGuidGroup("");
         }
  
         private void SetSceneGuidGroup(string text)
@@ -185,18 +183,6 @@ namespace SaveLoadCore
             _resetBufferCurrentSavableList.Remove(componentsContainer);
         }
 
-        private void AddToRemovedSavableGroup(ComponentsContainer componentsContainer)
-        {
-            serializeFieldRemovedSavableList.Add(componentsContainer);
-            _resetBufferRemovedSavableList.Add(componentsContainer);
-        }
-
-        private void RemoveFromRemovedSavableGroup(ComponentsContainer componentsContainer)
-        {
-            serializeFieldRemovedSavableList.Remove(componentsContainer);
-            _resetBufferRemovedSavableList.Remove(componentsContainer);
-        }
-        
         private void UpdateSavableComponents(bool isCreatCall)
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
@@ -210,7 +196,7 @@ namespace SaveLoadCore
                 
                 if (!foundElements.Exists(x => x == currentSavableContainer.component))
                 {
-                    AddToRemovedSavableGroup(currentSavableContainer);
+                    serializeFieldRemovedSavableList.Add(currentSavableContainer);
                     RemoveFromCurrentSavableGroup(currentSavableContainer);
                 }
                 else
@@ -221,7 +207,7 @@ namespace SaveLoadCore
                         // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
                         if (!isCreatCall && string.IsNullOrEmpty(_resetBufferCurrentSavableList[index].identifier))
                         {
-                            Debug.LogError(ChangingGuidError(nameof(currentSavableContainer))); 
+                            ChangingGuidWarning(nameof(currentSavableContainer));
                         }
                         
                         currentSavableContainer.identifier = Guid.NewGuid().ToString();
@@ -241,7 +227,7 @@ namespace SaveLoadCore
                 if (removedComponent != null)
                 {
                     guid = removedComponent.identifier;
-                    RemoveFromRemovedSavableGroup(removedComponent);
+                    serializeFieldRemovedSavableList.Remove(removedComponent);
                 }
                 
                 AddToCurrentSavableGroup(new ComponentsContainer

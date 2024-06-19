@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   position: {x: 0, y: 0, z: 0}
+  reference: {fileID: 0}
 --- !u!114 &4220645159549388733
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -58,10 +59,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneGuid: 
   hierarchyPath: 
-  prefabGuid: 3767709a-aae6-4d02-9739-4ba55c1d985e
-  savableList:
-  - identifier: e415c7c7-c711-46bc-af2b-0522337d56b2
+  prefabSource: {fileID: 6667105252937764894}
+  serializeFieldSceneGuid: 
+  serializeFieldCurrentSavableList:
+  - identifier: 9f21ba7a-f180-4b1b-a179-b05f6ea87b31
     component: {fileID: 8358579984496965044}
-  prefab: {fileID: 0}
+  serializeFieldRemovedSavableList: []
