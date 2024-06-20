@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using SaveLoadCore.Utility;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace SaveLoadCore
 {
@@ -15,10 +18,16 @@ namespace SaveLoadCore
         [SerializeField] private string serializeFieldSceneGuid;
         private string _resetBufferSceneGuid;
         
-        [SerializeField] private List<ComponentsContainer> serializeFieldCurrentSavableList = new();
+        [FormerlySerializedAs("serializeFieldCurrentSavableList")] [SerializeField] private List<ComponentsContainer> serializeFieldCurrentSavableComponentList = new();
         private readonly List<ComponentsContainer> _resetBufferCurrentSavableList = new();
         
         [SerializeField] private List<ComponentsContainer> serializeFieldRemovedSavableList = new();
+
+        //TODO: decide on naming: Guid or Identifier
+        public string HierarchyPath => hierarchyPath;
+        public GameObject PrefabSource => prefabSource;
+        public string SceneGuid => serializeFieldSceneGuid;
+        public List<ComponentsContainer> SavableComponentList => serializeFieldCurrentSavableComponentList;
 
         private void ChangingGuidWarning(string fieldName) => Debug.LogWarning($"The parameter {fieldName} on {hierarchyPath}/{gameObject.name} has changed! This may be normal, if you opened e.g. a prefab.");
         private void UnaccountedComponentError(string guid) => Debug.LogError($"There is an unaccounted guid `{guid}` registered. Maybe you removed a component and then restarted the scene/editor?");
@@ -70,10 +79,10 @@ namespace SaveLoadCore
         /// </summary>
         private void ApplyResetBuffer()
         {
-            serializeFieldCurrentSavableList.Clear();
+            serializeFieldCurrentSavableComponentList.Clear();
             foreach (var savableContainer in _resetBufferCurrentSavableList)
             {
-                serializeFieldCurrentSavableList.Add(savableContainer);
+                serializeFieldCurrentSavableComponentList.Add(savableContainer);
             }
         }
 
@@ -84,10 +93,10 @@ namespace SaveLoadCore
         /// </summary>
         private void ApplyScriptReloadBuffer()
         {
-            if (serializeFieldCurrentSavableList.Count != _resetBufferCurrentSavableList.Count)
+            if (serializeFieldCurrentSavableComponentList.Count != _resetBufferCurrentSavableList.Count)
             {
                 _resetBufferCurrentSavableList.Clear();
-                foreach (var savableContainer in serializeFieldCurrentSavableList)
+                foreach (var savableContainer in serializeFieldCurrentSavableComponentList)
                 {
                     _resetBufferCurrentSavableList.Add(savableContainer);
                 }
@@ -173,13 +182,13 @@ namespace SaveLoadCore
 
         private void AddToCurrentSavableGroup(ComponentsContainer componentsContainer)
         {
-            serializeFieldCurrentSavableList.Add(componentsContainer);
+            serializeFieldCurrentSavableComponentList.Add(componentsContainer);
             _resetBufferCurrentSavableList.Add(componentsContainer);
         }
 
         private void RemoveFromCurrentSavableGroup(ComponentsContainer componentsContainer)
         {
-            serializeFieldCurrentSavableList.Remove(componentsContainer);
+            serializeFieldCurrentSavableComponentList.Remove(componentsContainer);
             _resetBufferCurrentSavableList.Remove(componentsContainer);
         }
 
@@ -190,9 +199,9 @@ namespace SaveLoadCore
                 ReflectionUtility.ContainsProperty<SavableAttribute>, ReflectionUtility.ContainsField<SavableAttribute>);
             
             //update removed elements and those that are kept 
-            for (var index = serializeFieldCurrentSavableList.Count - 1; index >= 0; index--)
+            for (var index = serializeFieldCurrentSavableComponentList.Count - 1; index >= 0; index--)
             {
-                var currentSavableContainer = serializeFieldCurrentSavableList[index];
+                var currentSavableContainer = serializeFieldCurrentSavableComponentList[index];
                 
                 if (!foundElements.Exists(x => x == currentSavableContainer.component))
                 {
@@ -238,13 +247,12 @@ namespace SaveLoadCore
             }
         }
         
-        //TODO: check set dirty
         private void SetDirty(UnityEngine.Object obj)
         {
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                EditorUtility.SetDirty(this);
+                EditorUtility.SetDirty(obj);
             }
 #endif
         }

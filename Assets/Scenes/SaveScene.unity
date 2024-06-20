@@ -123,6 +123,50 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &612628595
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 612628596}
+  - component: {fileID: 612628597}
+  m_Layer: 0
+  m_Name: SaveSceneManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &612628596
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 612628595}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &612628597
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 612628595}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 959f6678af54a7843a7faaebfa0ac0db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -321,31 +365,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0, z: 0}
-  reference: {fileID: 0}
---- !u!114 &1231112812031115887
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2524919464705939282}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hierarchyPath: Sphere/
-  prefabSource: {fileID: 0}
-  serializeFieldSceneGuid: d401cd26-f4ec-4c8b-9384-f11b5a20f3da
-  serializeFieldCurrentSavableList:
-  - identifier: 4fadd978-72be-4c13-9f07-f3d760cd35ea
-    component: {fileID: 1178416493674920291}
-  - identifier: e46c4248-0f1a-4573-b130-b7a0d0a8e13d
-    component: {fileID: 5098636320315524047}
-  - identifier: b4bdd066-817a-40da-ba74-db6fd7b831c0
-    component: {fileID: 7670084543858876572}
-  serializeFieldRemovedSavableList: []
+  position: 6b612f28-3ae2-4eff-9e5c-a408a592e50e
 --- !u!23 &1238578333949386653
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -400,10 +420,10 @@ GameObject:
   - component: {fileID: 8936996256903900504}
   - component: {fileID: 1238578333949386653}
   - component: {fileID: 7727898943383520388}
-  - component: {fileID: 1231112812031115887}
   - component: {fileID: 7670084543858876572}
   - component: {fileID: 1178416493674920291}
   - component: {fileID: 5098636320315524047}
+  - component: {fileID: 8936996256903900505}
   m_Layer: 0
   m_Name: Sphere
   m_TagString: Untagged
@@ -438,8 +458,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0, z: 0}
-  reference: {fileID: 0}
+  position: d2db2180-6a90-404d-871a-05eebeac5f3d
 --- !u!114 &7670084543858876572
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -452,8 +471,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0, z: 0}
-  reference: {fileID: 0}
+  position: a58dd06f-d2b4-40ae-b7d6-90e7930250fc
 --- !u!135 &7727898943383520388
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -483,10 +501,34 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2524919464705939282}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &8936996256903900505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2524919464705939282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hierarchyPath: Sphere/
+  prefabSource: {fileID: 0}
+  serializeFieldSceneGuid: 6bee226b-11f2-491f-8632-3b5d60c1099d
+  serializeFieldCurrentSavableComponentList:
+  - identifier: 9c2005d0-9518-4057-9f6b-f8f62be373d8
+    component: {fileID: 7670084543858876572}
+  - identifier: 3b9a8052-a026-45e1-9fd2-a9bfa4ab09b0
+    component: {fileID: 1178416493674920291}
+  - identifier: 2e5b5112-ff06-406d-b6ff-8cde3832c056
+    component: {fileID: 5098636320315524047}
+  serializeFieldRemovedSavableList: []
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 963194228}
   - {fileID: 705507995}
+  - {fileID: 612628596}
   - {fileID: 3642510548864780201}

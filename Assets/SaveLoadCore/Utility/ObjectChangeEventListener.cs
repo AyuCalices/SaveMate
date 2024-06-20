@@ -1,12 +1,12 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveLoadCore
+namespace SaveLoadCore.Utility
 {
     [InitializeOnLoad]
-    public class ObjectChangeEventsExample
+    public class ObjectChangeEventListener
     {
-        static ObjectChangeEventsExample()    
+        static ObjectChangeEventListener()    
         {
             ObjectChangeEvents.changesPublished += ChangesPublished;
         }
@@ -136,52 +136,5 @@ namespace SaveLoadCore
                 }
             }
         }
-    }
-    
-    public static class GameObjectExtensions
-    {
-        /// <summary>
-        /// Checks if a GameObject has been destroyed.
-        /// </summary>
-        /// <param name="gameObject">GameObject reference to check for destructedness</param>
-        /// <returns>If the game object has been marked as destroyed by UnityEngine</returns>
-        public static bool IsDestroyed(this GameObject gameObject)
-        {
-            // UnityEngine overloads the == opeator for the GameObject type
-            // and returns null when the object has been destroyed, but 
-            // actually the object is still there but has not been cleaned up yet
-            // if we test both we can determine if the object has been destroyed.
-            return gameObject == null && !ReferenceEquals(gameObject, null);
-        }
-    }
-
-    public interface ICreateGameObjectHierarchy
-    {
-        public void OnCreateGameObjectHierarchy();
-    }
-    
-    public interface IChangeGameObjectStructureHierarchy
-    {
-        public void OnChangeGameObjectStructureHierarchy();
-    }
-    
-    public interface IChangeGameObjectStructure
-    {
-        public void OnChangeGameObjectStructure();
-    }
-    
-    public interface IChangeGameObjectParent
-    {
-        public void OnChangeGameObjectParent(GameObject newParent, GameObject previousParent);
-    }
-    
-    public interface IChangeGameObjectProperties
-    {
-        public void OnChangeGameObjectProperties();
-    }
-    
-    public interface IChangeComponentProperties
-    {
-        public void OnChangeComponentProperties();
     }
 }

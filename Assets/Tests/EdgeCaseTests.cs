@@ -8,11 +8,11 @@ namespace Tests
         [Test]
         public void EmptyDataPass()
         {
-            DataContainer serialiseData = new DataContainer();
+            CoreTests.DataContainer serialiseData = new CoreTests.DataContainer();
         
             SaveLoadManager.Save(serialiseData);
 
-            DataContainer deserializeData = SaveLoadManager.Load();
+            CoreTests.DataContainer deserializeData = SaveLoadManager.Load<CoreTests.DataContainer>();
         
             for (var i = 0; i < serialiseData.Data.Count; i++)
             {

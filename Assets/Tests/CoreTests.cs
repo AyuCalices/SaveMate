@@ -8,6 +8,27 @@ namespace Tests
 {
     public class CoreTests
     {
+        [Serializable]
+        public sealed class DataContainer
+        {
+            //TODO: what if the type doesnt match the object?
+            public List<(Type, object)> Data { get; set; } = new List<(Type, object)>();
+        }
+        
+        [Serializable]
+        public sealed class DictionaryTest
+        {
+            public Dictionary<string, object> Data = new ();
+        }
+
+        private DictionaryTest DictionaryTestElement => new DictionaryTest()
+        {
+            Data = new Dictionary<string, object>
+            {
+                { "string", "string" }
+            }
+        };
+        
         //nint: Avoid using nint and nuint for saved data due to platform dependency.
         private DataContainer UnmanagedData => new DataContainer
         {
@@ -155,13 +176,25 @@ namespace Tests
         }
         
         [Test]
+        public void DictionaryPass()
+        {
+            DictionaryTest serialiseData = DictionaryTestElement;
+        
+            SaveLoadManager.Save(serialiseData);
+
+            DictionaryTest deserializeData = SaveLoadManager.Load<DictionaryTest>();
+            
+            Assert.IsTrue(deserializeData.Data.Count == serialiseData.Data.Count);
+        }
+        
+        [Test]
         public void UnmanagedIntegrityPass()
         {
             DataContainer serialiseData = UnmanagedData;
         
             SaveLoadManager.Save(serialiseData);
 
-            DataContainer deserializeData = SaveLoadManager.Load();
+            DataContainer deserializeData = SaveLoadManager.Load<DataContainer>();
         
             for (var i = 0; i < serialiseData.Data.Count; i++)
             {
@@ -186,7 +219,7 @@ namespace Tests
         
             SaveLoadManager.Save(serialiseData);
 
-            DataContainer deserializeData = SaveLoadManager.Load();
+            DataContainer deserializeData = SaveLoadManager.Load<DataContainer>();
         
             for (var i = 0; i < serialiseData.Data.Count; i++)
             {

@@ -7,19 +7,19 @@ namespace SaveLoadCore
 {
     public static class SaveLoadManager
     {
-        private static HashSet<(string, object)> _savables = new HashSet<(string, object)>();
+        private static readonly HashSet<(string, object)> SavableList = new HashSet<(string, object)>();
         
-        public static void Save(DataContainer dataContainer, string saveName = "/player.data", string savePath = "")
+        public static void Save<T>(T data, string saveName = "/player.data", string savePath = "") where T : class
         {
             BinaryFormatter formatter = new BinaryFormatter();
             string path = Application.persistentDataPath + savePath + saveName;
             FileStream stream = new FileStream(path, FileMode.Create);
 
-            formatter.Serialize(stream, dataContainer);
+            formatter.Serialize(stream, data);
             stream.Close();
         }
     
-        public static DataContainer Load(string saveName = "/player.data", string savePath = "")
+        public static T Load<T>(string saveName = "/player.data", string savePath = "") where T : class 
         {
             string path = Application.persistentDataPath + savePath + saveName;
             if (File.Exists(path))
@@ -27,7 +27,7 @@ namespace SaveLoadCore
                 BinaryFormatter formatter = new BinaryFormatter();
                 FileStream stream = new FileStream(path, FileMode.Open);
 
-                DataContainer data = formatter.Deserialize(stream) as DataContainer;
+                T data = formatter.Deserialize(stream) as T;
                 stream.Close();
                 return data;
             }
@@ -45,38 +45,23 @@ namespace SaveLoadCore
 
         public static void RegisterSavable(string identifier, object obj)
         {
-            if (_savables.Add((nameof(obj), obj))) return;
+            if (SavableList.Add((nameof(obj), obj))) return;
             
             Debug.LogError($"Can't add {obj} twice!");
         }
 
         public static void UnregisterSavable(string identifier, object obj)
         {
-            if (_savables.Remove((identifier, obj))) return;
+            if (SavableList.Remove((identifier, obj))) return;
             
             Debug.LogError($"Can't remove {obj}, because it is not registered!");
         }
         
         public static void RegisterSavable(string identifier, int obj)
         {
-            IntegerConduit integerConduit = new IntegerConduit(() => obj, i => i = obj);
-            
-            
-            if (_savables.Add((nameof(obj), obj))) return;
+            if (SavableList.Add((nameof(obj), obj))) return;
             
             Debug.LogError($"Can't add {obj} twice!");
-        }
-
-        public class IntegerConduit
-        {
-            public readonly System.Action<int> Set;
-            public readonly System.Func<int> Get;
-
-            public IntegerConduit(System.Func<int> get, System.Action<int> set)
-            {
-                Get = get;
-                Set = set;
-            }
         }
     }
 }

@@ -15,18 +15,6 @@ namespace SaveLoadCore
     //1. gathering instances options:
     //1.1 eine RegisterSaveable methode für das manuelle registrieren
     //1.2 die hierarchy einer scene durchgehen & savables einsammeln -> scenen gebunden
-    
-    [Serializable]
-    public sealed class DataContainer
-    {
-        //TODO: what if the type doesnt match the object?
-        public List<(Type, object)> Data { get; set; } = new List<(Type, object)>();
-    }
-
-    public struct ReferencePointer
-    {
-        public string ReferenceGuid { get; set; }
-    }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class SavableAttribute : Attribute
@@ -77,8 +65,41 @@ namespace SaveLoadCore
             }
         }
         
-        
-        
+        public static List<FieldInfo> GetFieldInfos<T>(Type type) where T : Attribute
+        {
+            List<FieldInfo> foundFieldInfos = new List<FieldInfo>();
+            
+            // Get all fields of the type
+            var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            foreach (var field in fields)
+            {
+                // Check if the field has the specified attribute
+                if (field.GetCustomAttributes(typeof(T), false).Length > 0)
+                {
+                    foundFieldInfos.Add(field);
+                }
+            }
+
+            return foundFieldInfos;
+        }
+
+        public static List<PropertyInfo> GetPropertyInfos<T>(Type type) where T : Attribute
+        {
+            List<PropertyInfo> foundPropertyInfos = new List<PropertyInfo>();
+            
+            // Get all properties of the type
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            foreach (var property in properties)
+            {
+                // Check if the property has the specified attribute
+                if (property.GetCustomAttributes(typeof(T), false).Length > 0)
+                {
+                    foundPropertyInfos.Add(property);
+                }
+            }
+
+            return foundPropertyInfos;
+        }
 
         public static bool ContainsField<T>(Type type) where T : Attribute
         {
