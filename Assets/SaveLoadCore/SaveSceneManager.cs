@@ -8,85 +8,105 @@ namespace SaveLoadCore
 {
     public class SaveSceneManager : MonoBehaviour
     {
-        [ContextMenu("Gather")]
-        public void GatherSavableComponents()
+        private SceneBuffer GatherSavableData(List<Savable> savableComponents)
         {
-            var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            
             SceneBuffer sceneBuffer = new SceneBuffer();
             foreach (Savable savableComponent in savableComponents)
             {
-                
+                //gather all components on a savable
                 SavableBuffer savableBuffer = new SavableBuffer();
                 foreach (ComponentsContainer componentsContainer in savableComponent.SavableComponentList)
                 {
-                    
+                    //gather all fields on a component
                     ComponentBuffer fieldBuffer = new ComponentBuffer();
                     foreach (FieldInfo fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
                     {
-                        fieldBuffer.WriteElement(fieldInfo, componentsContainer.component);
+                        fieldBuffer.StoreElement(fieldInfo, componentsContainer.component);
                     }
 
                     foreach (PropertyInfo propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
                     {
-                        fieldBuffer.WriteElement(propertyInfo, componentsContainer.component);
+                        fieldBuffer.StoreElement(propertyInfo, componentsContainer.component);
                     }
                     
                     savableBuffer.AddComponent(componentsContainer.identifier, fieldBuffer);
                 }
                 sceneBuffer.AddSavable(savableComponent.SceneGuid, savableBuffer);
             }
-            
-            SaveLoadManager.Save(sceneBuffer);
-            var data = SaveLoadManager.Load<SceneBuffer>();
-            
-            //TODO: reapply Data -> write tests
-            
-            bool failed = false;
-            foreach (Savable savableComponent in savableComponents)
+
+            return sceneBuffer;
+        }
+
+        /// <summary>
+        /// buffer.TryGet -> savable is not found (and it is not a prefab that needs to be instantiated) -> for downwards compatibility that mean, the buffer has deprecated data of a previous version.
+        /// If there is data on the current savable the buffer does not know -> it suggests there is new data that can be initialized with default values.
+        /// </summary>
+        /// <param name="savableComponents"></param>
+        /// <param name="deserializedSceneBuffer"></param>
+        /// <param name="onBufferHasExtraData"></param>
+        private void DistributeSavableData(List<Savable> savableComponents, SceneBuffer deserializedSceneBuffer, Action onBufferHasExtraData = null)
+        {
+            foreach (var (savableGuid, savableBuffer) in deserializedSceneBuffer.GetLookup())
             {
-                if (!data.TryGetSavable(savableComponent.SceneGuid, out SavableBuffer savableBuffer))
+                var savableMatch = savableComponents.Find(x => x.SceneGuid == savableGuid);
+                if (savableMatch == null)
                 {
-                    failed = true;
+                    onBufferHasExtraData?.Invoke();
                     continue;
                 }
-
-                foreach (ComponentsContainer componentsContainer in savableComponent.SavableComponentList)
+                
+                foreach (var (componentGuid, componentBuffer) in savableBuffer.GetLookup())
                 {
-                    if (!savableBuffer.TryGetComponent(componentsContainer.identifier,
-                            out ComponentBuffer componentBuffer))
+                    var componentMatch = savableMatch.SavableComponentList.Find(x => x.identifier == componentGuid);
+                    if (componentMatch == null)
                     {
-                        failed = true;
+                        onBufferHasExtraData?.Invoke();
                         continue;
                     }
                     
-                    foreach (FieldInfo fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
+                    foreach (var (elementName, deserializedObj) in componentBuffer.GetLookup())
                     {
-                        if (componentBuffer.TryReadElement(fieldInfo.Name, out object objectBuffer))
+                        bool matchFound = false;
+                        
+                        var fieldMatch = ReflectionUtility.GetFieldInfos<SavableAttribute>(componentMatch.component.GetType()).Find(x => x.Name == elementName);
+                        if (fieldMatch != null)
                         {
-                            fieldInfo.SetValue(componentsContainer.component, objectBuffer);
+                            fieldMatch.SetValue(componentMatch.component, deserializedObj);
+                            matchFound = true;
                         }
-                        else
-                        {
-                            failed = true;
-                        }
-                    }
 
-                    foreach (PropertyInfo propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
-                    {
-                        if (componentBuffer.TryReadElement(propertyInfo.Name, out object objectBuffer))
+                        var propertyMatch = ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentMatch.component.GetType()).Find(x => x.Name == elementName);
+                        if (propertyMatch != null)
                         {
-                            propertyInfo.SetValue(componentsContainer.component, objectBuffer);
+                            propertyMatch.SetValue(componentMatch.component, deserializedObj);
+                            matchFound = true;
                         }
-                        else
+
+                        if (!matchFound)
                         {
-                            failed = true;
+                            onBufferHasExtraData?.Invoke();
                         }
                     }
                 }
             }
-            
-            Debug.Log(failed);
+        }
+        
+        //TODO: implement integrity check
+        [ContextMenu("Gather")]
+        public void GatherSavableComponents()
+        {
+            var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var sceneBuffer = GatherSavableData(savableComponents);
+            SaveLoadManager.Save(sceneBuffer);
+        }
+
+        //TODO: reapply Data -> write tests
+        [ContextMenu("Apply")]
+        public void ApplySavableComponents()
+        {
+            var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var data = SaveLoadManager.Load<SceneBuffer>();
+            DistributeSavableData(savableComponents, data, () => Debug.LogWarning("Save file contains data, that could not be assigned to savables!"));
         }
     }
 
@@ -94,6 +114,8 @@ namespace SaveLoadCore
     public class SceneBuffer
     {
         private readonly Dictionary<string, SavableBuffer> _savableLookup = new();
+
+        public Dictionary<string, SavableBuffer> GetLookup() => _savableLookup;
 
         public void AddSavable(string identifier, SavableBuffer savableBuffer)
         {
@@ -111,6 +133,8 @@ namespace SaveLoadCore
     {
         private readonly Dictionary<string, ComponentBuffer> _componentLookup = new();
 
+        public Dictionary<string, ComponentBuffer> GetLookup() => _componentLookup;
+
         public void AddComponent(string identifier, ComponentBuffer componentBuffer)
         {
             _componentLookup.Add(identifier, componentBuffer);
@@ -127,12 +151,14 @@ namespace SaveLoadCore
     {
         private readonly Dictionary<string, object> _dataLookup = new();
 
-        public void WriteElement(FieldInfo fieldInfo, object fieldParent)
+        public Dictionary<string, object> GetLookup() => _dataLookup;
+        
+        public void StoreElement(FieldInfo fieldInfo, object fieldParent)
         {
             _dataLookup.Add(fieldInfo.Name, fieldInfo.GetValue(fieldParent));
         }
         
-        public void WriteElement(PropertyInfo fieldInfo, object fieldParent)
+        public void StoreElement(PropertyInfo fieldInfo, object fieldParent)
         {
             _dataLookup.Add(fieldInfo.Name, fieldInfo.GetValue(fieldParent));
         }
