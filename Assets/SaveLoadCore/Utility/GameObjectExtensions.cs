@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadCore.Utility
 {
@@ -44,6 +47,26 @@ namespace SaveLoadCore.Utility
                 objectsInAllScenes.AddRange(FindObjectsOfTypeInScene<T>(scene, includeInactive));
             }
             return objectsInAllScenes;
+        }
+    }
+    
+    public static class SerializationHelper
+    {
+        public static bool IsSerializable(Type type)
+        {
+            // Check if the type is marked with the [Serializable] attribute
+            if (type.IsSerializable)
+            {
+                return true;
+            }
+
+            // Check if the type implements the ISerializable interface
+            if (typeof(ISerializable).IsAssignableFrom(type))
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -262,5 +262,20 @@ namespace Tests
             SaveLoadManager.RegisterSavable(nameof(valueTest1), valueTest1);
             SaveLoadManager.RegisterSavable(nameof(valueTest2), valueTest2);
         }
+
+        [Test]
+        public void ArrayPass()
+        {
+            byte[] test1 = new byte[3];
+            test1[0] = 5;
+            
+            byte[] test2 = new byte[2];
+            test1[0] = 8;
+            test1[1] = 2;
+
+            test2 = test1;
+
+            test2[2] = 2;
+        }
     }
 }

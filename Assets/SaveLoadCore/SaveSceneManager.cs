@@ -8,6 +8,11 @@ namespace SaveLoadCore
 {
     public class SaveSceneManager : MonoBehaviour
     {
+        //one list with the connection of scene guid and savableObject guid
+        //-> TODO: each savable attribute thing needs a guid -> would need to be recursive for reference types. Or does it? When gathering a savable, it will be added to a list. every time an equal object gets added, a wrapper for this object will register the source id path: sceneId/ComponentId/FieldName/FieldName/FieldName ... must probably be recursive. 
+        //one list with all the unique savableObjects -> the unique objects still need to be serializable
+        //-> type based conversion
+        
         private SceneBuffer GatherSavableData(List<Savable> savableComponents)
         {
             SceneBuffer sceneBuffer = new SceneBuffer();
@@ -21,11 +26,23 @@ namespace SaveLoadCore
                     ComponentBuffer fieldBuffer = new ComponentBuffer();
                     foreach (FieldInfo fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
                     {
+                        if (!SerializationHelper.IsSerializable(fieldInfo.FieldType))
+                        {
+                            Debug.LogWarning("Not Serializable!");
+                            continue;
+                        }
+                        
                         fieldBuffer.StoreElement(fieldInfo, componentsContainer.component);
                     }
 
                     foreach (PropertyInfo propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
                     {
+                        if (!SerializationHelper.IsSerializable(propertyInfo.PropertyType))
+                        {
+                            Debug.LogWarning("Not Serializable!");
+                            continue;
+                        }
+                        
                         fieldBuffer.StoreElement(propertyInfo, componentsContainer.component);
                     }
                     

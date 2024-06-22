@@ -1,10 +1,12 @@
-using System;
 using UnityEngine;
 
 namespace SaveLoadCore
 {
+    public enum TestEnum { One, Two, Three, Four, Five }
+    
     public class SavableTest : MonoBehaviour
     {
-        [Savable] public string position = Guid.NewGuid().ToString();
+        [Savable] public Vector2 position;
+        
     }
 }
