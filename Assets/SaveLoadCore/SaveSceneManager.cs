@@ -13,108 +13,15 @@ namespace SaveLoadCore
         //one list with all the unique savableObjects -> the unique objects still need to be serializable
         //-> type based conversion
         
-        private SceneBuffer GatherSavableData(List<Savable> savableComponents)
-        {
-            SceneBuffer sceneBuffer = new SceneBuffer();
-            foreach (Savable savableComponent in savableComponents)
-            {
-                //gather all components on a savable
-                SavableBuffer savableBuffer = new SavableBuffer();
-                foreach (ComponentsContainer componentsContainer in savableComponent.SavableComponentList)
-                {
-                    //gather all fields on a component
-                    ComponentBuffer fieldBuffer = new ComponentBuffer();
-                    foreach (FieldInfo fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
-                    {
-                        if (!SerializationHelper.IsSerializable(fieldInfo.FieldType))
-                        {
-                            Debug.LogWarning("Not Serializable!");
-                            continue;
-                        }
-                        
-                        fieldBuffer.StoreElement(fieldInfo, componentsContainer.component);
-                    }
-
-                    foreach (PropertyInfo propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
-                    {
-                        if (!SerializationHelper.IsSerializable(propertyInfo.PropertyType))
-                        {
-                            Debug.LogWarning("Not Serializable!");
-                            continue;
-                        }
-                        
-                        fieldBuffer.StoreElement(propertyInfo, componentsContainer.component);
-                    }
-                    
-                    savableBuffer.AddComponent(componentsContainer.identifier, fieldBuffer);
-                }
-                sceneBuffer.AddSavable(savableComponent.SceneGuid, savableBuffer);
-            }
-
-            return sceneBuffer;
-        }
-
-        /// <summary>
-        /// buffer.TryGet -> savable is not found (and it is not a prefab that needs to be instantiated) -> for downwards compatibility that mean, the buffer has deprecated data of a previous version.
-        /// If there is data on the current savable the buffer does not know -> it suggests there is new data that can be initialized with default values.
-        /// </summary>
-        /// <param name="savableComponents"></param>
-        /// <param name="deserializedSceneBuffer"></param>
-        /// <param name="onBufferHasExtraData"></param>
-        private void DistributeSavableData(List<Savable> savableComponents, SceneBuffer deserializedSceneBuffer, Action onBufferHasExtraData = null)
-        {
-            foreach (var (savableGuid, savableBuffer) in deserializedSceneBuffer.GetLookup())
-            {
-                var savableMatch = savableComponents.Find(x => x.SceneGuid == savableGuid);
-                if (savableMatch == null)
-                {
-                    onBufferHasExtraData?.Invoke();
-                    continue;
-                }
-                
-                foreach (var (componentGuid, componentBuffer) in savableBuffer.GetLookup())
-                {
-                    var componentMatch = savableMatch.SavableComponentList.Find(x => x.identifier == componentGuid);
-                    if (componentMatch == null)
-                    {
-                        onBufferHasExtraData?.Invoke();
-                        continue;
-                    }
-                    
-                    foreach (var (elementName, deserializedObj) in componentBuffer.GetLookup())
-                    {
-                        bool matchFound = false;
-                        
-                        var fieldMatch = ReflectionUtility.GetFieldInfos<SavableAttribute>(componentMatch.component.GetType()).Find(x => x.Name == elementName);
-                        if (fieldMatch != null)
-                        {
-                            fieldMatch.SetValue(componentMatch.component, deserializedObj);
-                            matchFound = true;
-                        }
-
-                        var propertyMatch = ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentMatch.component.GetType()).Find(x => x.Name == elementName);
-                        if (propertyMatch != null)
-                        {
-                            propertyMatch.SetValue(componentMatch.component, deserializedObj);
-                            matchFound = true;
-                        }
-
-                        if (!matchFound)
-                        {
-                            onBufferHasExtraData?.Invoke();
-                        }
-                    }
-                }
-            }
-        }
-        
         //TODO: implement integrity check
         [ContextMenu("Gather")]
         public void GatherSavableComponents()
         {
             var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var sceneBuffer = GatherSavableData(savableComponents);
-            SaveLoadManager.Save(sceneBuffer);
+            var sceneBuffer = BuildSceneLookup(savableComponents);
+            
+            var savableData = GetSerializeSaveData(sceneBuffer);
+            SaveLoadManager.Save(savableData);
         }
 
         //TODO: reapply Data -> write tests
@@ -122,67 +29,244 @@ namespace SaveLoadCore
         public void ApplySavableComponents()
         {
             var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var data = SaveLoadManager.Load<SceneBuffer>();
-            DistributeSavableData(savableComponents, data, () => Debug.LogWarning("Save file contains data, that could not be assigned to savables!"));
+            var sceneBuffer = BuildSceneLookup(savableComponents);
+            
+            
+            var data = SaveLoadManager.Load<DataContainer>();
+            ApplyDeserializedSaveData(sceneBuffer, data, () => Debug.LogWarning("fuck"));
+        }
+        
+        private SceneLookup BuildSceneLookup(List<Savable> savableComponents)
+        {
+            SceneLookup sceneLookup = new SceneLookup();
+            foreach (Savable savableComponent in savableComponents)
+            {
+                //gather all components on a savable
+                SavableLookup savableLookup = new SavableLookup();
+                foreach (ComponentsContainer componentsContainer in savableComponent.SavableComponentList)
+                {
+                    //gather all fields on a component
+                    ComponentLookup fieldLookup = new ComponentLookup(componentsContainer.component);
+                    foreach (FieldInfo fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
+                    {
+                        //TODO: duplicate code with property
+                        if (typeof(UnityEngine.Object).IsAssignableFrom(fieldInfo.FieldType))
+                        {
+                            Debug.LogWarning($"The Type {fieldInfo.FieldType} is {typeof(UnityEngine.Object)}!");
+                            continue;
+                        }
+                        
+                        if (!SerializationHelper.IsSerializable(fieldInfo.FieldType))
+                        {
+                            Debug.LogWarning($"Type {fieldInfo.FieldType} is nor market as serializable!");
+                            continue;
+                        }
+                        
+                        fieldLookup.StoreElement(fieldInfo);
+                    }
+
+                    foreach (PropertyInfo propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
+                    {
+                        
+                        if (typeof(UnityEngine.Object).IsAssignableFrom(propertyInfo.PropertyType))
+                        {
+                            Debug.LogWarning($"The Type {propertyInfo.PropertyType} is {typeof(UnityEngine.Object)}!");
+                            continue;
+                        }
+                        
+                        if (!SerializationHelper.IsSerializable(propertyInfo.PropertyType))
+                        {
+                            Debug.LogWarning($"Type {propertyInfo.PropertyType} is nor market as serializable!");
+                            continue;
+                        }
+                        
+                        fieldLookup.StoreElement(propertyInfo);
+                    }
+                    
+                    savableLookup.AddComponent(componentsContainer.identifier, fieldLookup);
+                }
+                sceneLookup.AddSavable(savableComponent.SceneGuid, savableLookup);
+            }
+
+            return sceneLookup;
+        }
+        
+        private DataContainer GetSerializeSaveData(SceneLookup sceneLookup)
+        {
+            DataContainer dataContainer = new DataContainer();
+            
+            foreach (var (savableGuid, savableLookup) in sceneLookup.GetLookup())
+            {
+                foreach (var (componentGuid, componentLookup) in savableLookup.GetLookup())
+                {
+                    foreach (var (fieldName, fieldInfo) in componentLookup.FieldLookup)
+                    {
+                        GuidPath path = new GuidPath()
+                        {
+                            savableGuid = savableGuid,
+                            componentGuid = componentGuid,
+                            memberName = fieldName,
+                            memberTypes = fieldInfo.MemberType
+                        };
+                        
+                        dataContainer.AddObject(fieldInfo.GetValue(componentLookup.Component), path);
+                    }
+                    
+                    foreach (var (propertyName, propertyInfo) in componentLookup.PropertyLookup)
+                    {
+                        GuidPath path = new GuidPath()
+                        {
+                            savableGuid = savableGuid,
+                            componentGuid = componentGuid,
+                            memberName = propertyName,
+                            memberTypes = propertyInfo.MemberType
+                        };
+                        
+                        dataContainer.AddObject(propertyInfo.GetValue(componentLookup.Component), path);
+                    }
+                }
+            }
+
+            return dataContainer;
+        }
+        
+        /// <summary>
+        /// buffer.TryGet -> savable is not found (and it is not a prefab that needs to be instantiated) -> for downwards compatibility that mean, the buffer has deprecated data of a previous version.
+        /// If there is data on the current savable the buffer does not know -> it suggests there is new data that can be initialized with default values.
+        /// </summary>
+        /// <param name="sceneLookup"></param>
+        /// <param name="deserializedDataContainer"></param>
+        /// <param name="onBufferHasExtraData"></param>
+        private void ApplyDeserializedSaveData(SceneLookup sceneLookup, DataContainer deserializedDataContainer, Action onBufferHasExtraData = null)
+        {
+            foreach (var (obj, guidPathList) in deserializedDataContainer.Lookup)
+            {
+                foreach (GuidPath guidPath in guidPathList)
+                {
+                    if (!sceneLookup.GetLookup().TryGetValue(guidPath.savableGuid, out SavableLookup savableLookup))
+                    {
+                        onBufferHasExtraData?.Invoke();
+                        continue;
+                    }
+                    
+                    if (!savableLookup.GetLookup().TryGetValue(guidPath.componentGuid, out ComponentLookup componentLookup))
+                    {
+                        onBufferHasExtraData?.Invoke();
+                        continue;
+                    }
+                    
+                    switch (guidPath.memberTypes)
+                    {
+                        case MemberTypes.Field:
+                            if (!componentLookup.FieldLookup.TryGetValue(guidPath.memberName, out FieldInfo fieldInfo))
+                            {
+                                onBufferHasExtraData?.Invoke();
+                                continue;
+                            }
+                            
+                            fieldInfo.SetValue(componentLookup.Component, obj);
+                            break;
+                        case MemberTypes.Property:
+                            if (!componentLookup.PropertyLookup.TryGetValue(guidPath.memberName, out PropertyInfo propertyInfo))
+                            {
+                                onBufferHasExtraData?.Invoke();
+                                continue;
+                            }
+                            
+                            propertyInfo.SetValue(componentLookup.Component, obj);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                }
+            }
+        }
+    }
+
+    public class SceneLookup
+    {
+        private readonly Dictionary<string, SavableLookup> _savableLookup = new();
+
+        public Dictionary<string, SavableLookup> GetLookup() => _savableLookup;
+
+        public void AddSavable(string identifier, SavableLookup savableLookup)
+        {
+            _savableLookup.Add(identifier, savableLookup);
+        }
+
+        public bool TryGetSavable(string identifier, out SavableLookup savableLookup)
+        {
+            return _savableLookup.TryGetValue(identifier, out savableLookup);
+        }
+    }
+
+    public class SavableLookup
+    {
+        private readonly Dictionary<string, ComponentLookup> _componentLookup = new();
+
+        public Dictionary<string, ComponentLookup> GetLookup() => _componentLookup;
+
+        public void AddComponent(string identifier, ComponentLookup componentLookup)
+        {
+            _componentLookup.Add(identifier, componentLookup);
+        }
+        
+        public bool TryGetComponent(string identifier, out ComponentLookup componentLookup)
+        {
+            return _componentLookup.TryGetValue(identifier, out componentLookup);
+        }
+    }
+
+    public class ComponentLookup
+    {
+        public Dictionary<string, FieldInfo> FieldLookup { get; private set; }
+        public Dictionary<string, PropertyInfo> PropertyLookup { get; private set; }
+        public object Component { get; }
+
+        public ComponentLookup(object component)
+        {
+            Component = component;
+            FieldLookup = new Dictionary<string, FieldInfo>();
+            PropertyLookup = new Dictionary<string, PropertyInfo>();
+        }
+
+        public void StoreElement(FieldInfo fieldInfo)
+        {
+            FieldLookup.Add(fieldInfo.Name, fieldInfo);
+        }
+        
+        public void StoreElement(PropertyInfo propertyInfo)
+        {
+            PropertyLookup.Add(propertyInfo.Name, propertyInfo);
+        }
+    }
+    
+    [Serializable]
+    public class DataContainer
+    {
+        private Dictionary<object, List<GuidPath>> _usageLookup = new ();
+
+        public Dictionary<object, List<GuidPath>> Lookup => _usageLookup;
+
+        public void AddObject(object obj, GuidPath guidPath)
+        {
+            Debug.Log(_usageLookup.ContainsKey(obj));
+            if (!_usageLookup.TryGetValue(obj, out List<GuidPath> guidPathList))
+            {
+                guidPathList = new List<GuidPath>();
+                _usageLookup.Add(obj, guidPathList);
+            }
+            
+            guidPathList.Add(guidPath);
         }
     }
 
     [Serializable]
-    public class SceneBuffer
+    public struct GuidPath
     {
-        private readonly Dictionary<string, SavableBuffer> _savableLookup = new();
-
-        public Dictionary<string, SavableBuffer> GetLookup() => _savableLookup;
-
-        public void AddSavable(string identifier, SavableBuffer savableBuffer)
-        {
-            _savableLookup.Add(identifier, savableBuffer);
-        }
-
-        public bool TryGetSavable(string identifier, out SavableBuffer savableBuffer)
-        {
-            return _savableLookup.TryGetValue(identifier, out savableBuffer);
-        }
-    }
-
-    [Serializable]
-    public class SavableBuffer
-    {
-        private readonly Dictionary<string, ComponentBuffer> _componentLookup = new();
-
-        public Dictionary<string, ComponentBuffer> GetLookup() => _componentLookup;
-
-        public void AddComponent(string identifier, ComponentBuffer componentBuffer)
-        {
-            _componentLookup.Add(identifier, componentBuffer);
-        }
-        
-        public bool TryGetComponent(string identifier, out ComponentBuffer componentBuffer)
-        {
-            return _componentLookup.TryGetValue(identifier, out componentBuffer);
-        }
-    }
-
-    [Serializable]
-    public class ComponentBuffer
-    {
-        private readonly Dictionary<string, object> _dataLookup = new();
-
-        public Dictionary<string, object> GetLookup() => _dataLookup;
-        
-        public void StoreElement(FieldInfo fieldInfo, object fieldParent)
-        {
-            _dataLookup.Add(fieldInfo.Name, fieldInfo.GetValue(fieldParent));
-        }
-        
-        public void StoreElement(PropertyInfo fieldInfo, object fieldParent)
-        {
-            _dataLookup.Add(fieldInfo.Name, fieldInfo.GetValue(fieldParent));
-        }
-
-        public bool TryReadElement(string identifier, out object objectBuffer)
-        {
-            return _dataLookup.TryGetValue(identifier, out objectBuffer);
-        }
+        public string savableGuid;
+        public string componentGuid;
+        public string memberName;
+        public MemberTypes memberTypes;
     }
 }

@@ -365,7 +365,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0}
 --- !u!23 &1238578333949386653
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -458,7 +457,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0}
 --- !u!114 &7670084543858876572
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -471,7 +469,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0}
 --- !u!135 &7727898943383520388
 SphereCollider:
   m_ObjectHideFlags: 0
