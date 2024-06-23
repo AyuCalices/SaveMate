@@ -522,10 +522,8 @@ MonoBehaviour:
     component: {fileID: 5098636320315524047}
   serializeFieldRemovedSavableList: []
   serializeFieldSavableReferenceList:
-  - guid: d19094cb-1bc1-4af7-a5dc-86e68738ac73
-    component: {fileID: 7727898943383520388}
-  - guid: e44ab4e0-f528-41e2-86d0-10bc9dacb540
-    component: {fileID: 7670084543858876572}
+  - guid: 0d04fd46-b633-4440-ad3b-929080626838
+    component: {fileID: 5098636320315524047}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

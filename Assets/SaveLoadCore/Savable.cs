@@ -132,9 +132,8 @@ namespace SaveLoadCore
         private void SetupAll(bool isCreateCall)
         {
             prefabSource = PrefabUtility.GetCorrespondingObjectFromOriginalSource(gameObject);
-            
-            UpdateSavableComponents(isCreateCall);
-            UpdateSavableReferenceComponents(isCreateCall);
+            UpdateSavableComponents();
+            UpdateSavableReferenceComponents();
 
             if (gameObject.scene.name != null)
             {
@@ -172,16 +171,15 @@ namespace SaveLoadCore
 
         private void SetupSceneGuid(bool isCreatCall)
         {
-            //TODO: duplicate code
-            if (isCreatCall || string.IsNullOrEmpty(serializeFieldSceneGuid))
+            if (isCreatCall)
+            {
+                SetSceneGuidGroup(Guid.NewGuid().ToString());
+            }
+            else if (string.IsNullOrEmpty(serializeFieldSceneGuid) && string.IsNullOrEmpty(_resetBufferSceneGuid))
             {
                 // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
                 // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                if (!isCreatCall && string.IsNullOrEmpty(_resetBufferSceneGuid))
-                {
-                    ChangingGuidWarning(nameof(serializeFieldSceneGuid)); 
-                }
-
+                ChangingGuidWarning(nameof(serializeFieldSceneGuid));
                 SetSceneGuidGroup(Guid.NewGuid().ToString());
             }
         }
@@ -197,7 +195,13 @@ namespace SaveLoadCore
             _resetBufferSceneGuid = guid;
         }
 
-        private void SetReferenceGuidGroup(int index, string guid)
+        private void SetSavableReferenceGuidGroup(int index, string guid)
+        {
+            serializeFieldSavableReferenceList[index].guid = guid;
+            _resetBufferSavableReferenceList[index].guid = guid;
+        }
+        
+        private void SetCurrentSavableGuidGroup(int index, string guid)
         {
             serializeFieldSavableReferenceList[index].guid = guid;
             _resetBufferSavableReferenceList[index].guid = guid;
@@ -215,7 +219,7 @@ namespace SaveLoadCore
             _resetBufferCurrentSavableList.Remove(componentsContainer);
         }
 
-        private void UpdateSavableComponents(bool isCreatCall)
+        private void UpdateSavableComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
             var foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
@@ -233,17 +237,12 @@ namespace SaveLoadCore
                 }
                 else
                 {
-                    //TODO: duplicate code
-                    if (string.IsNullOrEmpty(currentSavableContainer.guid))
+                    // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
+                    // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
+                    if (string.IsNullOrEmpty(currentSavableContainer.guid) && string.IsNullOrEmpty(_resetBufferCurrentSavableList[index].guid))
                     {
-                        // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
-                        // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                        if (!isCreatCall && string.IsNullOrEmpty(_resetBufferCurrentSavableList[index].guid))
-                        {
-                            ChangingGuidWarning(nameof(currentSavableContainer));
-                        }
-                        
-                        currentSavableContainer.guid = Guid.NewGuid().ToString();
+                        ChangingGuidWarning(nameof(currentSavableContainer));
+                        SetCurrentSavableGuidGroup(index, Guid.NewGuid().ToString());
                     }
                     
                     foundElements.Remove(currentSavableContainer.component);
@@ -271,7 +270,7 @@ namespace SaveLoadCore
             }
         }
         
-        private void UpdateSavableReferenceComponents(bool isCreatCall)
+        private void UpdateSavableReferenceComponents()
         {
             if (serializeFieldSavableReferenceList.Count == 0) return;
             
@@ -285,17 +284,13 @@ namespace SaveLoadCore
             
             if (savableReferenceContainer.component == null) return;
 
-            //TODO: duplicate code & something is weird
-            if (isCreatCall || string.IsNullOrEmpty(savableReferenceContainer.guid))
+            //TODO: will always throw a warning anyway
+            if (string.IsNullOrEmpty(savableReferenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
             {
                 // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
                 // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                if (!isCreatCall && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
-                {
-                    ChangingGuidWarning(nameof(savableReferenceContainer.guid));
-                }
-
-                SetReferenceGuidGroup(_resetBufferSavableReferenceList.Count - 1, Guid.NewGuid().ToString());
+                ChangingGuidWarning(nameof(savableReferenceContainer));
+                SetSavableReferenceGuidGroup(serializeFieldSavableReferenceList.Count - 1, Guid.NewGuid().ToString());
             }
         }
         
