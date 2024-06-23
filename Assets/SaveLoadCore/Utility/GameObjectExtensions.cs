@@ -25,25 +25,24 @@ namespace SaveLoadCore.Utility
         
         public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
         {
-            List<T> objectsInScene = new List<T>();
-            if (scene.isLoaded)
+            var objectsInScene = new List<T>();
+            if (!scene.isLoaded) return objectsInScene;
+            
+            var rootObjects = scene.GetRootGameObjects();
+            foreach (GameObject go in rootObjects)
             {
-                GameObject[] rootObjects = scene.GetRootGameObjects();
-                foreach (GameObject go in rootObjects)
-                {
-                    T[] children = go.GetComponentsInChildren<T>(includeInactive);
-                    objectsInScene.AddRange(children);
-                }
+                var children = go.GetComponentsInChildren<T>(includeInactive);
+                objectsInScene.AddRange(children);
             }
             return objectsInScene;
         }
 
         public static List<T> FindObjectsOfTypeInAllScenes<T>(bool includeInactive) where T : Object
         {
-            List<T> objectsInAllScenes = new List<T>();
-            for (int i = 0; i < SceneManager.sceneCount; i++)
+            var objectsInAllScenes = new List<T>();
+            for (var i = 0; i < SceneManager.sceneCount; i++)
             {
-                Scene scene = SceneManager.GetSceneAt(i);
+                var scene = SceneManager.GetSceneAt(i);
                 objectsInAllScenes.AddRange(FindObjectsOfTypeInScene<T>(scene, includeInactive));
             }
             return objectsInAllScenes;

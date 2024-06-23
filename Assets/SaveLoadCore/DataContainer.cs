@@ -25,14 +25,14 @@ namespace SaveLoadCore
     {
         public static Dictionary<Type, List<string>> GetFieldsAndPropertiesWithAttribute<T>() where T : Attribute
         {
-            Dictionary<Type, List<string>> typeLookup = new Dictionary<Type, List<string>>();
+            var typeLookup = new Dictionary<Type, List<string>>();
             
             // Get all types in the current assembly
             var types = Assembly.GetExecutingAssembly().GetTypes();
 
             foreach (var type in types)
             {
-                List<string> newTypeElement = new List<string>();
+                var newTypeElement = new List<string>();
                 GetFieldsAndPropertiesWithAttributeOnType<T>(type, ref newTypeElement);
                 typeLookup.Add(type, newTypeElement);
             }
@@ -67,7 +67,7 @@ namespace SaveLoadCore
         
         public static List<FieldInfo> GetFieldInfos<T>(Type type) where T : Attribute
         {
-            List<FieldInfo> foundFieldInfos = new List<FieldInfo>();
+            var foundFieldInfos = new List<FieldInfo>();
             
             // Get all fields of the type
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
@@ -85,7 +85,7 @@ namespace SaveLoadCore
 
         public static List<PropertyInfo> GetPropertyInfos<T>(Type type) where T : Attribute
         {
-            List<PropertyInfo> foundPropertyInfos = new List<PropertyInfo>();
+            var foundPropertyInfos = new List<PropertyInfo>();
             
             // Get all properties of the type
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
@@ -135,21 +135,19 @@ namespace SaveLoadCore
         
         public static List<Component> GetComponentsWithTypeCondition(GameObject gameObject, params Func<Type, bool>[] collectionConditions)
         {
-            List<Component> componentsWithAttribute = new List<Component>();
-            Component[] allComponents = gameObject.GetComponents<Component>();
+            var componentsWithAttribute = new List<Component>();
+            var allComponents = gameObject.GetComponents<Component>();
 
             foreach (Component component in allComponents)
             {
-                if (component != null)
+                if (component == null) continue;
+                
+                var componentType = component.GetType();
+                foreach (Func<Type,bool> condition in collectionConditions)
                 {
-                    Type componentType = component.GetType();
-
-                    foreach (Func<Type,bool> condition in collectionConditions)
+                    if (condition.Invoke(componentType))
                     {
-                        if (condition.Invoke(componentType))
-                        {
-                            componentsWithAttribute.Add(component);
-                        }
+                        componentsWithAttribute.Add(component);
                     }
                 }
             }

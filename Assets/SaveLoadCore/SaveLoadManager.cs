@@ -7,13 +7,14 @@ namespace SaveLoadCore
 {
     public static class SaveLoadManager
     {
+        //TODO: probably set more for scenes?
         private static readonly HashSet<(string, object)> SavableList = new HashSet<(string, object)>();
         
         public static void Save<T>(T data, string saveName = "/player.data", string savePath = "") where T : class
         {
-            BinaryFormatter formatter = new BinaryFormatter();
-            string path = Application.persistentDataPath + savePath + saveName;
-            FileStream stream = new FileStream(path, FileMode.Create);
+            var formatter = new BinaryFormatter();
+            var path = Application.persistentDataPath + savePath + saveName;
+            var stream = new FileStream(path, FileMode.Create);
 
             formatter.Serialize(stream, data);
             stream.Close();
@@ -21,21 +22,19 @@ namespace SaveLoadCore
     
         public static T Load<T>(string saveName = "/player.data", string savePath = "") where T : class 
         {
-            string path = Application.persistentDataPath + savePath + saveName;
+            var path = Application.persistentDataPath + savePath + saveName;
             if (File.Exists(path))
             {
-                BinaryFormatter formatter = new BinaryFormatter();
-                FileStream stream = new FileStream(path, FileMode.Open);
+                var formatter = new BinaryFormatter();
+                var stream = new FileStream(path, FileMode.Open);
 
-                T data = formatter.Deserialize(stream) as T;
+                var data = formatter.Deserialize(stream) as T;
                 stream.Close();
                 return data;
             }
-            else
-            {
-                Debug.LogError("Save file not found in " + path);
-                return null;
-            }
+
+            Debug.LogError("Save file not found in " + path);
+            return null;
         }
 
         public static bool SaveExists(string saveName = "/player.data", string savePath = "")

@@ -512,15 +512,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hierarchyPath: Sphere/
   prefabSource: {fileID: 0}
-  serializeFieldSceneGuid: 6bee226b-11f2-491f-8632-3b5d60c1099d
-  serializeFieldCurrentSavableComponentList:
-  - identifier: 9c2005d0-9518-4057-9f6b-f8f62be373d8
+  serializeFieldSceneGuid: 5e129382-28a8-4e5c-8625-019a8c871bc5
+  serializeFieldCurrentSavableList:
+  - guid: 694cd6e8-e9b6-41de-a41f-850a6c22234b
     component: {fileID: 7670084543858876572}
-  - identifier: 3b9a8052-a026-45e1-9fd2-a9bfa4ab09b0
+  - guid: 204f7d0e-2e10-4674-9ca4-5f22a2af0436
     component: {fileID: 1178416493674920291}
-  - identifier: 2e5b5112-ff06-406d-b6ff-8cde3832c056
+  - guid: 38aee14f-b3b4-4035-8fa2-987434438738
     component: {fileID: 5098636320315524047}
   serializeFieldRemovedSavableList: []
+  serializeFieldSavableReferenceList:
+  - guid: d19094cb-1bc1-4af7-a5dc-86e68738ac73
+    component: {fileID: 7727898943383520388}
+  - guid: e44ab4e0-f528-41e2-86d0-10bc9dacb540
+    component: {fileID: 7670084543858876572}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

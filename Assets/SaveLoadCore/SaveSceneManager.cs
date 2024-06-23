@@ -38,16 +38,16 @@ namespace SaveLoadCore
         
         private SceneLookup BuildSceneLookup(List<Savable> savableComponents)
         {
-            SceneLookup sceneLookup = new SceneLookup();
-            foreach (Savable savableComponent in savableComponents)
+            var sceneLookup = new SceneLookup();
+            foreach (var savableComponent in savableComponents)
             {
                 //gather all components on a savable
-                SavableLookup savableLookup = new SavableLookup();
-                foreach (ComponentsContainer componentsContainer in savableComponent.SavableComponentList)
+                var savableLookup = new SavableLookup();
+                foreach (var componentsContainer in savableComponent.SavableList)
                 {
                     //gather all fields on a component
-                    ComponentLookup fieldLookup = new ComponentLookup(componentsContainer.component);
-                    foreach (FieldInfo fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
+                    var componentLookup = new ComponentLookup(componentsContainer.component);
+                    foreach (var fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
                     {
                         //TODO: duplicate code with property
                         if (typeof(UnityEngine.Object).IsAssignableFrom(fieldInfo.FieldType))
@@ -62,10 +62,10 @@ namespace SaveLoadCore
                             continue;
                         }
                         
-                        fieldLookup.StoreElement(fieldInfo);
+                        componentLookup.StoreElement(fieldInfo);
                     }
 
-                    foreach (PropertyInfo propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
+                    foreach (var propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
                     {
                         
                         if (typeof(UnityEngine.Object).IsAssignableFrom(propertyInfo.PropertyType))
@@ -80,10 +80,10 @@ namespace SaveLoadCore
                             continue;
                         }
                         
-                        fieldLookup.StoreElement(propertyInfo);
+                        componentLookup.StoreElement(propertyInfo);
                     }
                     
-                    savableLookup.AddComponent(componentsContainer.identifier, fieldLookup);
+                    savableLookup.AddComponent(componentsContainer.guid, componentLookup);
                 }
                 sceneLookup.AddSavable(savableComponent.SceneGuid, savableLookup);
             }
@@ -93,7 +93,7 @@ namespace SaveLoadCore
         
         private DataContainer GetSerializeSaveData(SceneLookup sceneLookup)
         {
-            DataContainer dataContainer = new DataContainer();
+            var dataContainer = new DataContainer();
             
             foreach (var (savableGuid, savableLookup) in sceneLookup.GetLookup())
             {
@@ -101,7 +101,7 @@ namespace SaveLoadCore
                 {
                     foreach (var (fieldName, fieldInfo) in componentLookup.FieldLookup)
                     {
-                        GuidPath path = new GuidPath()
+                        var path = new GuidPath()
                         {
                             savableGuid = savableGuid,
                             componentGuid = componentGuid,
@@ -114,7 +114,7 @@ namespace SaveLoadCore
                     
                     foreach (var (propertyName, propertyInfo) in componentLookup.PropertyLookup)
                     {
-                        GuidPath path = new GuidPath()
+                        var path = new GuidPath()
                         {
                             savableGuid = savableGuid,
                             componentGuid = componentGuid,
@@ -141,15 +141,15 @@ namespace SaveLoadCore
         {
             foreach (var (obj, guidPathList) in deserializedDataContainer.Lookup)
             {
-                foreach (GuidPath guidPath in guidPathList)
+                foreach (var guidPath in guidPathList)
                 {
-                    if (!sceneLookup.GetLookup().TryGetValue(guidPath.savableGuid, out SavableLookup savableLookup))
+                    if (!sceneLookup.GetLookup().TryGetValue(guidPath.savableGuid, out var savableLookup))
                     {
                         onBufferHasExtraData?.Invoke();
                         continue;
                     }
                     
-                    if (!savableLookup.GetLookup().TryGetValue(guidPath.componentGuid, out ComponentLookup componentLookup))
+                    if (!savableLookup.GetLookup().TryGetValue(guidPath.componentGuid, out var componentLookup))
                     {
                         onBufferHasExtraData?.Invoke();
                         continue;
@@ -158,7 +158,7 @@ namespace SaveLoadCore
                     switch (guidPath.memberTypes)
                     {
                         case MemberTypes.Field:
-                            if (!componentLookup.FieldLookup.TryGetValue(guidPath.memberName, out FieldInfo fieldInfo))
+                            if (!componentLookup.FieldLookup.TryGetValue(guidPath.memberName, out var fieldInfo))
                             {
                                 onBufferHasExtraData?.Invoke();
                                 continue;
@@ -167,7 +167,7 @@ namespace SaveLoadCore
                             fieldInfo.SetValue(componentLookup.Component, obj);
                             break;
                         case MemberTypes.Property:
-                            if (!componentLookup.PropertyLookup.TryGetValue(guidPath.memberName, out PropertyInfo propertyInfo))
+                            if (!componentLookup.PropertyLookup.TryGetValue(guidPath.memberName, out var propertyInfo))
                             {
                                 onBufferHasExtraData?.Invoke();
                                 continue;
@@ -244,17 +244,15 @@ namespace SaveLoadCore
     [Serializable]
     public class DataContainer
     {
-        private Dictionary<object, List<GuidPath>> _usageLookup = new ();
-
-        public Dictionary<object, List<GuidPath>> Lookup => _usageLookup;
+        public Dictionary<object, List<GuidPath>> Lookup { get; } = new ();
 
         public void AddObject(object obj, GuidPath guidPath)
         {
-            Debug.Log(_usageLookup.ContainsKey(obj));
-            if (!_usageLookup.TryGetValue(obj, out List<GuidPath> guidPathList))
+            Debug.Log(Lookup.ContainsKey(obj));
+            if (!Lookup.TryGetValue(obj, out List<GuidPath> guidPathList))
             {
                 guidPathList = new List<GuidPath>();
-                _usageLookup.Add(obj, guidPathList);
+                Lookup.Add(obj, guidPathList);
             }
             
             guidPathList.Add(guidPath);
