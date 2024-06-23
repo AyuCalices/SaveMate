@@ -160,12 +160,11 @@ MonoBehaviour:
   hierarchyPath: 
   prefabSource: {fileID: 7583157453927439840}
   serializeFieldSceneGuid: 
-  serializeFieldCurrentSavableList:
-  - guid: 745b96c7-cfa2-437e-b616-6b543616ac3c
+  serializeFieldSavableList:
+  - guid: 1a8a1ec8-b38e-4fe9-9c4c-036c49c93533
     component: {fileID: 5705740703011476777}
-  - guid: 4a785c2b-15f4-4803-a9e1-f7841c1de7f4
+  - guid: 9c421b4f-04ca-4d9c-af9e-dbe2d955b02c
     component: {fileID: 6120796503758315296}
-  - guid: 7a3fa3a9-54ba-4362-b3cc-156bf8816638
+  - guid: 50f6dc59-44a6-43c1-a19b-a3cbc93149e4
     component: {fileID: 2091673615103755590}
-  serializeFieldRemovedSavableList: []
   serializeFieldSavableReferenceList: []

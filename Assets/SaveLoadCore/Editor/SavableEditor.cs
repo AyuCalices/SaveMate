@@ -11,7 +11,6 @@ namespace SaveLoadCore.Editor
         private SerializedProperty _hierarchyPathProperty;
         private SerializedProperty _prefabSourceProperty;
         private SerializedProperty _currentSavableListProperty;
-        private SerializedProperty _removedSavableListProperty;
         private SerializedProperty _savableReferenceListProperty;
         
         private static bool _showCurrentSavableList;
@@ -23,8 +22,7 @@ namespace SaveLoadCore.Editor
             _sceneGuidProperty = serializedObject.FindProperty("serializeFieldSceneGuid");
             _hierarchyPathProperty = serializedObject.FindProperty("hierarchyPath");
             _prefabSourceProperty = serializedObject.FindProperty("prefabSource");
-            _currentSavableListProperty = serializedObject.FindProperty("serializeFieldCurrentSavableList");
-            _removedSavableListProperty = serializedObject.FindProperty("serializeFieldRemovedSavableList");
+            _currentSavableListProperty = serializedObject.FindProperty("serializeFieldSavableList");
             _savableReferenceListProperty = serializedObject.FindProperty("serializeFieldSavableReferenceList");
         }
         
@@ -40,7 +38,6 @@ namespace SaveLoadCore.Editor
             EditorGUILayout.PropertyField(_hierarchyPathProperty);
             EditorGUILayout.PropertyField(_prefabSourceProperty);
             ComponentContainerListLayout(_currentSavableListProperty, "Current Savable List", ref _showCurrentSavableList);
-            ComponentContainerListLayout(_removedSavableListProperty, "Removed Savable List", ref _showRemovedSavableList);
             
             // Enable editing back
             GUI.enabled = true;

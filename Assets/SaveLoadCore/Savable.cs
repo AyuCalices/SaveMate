@@ -7,7 +7,6 @@ using UnityEngine;
 namespace SaveLoadCore
 {
     //TODO: there might be another case, when the buffer and the serializeField must be triggered!
-    //TODO: prefab: delete element -> restart editor -> reapply element will result in changed id!
     public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
     {
         [SerializeField] private string hierarchyPath;
@@ -16,10 +15,8 @@ namespace SaveLoadCore
         [SerializeField] private string serializeFieldSceneGuid;
         private string _resetBufferSceneGuid;
         
-        [SerializeField] private List<ComponentsContainer> serializeFieldCurrentSavableList = new();
-        private readonly List<ComponentsContainer> _resetBufferCurrentSavableList = new();
-        
-        [SerializeField] private List<ComponentsContainer> serializeFieldRemovedSavableList = new();
+        [SerializeField] private List<ComponentsContainer> serializeFieldSavableList = new();
+        private readonly List<ComponentsContainer> _resetBufferSavableList = new();
 
         [SerializeField] private List<ComponentsContainer> serializeFieldSavableReferenceList = new();
         private readonly List<ComponentsContainer> _resetBufferSavableReferenceList = new();
@@ -27,7 +24,7 @@ namespace SaveLoadCore
         public string HierarchyPath => hierarchyPath;
         public GameObject PrefabSource => prefabSource;
         public string SceneGuid => serializeFieldSceneGuid;
-        public List<ComponentsContainer> SavableList => serializeFieldCurrentSavableList;
+        public List<ComponentsContainer> SavableList => serializeFieldSavableList;
 
         private void ChangingGuidWarning(string fieldName) => Debug.LogWarning($"The parameter '{fieldName}' at the path '{hierarchyPath}' has changed when it wasn't created! This may be normal, if you opened e.g. a prefab.");
         private void UnaccountedComponentError(string guid) => Debug.LogError($"There is an unaccounted guid `{guid}` registered. Maybe you removed a component and then restarted the scene/editor?");
@@ -44,7 +41,6 @@ namespace SaveLoadCore
             
             ApplyScriptReloadBuffer();
             _resetBufferSceneGuid = serializeFieldSceneGuid;
-            CheckForUnaccountedRemovedSavableElement();
             SetupAll(false);
         }
         
@@ -79,16 +75,16 @@ namespace SaveLoadCore
         /// </summary>
         private void ApplyResetBuffer()
         {
-            serializeFieldCurrentSavableList.Clear();
-            foreach (var currentSavableContainer in _resetBufferCurrentSavableList)
+            serializeFieldSavableList.Clear();
+            foreach (var savableContainer in _resetBufferSavableList)
             {
-                serializeFieldCurrentSavableList.Add(currentSavableContainer);
+                serializeFieldSavableList.Add(savableContainer);
             }
             
             serializeFieldSavableReferenceList.Clear();
-            foreach (var savableReferenceContainer in _resetBufferSavableReferenceList)
+            foreach (var referenceContainer in _resetBufferSavableReferenceList)
             {
-                serializeFieldSavableReferenceList.Add(savableReferenceContainer);
+                serializeFieldSavableReferenceList.Add(referenceContainer);
             }
         }
 
@@ -99,32 +95,21 @@ namespace SaveLoadCore
         /// </summary>
         private void ApplyScriptReloadBuffer()
         {
-            if (serializeFieldCurrentSavableList.Count != _resetBufferCurrentSavableList.Count)
+            if (serializeFieldSavableList.Count != _resetBufferSavableList.Count)
             {
-                _resetBufferCurrentSavableList.Clear();
-                foreach (var currentSavableContainer in serializeFieldCurrentSavableList)
+                _resetBufferSavableList.Clear();
+                foreach (var savableContainer in serializeFieldSavableList)
                 {
-                    _resetBufferCurrentSavableList.Add(currentSavableContainer);
+                    _resetBufferSavableList.Add(savableContainer);
                 }
             }
 
             if (serializeFieldSavableReferenceList.Count != _resetBufferSavableReferenceList.Count)
             {
                 _resetBufferSavableReferenceList.Clear();
-                foreach (var componentsReferenceContainer in serializeFieldSavableReferenceList)
+                foreach (var referenceContainer in serializeFieldSavableReferenceList)
                 {
-                    _resetBufferSavableReferenceList.Add(componentsReferenceContainer);
-                }
-            }
-        }
-        
-        private void CheckForUnaccountedRemovedSavableElement()
-        {
-            foreach (var componentsContainer in serializeFieldRemovedSavableList)
-            {
-                if (componentsContainer.component == null)
-                {
-                    UnaccountedComponentError(componentsContainer.guid);
+                    _resetBufferSavableReferenceList.Add(referenceContainer);
                 }
             }
         }
@@ -201,22 +186,22 @@ namespace SaveLoadCore
             _resetBufferSavableReferenceList[index].guid = guid;
         }
         
-        private void SetCurrentSavableGuidGroup(int index, string guid)
+        private void SetSavableGuidGroup(int index, string guid)
         {
             serializeFieldSavableReferenceList[index].guid = guid;
             _resetBufferSavableReferenceList[index].guid = guid;
         }
 
-        private void AddToCurrentSavableGroup(ComponentsContainer componentsContainer)
+        private void AddToSavableGroup(ComponentsContainer componentsContainer)
         {
-            serializeFieldCurrentSavableList.Add(componentsContainer);
-            _resetBufferCurrentSavableList.Add(componentsContainer);
+            serializeFieldSavableList.Add(componentsContainer);
+            _resetBufferSavableList.Add(componentsContainer);
         }
 
-        private void RemoveFromCurrentSavableGroup(ComponentsContainer componentsContainer)
+        private void RemoveFromSavableGroup(ComponentsContainer componentsContainer)
         {
-            serializeFieldCurrentSavableList.Remove(componentsContainer);
-            _resetBufferCurrentSavableList.Remove(componentsContainer);
+            serializeFieldSavableList.Remove(componentsContainer);
+            _resetBufferSavableList.Remove(componentsContainer);
         }
 
         private void UpdateSavableComponents()
@@ -226,26 +211,25 @@ namespace SaveLoadCore
                 ReflectionUtility.ContainsProperty<SavableAttribute>, ReflectionUtility.ContainsField<SavableAttribute>);
             
             //update removed elements and those that are kept 
-            for (var index = serializeFieldCurrentSavableList.Count - 1; index >= 0; index--)
+            for (var index = serializeFieldSavableList.Count - 1; index >= 0; index--)
             {
-                var currentSavableContainer = serializeFieldCurrentSavableList[index];
+                var savableContainer = serializeFieldSavableList[index];
                 
-                if (!foundElements.Exists(x => x == currentSavableContainer.component))
+                if (!foundElements.Exists(x => x == savableContainer.component))
                 {
-                    serializeFieldRemovedSavableList.Add(currentSavableContainer);
-                    RemoveFromCurrentSavableGroup(currentSavableContainer);
+                    RemoveFromSavableGroup(savableContainer);
                 }
                 else
                 {
                     // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
                     // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                    if (string.IsNullOrEmpty(currentSavableContainer.guid) && string.IsNullOrEmpty(_resetBufferCurrentSavableList[index].guid))
+                    if (string.IsNullOrEmpty(savableContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableList[index].guid))
                     {
-                        ChangingGuidWarning(nameof(currentSavableContainer));
-                        SetCurrentSavableGuidGroup(index, Guid.NewGuid().ToString());
+                        ChangingGuidWarning(nameof(savableContainer));
+                        SetSavableGuidGroup(index, Guid.NewGuid().ToString());
                     }
                     
-                    foundElements.Remove(currentSavableContainer.component);
+                    foundElements.Remove(savableContainer.component);
                 }
             }
 
@@ -254,15 +238,7 @@ namespace SaveLoadCore
             {
                 var guid = Guid.NewGuid().ToString();
                 
-                //make sure a deleted element will have the same id after redo again
-                var removedComponent = serializeFieldRemovedSavableList.Find(x => x.component == foundElement);
-                if (removedComponent != null)
-                {
-                    guid = removedComponent.guid;
-                    serializeFieldRemovedSavableList.Remove(removedComponent);
-                }
-                
-                AddToCurrentSavableGroup(new ComponentsContainer
+                AddToSavableGroup(new ComponentsContainer
                 {
                     guid = guid,
                     component = foundElement
@@ -274,22 +250,22 @@ namespace SaveLoadCore
         {
             if (serializeFieldSavableReferenceList.Count == 0) return;
             
-            var savableReferenceContainer = serializeFieldSavableReferenceList[^1];
-            var duplicates = serializeFieldSavableReferenceList.FindAll(x => x.component == savableReferenceContainer.component);
+            var referenceContainer = serializeFieldSavableReferenceList[^1];
+            var duplicates = serializeFieldSavableReferenceList.FindAll(x => x.component == referenceContainer.component);
             for (var i = 0; i < duplicates.Count - 1; i++)
             {
                 var lastElement = serializeFieldSavableReferenceList.FindLast(x => x.component == duplicates[i].component);
                 lastElement.component = null;
             }
             
-            if (savableReferenceContainer.component == null) return;
+            if (referenceContainer.component == null) return;
 
             //TODO: will always throw a warning anyway
-            if (string.IsNullOrEmpty(savableReferenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
+            if (string.IsNullOrEmpty(referenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
             {
                 // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
                 // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                ChangingGuidWarning(nameof(savableReferenceContainer));
+                ChangingGuidWarning(nameof(referenceContainer));
                 SetSavableReferenceGuidGroup(serializeFieldSavableReferenceList.Count - 1, Guid.NewGuid().ToString());
             }
         }

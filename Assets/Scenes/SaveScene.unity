@@ -421,8 +421,8 @@ GameObject:
   - component: {fileID: 7727898943383520388}
   - component: {fileID: 7670084543858876572}
   - component: {fileID: 1178416493674920291}
-  - component: {fileID: 5098636320315524047}
   - component: {fileID: 8936996256903900505}
+  - component: {fileID: 8936996256903900506}
   m_Layer: 0
   m_Name: Sphere
   m_TagString: Untagged
@@ -445,18 +445,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5098636320315524047
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2524919464705939282}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &7670084543858876572
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -513,17 +501,28 @@ MonoBehaviour:
   hierarchyPath: Sphere/
   prefabSource: {fileID: 0}
   serializeFieldSceneGuid: 5e129382-28a8-4e5c-8625-019a8c871bc5
-  serializeFieldCurrentSavableList:
-  - guid: 694cd6e8-e9b6-41de-a41f-850a6c22234b
+  serializeFieldSavableList:
+  - guid: dd5eca89-dc9f-46c9-8db0-e447577941fb
     component: {fileID: 7670084543858876572}
-  - guid: 204f7d0e-2e10-4674-9ca4-5f22a2af0436
+  - guid: 632bc5e9-cf4d-4859-8ec3-ba101c39360d
     component: {fileID: 1178416493674920291}
-  - guid: 38aee14f-b3b4-4035-8fa2-987434438738
-    component: {fileID: 5098636320315524047}
-  serializeFieldRemovedSavableList: []
+  - guid: 660957b7-8c88-499c-9da6-e5210e62e5a2
+    component: {fileID: 8936996256903900506}
   serializeFieldSavableReferenceList:
   - guid: 0d04fd46-b633-4440-ad3b-929080626838
-    component: {fileID: 5098636320315524047}
+    component: {fileID: 0}
+--- !u!114 &8936996256903900506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2524919464705939282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
