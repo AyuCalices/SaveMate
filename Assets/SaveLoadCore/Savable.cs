@@ -25,6 +25,7 @@ namespace SaveLoadCore
         public GameObject PrefabSource => prefabSource;
         public string SceneGuid => serializeFieldSceneGuid;
         public List<ComponentsContainer> SavableList => serializeFieldSavableList;
+        public List<ComponentsContainer> ReferenceList => serializeFieldSavableReferenceList;
 
         private void ChangingGuidWarning(string fieldName) => Debug.LogWarning($"The parameter '{fieldName}' at the path '{hierarchyPath}' has changed when it wasn't created! This may be normal, if you opened e.g. a prefab.");
         private void UnaccountedComponentError(string guid) => Debug.LogError($"There is an unaccounted guid `{guid}` registered. Maybe you removed a component and then restarted the scene/editor?");
@@ -136,17 +137,7 @@ namespace SaveLoadCore
         
         private void SetupScenePath()
         {
-            var path = gameObject.name;
-            var current = gameObject.transform;
-
-            // Traverse up the hierarchy
-            while (current.parent != null)
-            {
-                current = current.parent;
-                path = current.name + "/" + path;
-            }
-                
-            hierarchyPath = path + "/";
+            hierarchyPath = gameObject.GetScenePath() + "/";
         }
 
         private void ResetScenePath()
@@ -260,7 +251,6 @@ namespace SaveLoadCore
             
             if (referenceContainer.component == null) return;
 
-            //TODO: will always throw a warning anyway
             if (string.IsNullOrEmpty(referenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
             {
                 // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,

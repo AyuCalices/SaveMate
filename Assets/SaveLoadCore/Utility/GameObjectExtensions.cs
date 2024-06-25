@@ -23,6 +23,17 @@ namespace SaveLoadCore.Utility
             return gameObject == null && !ReferenceEquals(gameObject, null);
         }
         
+        /// <summary>
+        /// Checks if a UnityEngine.Object is null, taking into account Unity's special null handling.
+        /// </summary>
+        /// <typeparam name="T">Type of the UnityEngine.Object</typeparam>
+        /// <param name="obj">The object to check</param>
+        /// <returns>True if the object is null or has been destroyed, otherwise false.</returns>
+        public static bool IsUnityNull<T>(this T obj)
+        {
+            return obj == null || obj.Equals(null);
+        }
+        
         public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
         {
             var objectsInScene = new List<T>();
@@ -46,6 +57,21 @@ namespace SaveLoadCore.Utility
                 objectsInAllScenes.AddRange(FindObjectsOfTypeInScene<T>(scene, includeInactive));
             }
             return objectsInAllScenes;
+        }
+        
+        public static string GetScenePath(this GameObject obj)
+        {
+            var path = obj.name;
+            var current = obj.transform;
+
+            // Traverse up the hierarchy
+            while (current.parent != null)
+            {
+                current = current.parent;
+                path = current.name + "/" + path;
+            }
+
+            return path;
         }
     }
     

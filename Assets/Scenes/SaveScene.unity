@@ -254,7 +254,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 705507993}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
+  m_LocalRotation: {x: 0.4082179, y: -0.2345697, z: 0.1093816, w: 0.8754261}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -510,7 +510,7 @@ MonoBehaviour:
     component: {fileID: 8936996256903900506}
   serializeFieldSavableReferenceList:
   - guid: 0d04fd46-b633-4440-ad3b-929080626838
-    component: {fileID: 0}
+    component: {fileID: 3642510548864780201}
 --- !u!114 &8936996256903900506
 MonoBehaviour:
   m_ObjectHideFlags: 0

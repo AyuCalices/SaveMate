@@ -126,7 +126,7 @@ namespace SaveLoadCore.Editor
 
                 // Initialize new element properties if necessary
                 if (newComponentProperty != null) newComponentProperty.objectReferenceValue = null;
-                if (newPathProperty != null) newPathProperty.stringValue = string.Empty;
+                if (newPathProperty != null) newPathProperty.stringValue = Guid.NewGuid().ToString();
             }
 
             EditorGUILayout.EndVertical();
