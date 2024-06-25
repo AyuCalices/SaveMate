@@ -9,11 +9,10 @@ namespace SaveLoadCore
 {
     public class SaveSceneManager : MonoBehaviour
     {
-        //TODO: recursion for nested objects
+        //TODO: implement integrity check -> with meta save file + with tests
         
-        //TODO: implement integrity check
-        [ContextMenu("Gather")]
-        public void GatherSavableComponents()
+        [ContextMenu("Save Scene Data")]
+        public void SaveSceneData()
         {
             var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var sceneLookup = BuildSceneLookup(savableComponents);
@@ -22,104 +21,123 @@ namespace SaveLoadCore
             var savableData = CreateSerializeSaveData(sceneLookup, objectToGuidPathLookup);
             SaveLoadManager.Save(savableData);
         }
-
-        //TODO: reapply Data -> write tests
-        [ContextMenu("Apply")]
-        public void ApplySavableComponents()
+        
+        [ContextMenu("Load Scene Data")]
+        public void LoadSceneData()
         {
             var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var sceneBuffer = BuildSceneLookup(savableComponents);
+            var sceneLookup = BuildSceneLookup(savableComponents);
             var guidPathToObjectLookup = BuildGuidPathToObjectLookup(savableComponents);
             
             var data = SaveLoadManager.Load<DataContainer>();
-            ApplyDeserializedSaveData(data, sceneBuffer, guidPathToObjectLookup, () => Debug.LogWarning("Save-Data has extra data!"));
-            ApplyDeserializedNullData(data, sceneBuffer, () => Debug.LogWarning("Null-Data has extra data!"));
+            ApplyDeserializedSaveData(data, sceneLookup, guidPathToObjectLookup, () => Debug.LogWarning("Save-Data has extra data!"));
+            ApplyDeserializedNullData(data, sceneLookup, () => Debug.LogWarning("Null-Data has extra data!"));
+        }
+        
+        /// <summary>
+        /// Builds a SceneLookup object that organizes and stores metadata about savable components and their fields or properties marked with the SavableAttribute, utilizing reflection to gather this information.
+        /// </summary>
+        /// <param name="savableComponents">The list of savable components the SceneLookup is based on</param>
+        /// <returns>Returns a SceneLookup object containing a hierarchical lookup for MemberInfo data related to the savable components</returns>
+        private SceneLookup BuildSceneLookup(List<Savable> savableComponents)
+        {
+            var sceneLookup = new SceneLookup();
+            foreach (var savable in savableComponents)
+            {
+                //gather all components on a savable
+                var savableLookup = new SceneLookup.Savable();
+                
+                foreach (var componentContainer in savable.SavableList)
+                {
+                    //TODO: this will need recursion for nested objects
+                    
+                    //gather all fields on a component
+                    var objectLookup = new SceneLookup.Savable.Object(componentContainer.component);
+                    
+                    foreach (var fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentContainer.component.GetType()))
+                    {
+                        objectLookup.Members.Add(fieldInfo.Name, fieldInfo);
+                    }
+
+                    foreach (var propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentContainer.component.GetType()))
+                    {
+                        objectLookup.Members.Add(propertyInfo.Name, propertyInfo);
+                    }
+                    
+                    savableLookup.Components.Add(componentContainer.guid, objectLookup);
+                }
+                
+                sceneLookup.Savables.Add(savable.SceneGuid, savableLookup);
+            }
+
+            return sceneLookup;
         }
 
+        /// <summary>
+        /// Builds a dictionary that maps objects to their corresponding GuidPath, based on the provided list of savable components.
+        /// </summary>
+        /// <param name="savableComponents">The list of savable components used to construct the lookup dictionary</param>
+        /// <returns>Returns a dictionary where the keys are objects and the values are GuidPath instances representing their paths</returns>
         private Dictionary<object, GuidPath> BuildObjectToGuidPathLookup(List<Savable> savableComponents)
         {
             Dictionary<object, GuidPath> referenceLookup = new Dictionary<object, GuidPath>();
             
             foreach (var savableComponent in savableComponents)
             {
-                foreach (var componentsContainer in savableComponent.ReferenceList)
+                foreach (var componentContainer in savableComponent.ReferenceList)
                 {
                     GuidPath guidPath = new GuidPath()
                     {
                         savableGuid = savableComponent.SceneGuid,
-                        componentGuid = componentsContainer.guid
+                        componentGuid = componentContainer.guid
                     };
                     
-                    referenceLookup.Add(componentsContainer.component, guidPath);
+                    referenceLookup.Add(componentContainer.component, guidPath);
                 }
             }
 
             return referenceLookup;
         }
         
+        /// <summary>
+        /// Builds a dictionary that maps GuidPath instances to their corresponding objects, based on the provided list of savable components.
+        /// </summary>
+        /// <param name="savableComponents">The list of savable components used to construct the lookup dictionary</param>
+        /// <returns>Returns a dictionary where the keys are GuidPath instances and the values are objects representing the components</returns>
         private Dictionary<GuidPath, object> BuildGuidPathToObjectLookup(List<Savable> savableComponents)
         {
             Dictionary<GuidPath, object> referenceLookup = new Dictionary<GuidPath, object>();
             
             foreach (var savableComponent in savableComponents)
             {
-                foreach (var componentsContainer in savableComponent.ReferenceList)
+                foreach (var componentContainer in savableComponent.ReferenceList)
                 {
                     GuidPath guidPath = new GuidPath()
                     {
                         savableGuid = savableComponent.SceneGuid,
-                        componentGuid = componentsContainer.guid
+                        componentGuid = componentContainer.guid
                     };
                     
-                    referenceLookup.Add(guidPath, componentsContainer.component);
+                    referenceLookup.Add(guidPath, componentContainer.component);
                 }
             }
 
             return referenceLookup;
-        }
-
-        private SceneLookup BuildSceneLookup(List<Savable> savableComponents)
-        {
-            var sceneLookup = new SceneLookup();
-            foreach (var savableComponent in savableComponents)
-            {
-                //gather all components on a savable
-                var savableLookup = new SavableLookup();
-                
-                foreach (var componentsContainer in savableComponent.SavableList)
-                {
-                    //gather all fields on a component
-                    var objectLookup = new ObjectLookup(componentsContainer.component);
-                    
-                    foreach (var fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentsContainer.component.GetType()))
-                    {
-                        objectLookup.StoreElement(fieldInfo.Name, fieldInfo);
-                    }
-
-                    foreach (var propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentsContainer.component.GetType()))
-                    {
-                        objectLookup.StoreElement(propertyInfo.Name, propertyInfo);
-                    }
-                    
-                    savableLookup.AddComponent(componentsContainer.guid, objectLookup);
-                }
-                
-                sceneLookup.AddSavable(savableComponent.SceneGuid, savableLookup);
-            }
-
-            return sceneLookup;
         }
         
         private DataContainer CreateSerializeSaveData(SceneLookup sceneLookup, Dictionary<object, GuidPath> referenceLookup)
         {
             var dataContainer = new DataContainer();
             
-            foreach (var (savableGuid, savableLookup) in sceneLookup.GetLookup())
+            foreach (var (savableGuid, savableLookup) in sceneLookup.Savables)
             {
-                foreach (var (componentGuid, objectLookup) in savableLookup.GetLookup())
+                foreach (var (componentGuid, objectLookup) in savableLookup.Components)
                 {
-                    foreach (var (memberName, memberInfo) in objectLookup.MemberLookupList)
+                    foreach (var (memberName, memberInfo) in objectLookup.Members)
                     {
+                        //TODO: this will need recursion for nested objects
+                        
+                        //get the actual path to the object (which should be saved)
                         var targetGuidPath = new GuidPath()
                         {
                             savableGuid = savableGuid,
@@ -127,18 +145,20 @@ namespace SaveLoadCore
                             memberName = memberName
                         };
                         
+                        //get the actual object (which should be saved)
                         var reflectedObject = memberInfo switch
                         {
-                            FieldInfo fieldInfo => fieldInfo.GetValue(objectLookup.MemberOwner),
-                            PropertyInfo propertyInfo => propertyInfo.GetValue(objectLookup.MemberOwner),
+                            FieldInfo fieldInfo => fieldInfo.GetValue(objectLookup.Owner),
+                            PropertyInfo propertyInfo => propertyInfo.GetValue(objectLookup.Owner),
                             _ => throw new NotImplementedException($"The type of member {memberInfo.Name} on path {targetGuidPath.ToString()} is not supported!")
                         };
 
-                        if (reflectedObject.IsUnityNull())
+                        //store the data inside a component
+                        if (reflectedObject.IsUnityNull())     //support for null reference
                         {
                             dataContainer.AddNullPath(targetGuidPath);
                         }
-                        else if (reflectedObject is Object)
+                        else if (reflectedObject is Object)     //support for unity objects TODO: prefabs detection and instantiation
                         {
                             if (reflectedObject is Component)
                             {
@@ -159,7 +179,7 @@ namespace SaveLoadCore
                                 throw new NotImplementedException("Saving Unity Assets is not supported yet!");
                             }
                         }
-                        else
+                        else     //use basic c# serialization
                         {
                             if (!SerializationHelper.IsSerializable(reflectedObject.GetType()))
                             {
@@ -174,32 +194,29 @@ namespace SaveLoadCore
 
             return dataContainer;
         }
-
-        /// <summary>
-        /// buffer.TryGet -> savable is not found (and it is not a prefab that needs to be instantiated) -> for downwards compatibility that mean, the buffer has deprecated data of a previous version.
-        /// If there is data on the current savable the buffer does not know -> it suggests there is new data that can be initialized with default values.
-        /// </summary>
-        /// <param name="sceneLookup"></param>
-        /// <param name="referenceLookup"></param>
-        /// <param name="deserializedDataContainer"></param>
-        /// <param name="onBufferHasExtraData"></param>
+        
         private void ApplyDeserializedSaveData(DataContainer deserializedDataContainer, SceneLookup sceneLookup, Dictionary<GuidPath, object> referenceLookup, Action onBufferHasExtraData = null)
         {
             foreach (var (obj, guidPathList) in deserializedDataContainer.Lookup)
             {
                 foreach (var guidPath in guidPathList)
                 {
+                    //TODO: prefabs detection and instantiation
+                    //TODO: this will need recursion for nested objects
+                    
                     if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out MemberInfo memberInfo))
                     {
+                        //Occurence: this is new data (either old version or prefab)
                         onBufferHasExtraData?.Invoke();
                         continue;
                     }
 
                     if (obj is GuidPath referenceGuidPath)
                     {
-                        //TODO: either new data, or component is missing
                         if (!referenceLookup.TryGetValue(referenceGuidPath, out object reference))
                         {
+                            //Occurence: 1. this is new data (either old version or prefab)
+                            //           2. component is missing (guid changed or was removed)
                             onBufferHasExtraData?.Invoke();
                             continue;
                         }
@@ -230,12 +247,20 @@ namespace SaveLoadCore
             }
         }
         
+        /// <summary>
+        /// Applies deserialized null data to the specified members within a SceneLookup based on the provided deserialized data container.
+        /// </summary>
+        /// <param name="deserializedDataContainer">The container holding deserialized data including null path lookups</param>
+        /// <param name="sceneLookup">The SceneLookup object used to find the members to be set to null</param>
+        /// <param name="onBufferHasExtraData">An optional action to be invoked if there is extra data in the buffer that does not match any members in the SceneLookup</param>
         private void ApplyDeserializedNullData(DataContainer deserializedDataContainer, SceneLookup sceneLookup, Action onBufferHasExtraData = null)
         {
             foreach (var guidPath in deserializedDataContainer.NullPathLookup)
             {
                 if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out MemberInfo memberInfo))
                 {
+                    //Occurence: this is new data (old version ony i guess)
+                    
                     onBufferHasExtraData?.Invoke();
                     continue;
                 }
@@ -252,64 +277,52 @@ namespace SaveLoadCore
             }
         }
         
+        /// <summary>
+        /// Attempts to retrieve a member and its owner object from the SceneLookup based on the provided GuidPath.
+        /// </summary>
+        /// <param name="sceneLookup">The SceneLookup object used to locate the member</param>
+        /// <param name="guidPath">The GuidPath containing the identifiers for the savable, component, and member</param>
+        /// <param name="memberOwner">The output parameter that will hold the owner object of the member if found</param>
+        /// <param name="member">The output parameter that will hold the MemberInfo if found</param>
+        /// <returns>Returns true if the member is successfully found, otherwise returns false</returns>
         private bool TryGetMember(SceneLookup sceneLookup, GuidPath guidPath, out object memberOwner, out MemberInfo member)
         {
             member = default;
             memberOwner = default;
             
-            if (!sceneLookup.GetLookup().TryGetValue(guidPath.savableGuid, out var savableLookup))
+            if (!sceneLookup.Savables.TryGetValue(guidPath.savableGuid, out var savableLookup))
             {
                 return false;
             }
 
-            if (!savableLookup.GetLookup().TryGetValue(guidPath.componentGuid, out var objectLookup))
+            if (!savableLookup.Components.TryGetValue(guidPath.componentGuid, out var objectLookup))
             {
                 return false;
             }
 
-            memberOwner = objectLookup.MemberOwner;
-            return objectLookup.MemberLookupList.TryGetValue(guidPath.memberName, out member);
+            memberOwner = objectLookup.Owner;
+            return objectLookup.Members.TryGetValue(guidPath.memberName, out member);
         }
     }
 
     public class SceneLookup
     {
-        private readonly Dictionary<string, SavableLookup> _savableLookup = new();
-
-        public Dictionary<string, SavableLookup> GetLookup() => _savableLookup;
-
-        public void AddSavable(string identifier, SavableLookup savableLookup)
-        {
-            _savableLookup.Add(identifier, savableLookup);
-        }
-    }
-
-    public class SavableLookup
-    {
-        private readonly Dictionary<string, ObjectLookup> _componentLookup = new();
-
-        public Dictionary<string, ObjectLookup> GetLookup() => _componentLookup;
-
-        public void AddComponent(string identifier, ObjectLookup objectLookup)
-        {
-            _componentLookup.Add(identifier, objectLookup);
-        }
-    }
-
-    public class ObjectLookup
-    {
-        public Dictionary<string, MemberInfo> MemberLookupList { get; } = new();
+        public Dictionary<string, Savable> Savables { get; }= new();
         
-        public object MemberOwner { get; }
-
-        public ObjectLookup(object memberOwner)
+        public class Savable
         {
-            MemberOwner = memberOwner;
-        }
+            public Dictionary<string, Object> Components { get; } = new();
+            
+            public class Object
+            {
+                public Dictionary<string, MemberInfo> Members { get; } = new();
+                public object Owner { get; }
 
-        public void StoreElement(string fieldName, MemberInfo member)
-        {
-            MemberLookupList.Add(fieldName, member);
+                public Object(object owner)
+                {
+                    Owner = owner;
+                }
+            }
         }
     }
     
