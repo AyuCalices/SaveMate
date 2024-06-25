@@ -3,9 +3,7 @@ using UnityEngine;
 
 namespace SaveLoadCore
 {
-    public enum TestEnum { One, Two, Three, Four, Five }
-    
-    public class SavableTest : MonoBehaviour
+    public class TransformReference : MonoBehaviour
     {
         [Savable] public Transform Test { get; set; }
 
@@ -21,7 +19,7 @@ namespace SaveLoadCore
                 return;
             }
             
-            foreach (SavableTest savableTest in GetComponents<SavableTest>())
+            foreach (TransformReference savableTest in GetComponents<TransformReference>())
             {
                 savableTest.Test = newTest;
             }
@@ -31,6 +29,12 @@ namespace SaveLoadCore
         public void Add()
         {
             Test.position += new Vector3(1, 1, 1);
+        }
+
+        [ContextMenu("Remove")]
+        public void Remove()
+        {
+            Test = null;
         }
     }
 

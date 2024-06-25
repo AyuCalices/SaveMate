@@ -3,15 +3,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using SaveLoadCore.Utility;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadCore
 {
     public class SaveSceneManager : MonoBehaviour
     {
-        //one list with the connection of scene guid and savableObject guid
-        //-> TODO: each savable attribute thing needs a guid -> would need to be recursive for reference types. Or does it? When gathering a savable, it will be added to a list. every time an equal object gets added, a wrapper for this object will register the source id path: sceneId/ComponentId/FieldName/FieldName/FieldName ... must probably be recursive. 
-        //one list with all the unique savableObjects -> the unique objects still need to be serializable
-        //-> type based conversion
+        //TODO: recursion for nested objects
         
         //TODO: implement integrity check
         [ContextMenu("Gather")]
@@ -44,7 +42,6 @@ namespace SaveLoadCore
             
             foreach (var savableComponent in savableComponents)
             {
-                //TODO: -> create own reference builder that has a HashSet<referenceObject, guid> reference! there are probably two different needed: one for serializaing and one for deserializaing
                 foreach (var componentsContainer in savableComponent.ReferenceList)
                 {
                     GuidPath guidPath = new GuidPath()
@@ -66,7 +63,6 @@ namespace SaveLoadCore
             
             foreach (var savableComponent in savableComponents)
             {
-                //TODO: -> create own reference builder that has a HashSet<referenceObject, guid> reference! there are probably two different needed: one for serializaing and one for deserializaing
                 foreach (var componentsContainer in savableComponent.ReferenceList)
                 {
                     GuidPath guidPath = new GuidPath()
@@ -131,25 +127,22 @@ namespace SaveLoadCore
                             memberName = memberName
                         };
                         
-                        //save component reference
-                        if (typeof(UnityEngine.Object).IsAssignableFrom(memberInfo.ReflectedType))
+                        var reflectedObject = memberInfo switch
                         {
-                            if (typeof(Component).IsAssignableFrom(memberInfo.ReflectedType))
+                            FieldInfo fieldInfo => fieldInfo.GetValue(objectLookup.MemberOwner),
+                            PropertyInfo propertyInfo => propertyInfo.GetValue(objectLookup.MemberOwner),
+                            _ => throw new NotImplementedException($"The type of member {memberInfo.Name} on path {targetGuidPath.ToString()} is not supported!")
+                        };
+
+                        if (reflectedObject.IsUnityNull())
+                        {
+                            dataContainer.AddNullPath(targetGuidPath);
+                        }
+                        else if (reflectedObject is Object)
+                        {
+                            if (reflectedObject is Component)
                             {
-                                var reflectedObject = memberInfo switch
-                                {
-                                    FieldInfo fieldInfo => fieldInfo.GetValue(objectLookup.MemberOwner),
-                                    PropertyInfo propertyInfo => propertyInfo.GetValue(objectLookup.MemberOwner),
-                                    _ => throw new NotImplementedException($"The type {memberInfo.ReflectedType} of member {memberInfo.Name} on path {targetGuidPath.ToString()} is not supported!")
-                                };
-
-                                Debug.Log(reflectedObject.IsUnityNull());
-
-                                if (reflectedObject.IsUnityNull())
-                                {
-                                    dataContainer.AddNullPath(targetGuidPath);
-                                }
-                                else if (referenceLookup.TryGetValue(reflectedObject, out GuidPath path))
+                                if (referenceLookup.TryGetValue(reflectedObject, out GuidPath path))
                                 {
                                     dataContainer.AddObject(path, targetGuidPath);
                                     Debug.Log($"Member '{memberInfo.Name}' correctly stored!");
@@ -158,7 +151,7 @@ namespace SaveLoadCore
                                 {
                                     Debug.LogWarning(
                                         $"You need to add a savable component to the origin GameObject of the '{memberInfo.Name}' component. Then you need to apply an " +
-                                        $"ID to the type '{memberInfo.ReflectedType}' by adding it into the ReferenceList. This will enable support for component referencing!");
+                                        $"ID to the type '{reflectedObject.GetType()}' by adding it into the ReferenceList. This will enable support for component referencing!");
                                 }
                             }
                             else
@@ -168,15 +161,12 @@ namespace SaveLoadCore
                         }
                         else
                         {
-                            switch (memberInfo)
+                            if (!SerializationHelper.IsSerializable(reflectedObject.GetType()))
                             {
-                                case FieldInfo fieldInfo:
-                                    dataContainer.AddObject(fieldInfo.GetValue(objectLookup.MemberOwner), targetGuidPath);
-                                    break;
-                                case PropertyInfo propertyInfo:
-                                    dataContainer.AddObject(propertyInfo.GetValue(objectLookup.MemberOwner), targetGuidPath);
-                                    break;
+                                Debug.LogError($"Type of {reflectedObject.GetType()} is not marked as Serializable!");
                             }
+                            
+                            dataContainer.AddObject(reflectedObject, targetGuidPath);
                         }
                     }
                 }
@@ -199,8 +189,6 @@ namespace SaveLoadCore
             {
                 foreach (var guidPath in guidPathList)
                 {
-                    Debug.Log(obj.GetType());
-                    
                     if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out MemberInfo memberInfo))
                     {
                         onBufferHasExtraData?.Invoke();
