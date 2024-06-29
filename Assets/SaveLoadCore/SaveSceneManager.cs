@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using SaveLoadCore.Utility;
 using UnityEngine;
@@ -9,7 +10,7 @@ namespace SaveLoadCore
 {
     public class SaveSceneManager : MonoBehaviour
     {
-        //TODO: implement integrity check -> with meta save file + with tests
+        //TODO: implement integrity check -> with tests
         
         [ContextMenu("Save Scene Data")]
         public void SaveSceneData()
@@ -44,33 +45,40 @@ namespace SaveLoadCore
             var sceneLookup = new SceneLookup();
             foreach (var savable in savableComponents)
             {
-                //gather all components on a savable
                 var savableLookup = new SceneLookup.Savable();
-                
                 foreach (var componentContainer in savable.SavableList)
                 {
-                    //TODO: this will need recursion for nested objects
-                    
-                    //gather all fields on a component
                     var objectLookup = new SceneLookup.Savable.Object(componentContainer.component);
-                    
-                    foreach (var fieldInfo in ReflectionUtility.GetFieldInfos<SavableAttribute>(componentContainer.component.GetType()))
-                    {
-                        objectLookup.Members.Add(fieldInfo.Name, fieldInfo);
-                    }
-
-                    foreach (var propertyInfo in ReflectionUtility.GetPropertyInfos<SavableAttribute>(componentContainer.component.GetType()))
-                    {
-                        objectLookup.Members.Add(propertyInfo.Name, propertyInfo);
-                    }
-                    
+                    ProcessComponent(objectLookup, componentContainer.component);
                     savableLookup.Components.Add(componentContainer.guid, objectLookup);
                 }
-                
                 sceneLookup.Savables.Add(savable.SceneGuid, savableLookup);
             }
-
+            
             return sceneLookup;
+        }
+
+        private void ProcessComponent(SceneLookup.Savable.Object objectLookup, object reflectedObject)
+        {
+            var fieldInfos = ReflectionUtility.GetFieldInfos<SavableAttribute>(reflectedObject.GetType());
+            foreach (var fieldInfo in fieldInfos)
+            {
+                var reflectedField = fieldInfo.GetValue(reflectedObject);
+                var nestedObjectLookup = new SceneLookup.Savable.Object(reflectedField);
+                objectLookup.Members.Add(fieldInfo.Name, (fieldInfo, nestedObjectLookup));
+                
+                ProcessComponent(nestedObjectLookup, reflectedField);
+            }
+
+            var propertyInfos = ReflectionUtility.GetPropertyInfos<SavableAttribute>(reflectedObject.GetType());
+            foreach (var propertyInfo in propertyInfos)
+            {
+                var reflectedProperty = propertyInfo.GetValue(reflectedObject);
+                var nestedObjectLookup = new SceneLookup.Savable.Object(reflectedProperty);
+                objectLookup.Members.Add(propertyInfo.Name, (propertyInfo, nestedObjectLookup));
+                
+                ProcessComponent(nestedObjectLookup, reflectedProperty);
+            }
         }
 
         /// <summary>
@@ -86,11 +94,7 @@ namespace SaveLoadCore
             {
                 foreach (var componentContainer in savableComponent.ReferenceList)
                 {
-                    GuidPath guidPath = new GuidPath()
-                    {
-                        savableGuid = savableComponent.SceneGuid,
-                        componentGuid = componentContainer.guid
-                    };
+                    GuidPath guidPath = new GuidPath(savableComponent.SceneGuid, componentContainer.guid);
                     
                     referenceLookup.Add(componentContainer.component, guidPath);
                 }
@@ -112,11 +116,7 @@ namespace SaveLoadCore
             {
                 foreach (var componentContainer in savableComponent.ReferenceList)
                 {
-                    GuidPath guidPath = new GuidPath()
-                    {
-                        savableGuid = savableComponent.SceneGuid,
-                        componentGuid = componentContainer.guid
-                    };
+                    GuidPath guidPath = new GuidPath(savableComponent.SceneGuid, componentContainer.guid);
                     
                     referenceLookup.Add(guidPath, componentContainer.component);
                 }
@@ -133,66 +133,62 @@ namespace SaveLoadCore
             {
                 foreach (var (componentGuid, objectLookup) in savableLookup.Components)
                 {
-                    foreach (var (memberName, memberInfo) in objectLookup.Members)
-                    {
-                        //TODO: this will need recursion for nested objects
-                        
-                        //get the actual path to the object (which should be saved)
-                        var targetGuidPath = new GuidPath()
-                        {
-                            savableGuid = savableGuid,
-                            componentGuid = componentGuid,
-                            memberName = memberName
-                        };
-                        
-                        //get the actual object (which should be saved)
-                        var reflectedObject = memberInfo switch
-                        {
-                            FieldInfo fieldInfo => fieldInfo.GetValue(objectLookup.Owner),
-                            PropertyInfo propertyInfo => propertyInfo.GetValue(objectLookup.Owner),
-                            _ => throw new NotImplementedException($"The type of member {memberInfo.Name} on path {targetGuidPath.ToString()} is not supported!")
-                        };
-
-                        //store the data inside a component
-                        if (reflectedObject.IsUnityNull())     //support for null reference
-                        {
-                            dataContainer.AddNullPath(targetGuidPath);
-                        }
-                        else if (reflectedObject is Object)     //support for unity objects TODO: prefabs detection and instantiation
-                        {
-                            if (reflectedObject is Component)
-                            {
-                                if (referenceLookup.TryGetValue(reflectedObject, out GuidPath path))
-                                {
-                                    dataContainer.AddObject(path, targetGuidPath);
-                                    Debug.Log($"Member '{memberInfo.Name}' correctly stored!");
-                                }
-                                else
-                                {
-                                    Debug.LogWarning(
-                                        $"You need to add a savable component to the origin GameObject of the '{memberInfo.Name}' component. Then you need to apply an " +
-                                        $"ID to the type '{reflectedObject.GetType()}' by adding it into the ReferenceList. This will enable support for component referencing!");
-                                }
-                            }
-                            else
-                            {
-                                throw new NotImplementedException("Saving Unity Assets is not supported yet!");
-                            }
-                        }
-                        else     //use basic c# serialization
-                        {
-                            if (!SerializationHelper.IsSerializable(reflectedObject.GetType()))
-                            {
-                                Debug.LogError($"Type of {reflectedObject.GetType()} is not marked as Serializable!");
-                            }
-                            
-                            dataContainer.AddObject(reflectedObject, targetGuidPath);
-                        }
-                    }
+                    GuidPath targetGuidPath = new GuidPath(savableGuid, componentGuid);
+                    FillDataContainerRecursively(dataContainer, objectLookup, referenceLookup, targetGuidPath);
                 }
             }
 
             return dataContainer;
+        }
+        
+        private void FillDataContainerRecursively(DataContainer dataContainer, SceneLookup.Savable.Object objectLookup, Dictionary<object, GuidPath> referenceLookup, GuidPath guidPath)
+        {
+            foreach (var (memberName, memberInfoTuple) in objectLookup.Members)
+            {
+                GuidPath targetGuidPath = new GuidPath(guidPath); 
+                targetGuidPath.MemberNamePath.Add(memberName);
+                
+                //get the actual object (which should be saved)
+                var reflectedObject = memberInfoTuple.Info switch
+                {
+                    FieldInfo fieldInfo => fieldInfo.GetValue(objectLookup.Owner),
+                    PropertyInfo propertyInfo => propertyInfo.GetValue(objectLookup.Owner),
+                    _ => throw new NotImplementedException($"The type of member {memberInfoTuple.Info.Name} on path {targetGuidPath.ToString()} is not supported!")
+                };
+
+                //store the data inside a component
+                if (reflectedObject.IsUnityNull())     //support for null reference
+                {
+                    dataContainer.AddNullPath(targetGuidPath);
+                }
+                else if (reflectedObject is Object)     //support for unity objects TODO: prefabs detection and instantiation
+                {
+                    if (reflectedObject is Component)
+                    {
+                        if (referenceLookup.TryGetValue(reflectedObject, out GuidPath path))
+                        {
+                            dataContainer.AddObject(path, targetGuidPath);
+                            Debug.Log($"Member '{memberInfoTuple.Info.Name}' correctly stored!");
+                        }
+                        else
+                        {
+                            Debug.LogWarning(
+                                $"You need to add a savable component to the origin GameObject of the '{memberInfoTuple.Info.Name}' component. Then you need to apply an " +
+                                $"ID to the type '{reflectedObject.GetType()}' by adding it into the ReferenceList. This will enable support for component referencing!");
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException("Saving Unity Assets is not supported yet!");
+                    }
+                }
+                else     //use basic c# serialization
+                {
+                    dataContainer.AddObject(reflectedObject, targetGuidPath);
+                }
+
+                FillDataContainerRecursively(dataContainer, memberInfoTuple.SceneLookupObject, referenceLookup, targetGuidPath);
+            }
         }
         
         private void ApplyDeserializedSaveData(DataContainer deserializedDataContainer, SceneLookup sceneLookup, Dictionary<GuidPath, object> referenceLookup, Action onBufferHasExtraData = null)
@@ -204,7 +200,7 @@ namespace SaveLoadCore
                     //TODO: prefabs detection and instantiation
                     //TODO: this will need recursion for nested objects
                     
-                    if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out MemberInfo memberInfo))
+                    if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out var memberInfoTuple))
                     {
                         //Occurence: this is new data (either old version or prefab)
                         onBufferHasExtraData?.Invoke();
@@ -221,7 +217,7 @@ namespace SaveLoadCore
                             continue;
                         }
                         
-                        switch (memberInfo)
+                        switch (memberInfoTuple.Info)
                         {
                             case FieldInfo fieldInfo:
                                 fieldInfo.SetValue(memberOwner, reference);
@@ -233,7 +229,7 @@ namespace SaveLoadCore
                     }
                     else
                     {
-                        switch (memberInfo)
+                        switch (memberInfoTuple.Info)
                         {
                             case FieldInfo fieldInfo:
                                 fieldInfo.SetValue(memberOwner, obj);
@@ -257,7 +253,7 @@ namespace SaveLoadCore
         {
             foreach (var guidPath in deserializedDataContainer.NullPathLookup)
             {
-                if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out MemberInfo memberInfo))
+                if (!TryGetMember(sceneLookup, guidPath, out object memberOwner, out var memberInfoTuple))
                 {
                     //Occurence: this is new data (old version ony i guess)
                     
@@ -265,7 +261,7 @@ namespace SaveLoadCore
                     continue;
                 }
                 
-                switch (memberInfo)
+                switch (memberInfoTuple.Info)
                 {
                     case FieldInfo fieldInfo:
                         fieldInfo.SetValue(memberOwner, null);
@@ -276,32 +272,53 @@ namespace SaveLoadCore
                 }
             }
         }
-        
+
         /// <summary>
         /// Attempts to retrieve a member and its owner object from the SceneLookup based on the provided GuidPath.
         /// </summary>
         /// <param name="sceneLookup">The SceneLookup object used to locate the member</param>
         /// <param name="guidPath">The GuidPath containing the identifiers for the savable, component, and member</param>
         /// <param name="memberOwner">The output parameter that will hold the owner object of the member if found</param>
-        /// <param name="member">The output parameter that will hold the MemberInfo if found</param>
+        /// <param name="memberTuple">The output parameter that will hold the MemberInfo if found</param>
         /// <returns>Returns true if the member is successfully found, otherwise returns false</returns>
-        private bool TryGetMember(SceneLookup sceneLookup, GuidPath guidPath, out object memberOwner, out MemberInfo member)
+        private bool TryGetMember(SceneLookup sceneLookup, GuidPath guidPath, out object memberOwner, out (MemberInfo Info, SceneLookup.Savable.Object SceneLookupObject) memberTuple)
         {
-            member = default;
+            memberTuple = default;
             memberOwner = default;
             
-            if (!sceneLookup.Savables.TryGetValue(guidPath.savableGuid, out var savableLookup))
+            if (!sceneLookup.Savables.TryGetValue(guidPath.SavableGuid, out var savableLookup))
             {
                 return false;
             }
 
-            if (!savableLookup.Components.TryGetValue(guidPath.componentGuid, out var objectLookup))
+            if (!savableLookup.Components.TryGetValue(guidPath.ComponentGuid, out var objectLookup))
             {
                 return false;
             }
 
             memberOwner = objectLookup.Owner;
-            return objectLookup.Members.TryGetValue(guidPath.memberName, out member);
+
+            var memberNamePathEnumerator = guidPath.MemberNamePath.GetEnumerator();
+            SceneLookup.Savable.Object currentObject = objectLookup;
+
+            while (memberNamePathEnumerator.MoveNext())
+            {
+                var currentMemberName = memberNamePathEnumerator.Current;
+                if (currentMemberName == null)
+                {
+                    return false;
+                }
+                
+                if (!currentObject.Members.TryGetValue(currentMemberName, out var currentMemberInfoTuple))
+                {
+                    return false;
+                }
+
+                memberTuple = currentMemberInfoTuple;
+                currentObject = currentMemberInfoTuple.SceneLookupObject;
+            }
+
+            return true;
         }
     }
 
@@ -315,7 +332,7 @@ namespace SaveLoadCore
             
             public class Object
             {
-                public Dictionary<string, MemberInfo> Members { get; } = new();
+                public Dictionary<string, (MemberInfo Info, Object SceneLookupObject)> Members { get; } = new();
                 public object Owner { get; }
 
                 public Object(object owner)
@@ -353,15 +370,93 @@ namespace SaveLoadCore
     }
 
     [Serializable]
-    public struct GuidPath
+    public struct GuidPath : IEquatable<GuidPath>
     {
-        public string savableGuid;
-        public string componentGuid;
-        public string memberName;
+        public readonly string SavableGuid;
+        public readonly string ComponentGuid;
+        public readonly List<string> MemberNamePath;
+
+        public GuidPath(string savableGuid, string componentGuid)
+        {
+            SavableGuid = savableGuid;
+            ComponentGuid = componentGuid;
+            MemberNamePath = new List<string>();
+        }
+        
+        public GuidPath(GuidPath guidPath)
+        {
+            SavableGuid = guidPath.SavableGuid;
+            ComponentGuid = guidPath.ComponentGuid;
+            MemberNamePath = guidPath.MemberNamePath.ToList();
+        }
 
         public override string ToString()
         {
-            return $"{savableGuid} | {componentGuid} | {memberName}";
+            string finalName = $"{SavableGuid} | {ComponentGuid}";
+            foreach (var memberName in MemberNamePath)
+            {
+                finalName += $" | {memberName}";
+            }
+            
+            return ">>>" + finalName + "<<<";
+        }
+
+        public bool Equals(GuidPath other)
+        {
+            // Compare SavableGuid and ComponentGuid
+            if (SavableGuid != other.SavableGuid || ComponentGuid != other.ComponentGuid)
+            {
+                return false;
+            }
+
+            // Compare MemberNamePath
+            if (MemberNamePath.Count != other.MemberNamePath.Count)
+            {
+                return false;
+            }
+        
+            for (int i = 0; i < MemberNamePath.Count; i++)
+            {
+                if (MemberNamePath[i] != other.MemberNamePath[i])
+                {
+                    return false;
+                }
+            }
+        
+            return true;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is GuidPath other)
+            {
+                return Equals(other);
+            }
+        
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            int hash = SavableGuid.GetHashCode();
+            hash = (hash * 31) + ComponentGuid.GetHashCode();
+        
+            foreach (var memberName in MemberNamePath)
+            {
+                hash = (hash * 31) + memberName.GetHashCode();
+            }
+        
+            return hash;
+        }
+
+        public static bool operator ==(GuidPath left, GuidPath right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(GuidPath left, GuidPath right)
+        {
+            return !(left == right);
         }
     }
 }

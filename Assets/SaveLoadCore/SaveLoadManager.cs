@@ -28,7 +28,7 @@ namespace SaveLoadCore
             metaStream.Close();
         }
         
-        private static bool TryLoadData<T>(out T data, string savePath = "", string saveName = "player", string saveType = ".data", Func<FileStream, T, bool> onDeserializeSuccessful = null) where T : class
+        private static bool TryLoadData<T>(out T data, string savePath = "", string saveName = "player", string saveType = "data", Func<FileStream, T, bool> onDeserializeSuccessful = null) where T : class
         {
             data = default;
             var saveDataPath = $"{Application.persistentDataPath}{savePath}/{saveName}.{saveType}";
@@ -55,11 +55,15 @@ namespace SaveLoadCore
     
         public static T Load<T>(string savePath = "", string saveName = "player") where T : class
         {
-            if (!TryLoadData(out SaveMetaData metaData, savePath, saveName, ".meta")) return null;
+            if (!TryLoadData(out SaveMetaData metaData, savePath, saveName, "meta")) return null;
             
-            var isLoadSuccessful = TryLoadData(out T saveData, savePath, saveName, ".data", (stream, data) =>
+            var isLoadSuccessful = TryLoadData(out T saveData, savePath, saveName, "data", (stream, data) =>
             {
-                if (metaData.checksum == HashingUtility.GenerateHash(stream)) return true;
+                if (metaData.checksum == HashingUtility.GenerateHash(stream))
+                {
+                    Debug.LogWarning("Integrity Check Successful!");
+                    return true;
+                }
                 
                 Debug.LogError("The save data didn't pass the data integrity check!");
                 return false;

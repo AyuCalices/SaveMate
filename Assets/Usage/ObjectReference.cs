@@ -13,6 +13,7 @@ namespace SaveLoadCore
             if (Test == null)
             {
                 newTest = new ObjectTest();
+                newTest.thing = transform;
             }
             else
             {
@@ -30,7 +31,7 @@ namespace SaveLoadCore
         {
             if (Test != null)
             {
-                Test.thing++;
+                Test.value++;
             }
         }
 
@@ -41,9 +42,15 @@ namespace SaveLoadCore
         }
     }
 
-    [Serializable]
-    public class ObjectTest
+    public class BaseTest
     {
-        public float thing;
+        [Savable] public float value;
+    }
+
+    [Serializable]
+    public class ObjectTest : BaseTest
+    {
+        [Savable] public Transform thing;
+        [Savable] public string helloWorld = "hello world";
     }
 }
