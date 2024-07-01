@@ -65,6 +65,11 @@ namespace SaveLoadCore
             }
         }
         
+        public static FieldInfo GetFieldInfo(Type type, string name)
+        {
+            return type.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+        }
+        
         public static List<FieldInfo> GetFieldInfos<T>(Type type) where T : Attribute
         {
             var foundFieldInfos = new List<FieldInfo>();
@@ -81,6 +86,11 @@ namespace SaveLoadCore
             }
 
             return foundFieldInfos;
+        }
+        
+        public static PropertyInfo GetPropertyInfo(Type type, string name)
+        {
+            return type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
         }
 
         public static List<PropertyInfo> GetPropertyInfos<T>(Type type) where T : Attribute

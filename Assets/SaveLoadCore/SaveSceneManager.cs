@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -60,6 +61,8 @@ namespace SaveLoadCore
 
         private void ProcessComponent(SceneLookup.Savable.Object objectLookup, object reflectedObject)
         {
+            if (reflectedObject == null) return;
+            
             var fieldInfos = ReflectionUtility.GetFieldInfos<SavableAttribute>(reflectedObject.GetType());
             foreach (var fieldInfo in fieldInfos)
             {
@@ -182,8 +185,25 @@ namespace SaveLoadCore
                         throw new NotImplementedException("Saving Unity Assets is not supported yet!");
                     }
                 }
-                else     //use basic c# serialization
+                else if (reflectedObject is IEnumerable enumerable)
                 {
+                    Debug.Log(enumerable is Array);
+                        
+                    foreach (object obj in enumerable)
+                    {
+                        if (!SerializationHelper.IsSerializable(obj.GetType()))
+                        {
+                            Debug.LogWarning($"You need to implement Serialization for the type {reflectedObject.GetType()}");
+                        }
+                    }
+                }
+                else
+                {
+                    if (!SerializationHelper.IsSerializable(reflectedObject.GetType()))
+                    {
+                        Debug.LogWarning($"You need to implement Serialization for the type {reflectedObject.GetType()}");
+                    }
+                    
                     dataContainer.AddObject(reflectedObject, targetGuidPath);
                 }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace SaveLoadCore
@@ -13,7 +14,10 @@ namespace SaveLoadCore
             if (Test == null)
             {
                 newTest = new ObjectTest();
-                newTest.thing = transform;
+                newTest.thing = new Reference[3];
+                newTest.thing[0] = new Reference();
+                newTest.thing[1] = new Reference();
+                newTest.thing[2] = new Reference();
             }
             else
             {
@@ -42,6 +46,7 @@ namespace SaveLoadCore
         }
     }
 
+    [Serializable]
     public class BaseTest
     {
         [Savable] public float value;
@@ -50,7 +55,12 @@ namespace SaveLoadCore
     [Serializable]
     public class ObjectTest : BaseTest
     {
-        [Savable] public Transform thing;
+        [Savable] public Reference[] thing;
         [Savable] public string helloWorld = "hello world";
+    }
+
+    public class Reference
+    {
+        public string element = "hi";
     }
 }
