@@ -59,6 +59,7 @@ namespace SaveLoadCore
         [Savable] public string helloWorld = "hello world";
     }
 
+    [Serializable]
     public class Reference
     {
         public string element = "hi";
