@@ -49,12 +49,16 @@ namespace SaveLoadCore
     [Serializable]
     public class BaseTest
     {
+        public BaseTest() {}
+        
         [Savable] public float value;
     }
 
     [Serializable]
     public class ObjectTest : BaseTest
     {
+        public ObjectTest() {}
+        
         [Savable] public Reference[] thing;
         [Savable] public string helloWorld = "hello world";
     }
@@ -62,6 +66,8 @@ namespace SaveLoadCore
     [Serializable]
     public class Reference
     {
+        public Reference() {}
+        
         public string element = "hi";
     }
 }

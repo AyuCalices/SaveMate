@@ -12,11 +12,8 @@ namespace SaveLoadCore
         public void SaveSceneData()
         {
             var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-
             SavableLookupSave savableLookupSave = BuildSceneLookup(savableComponents);
-            var objectToGuidPathLookup = BuildObjectToGuidPathLookup(savableComponents);
-
-            SaveContainer saveContainer = CreateSerializeSaveData(savableLookupSave, objectToGuidPathLookup);
+            SaveContainer saveContainer = CreateSerializeSaveData(savableLookupSave);
             SaveLoadManager.Save(saveContainer);
         }
 
@@ -24,14 +21,8 @@ namespace SaveLoadCore
         public void LoadSceneData()
         {
             var savableComponents = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var guidPathToObjectLookup = BuildGuidPathToObjectLookup(savableComponents);
-
-            //TODO: prepare tree structure of current -> problem: cyclic references -> build it on the fly when it is used to apply save data? Or two iterations: one will build dependant of save data (-> probably better because of prefabs)and the other performs serialization
-
             var data = SaveLoadManager.Load<SaveContainer>();
-
-            var content = BuildSceneComposite(data, savableComponents);
-            Debug.Log("o/");
+            BuildScene(data, savableComponents);
         }
 
         private SavableLookupSave BuildSceneLookup(List<Savable> savableComponents)
@@ -40,7 +31,14 @@ namespace SaveLoadCore
             foreach (var savable in savableComponents)
             {
                 UsagePath savablePath = new UsagePath(null, savable.SceneGuid);
+                
                 foreach (var componentContainer in savable.SavableList)
+                {
+                    UsagePath componentPath = new UsagePath(savablePath, componentContainer.guid);
+                    ProcessComponent(objectLookupSave, componentContainer.component, componentPath);
+                }
+                
+                foreach (var componentContainer in savable.ReferenceList)
                 {
                     UsagePath componentPath = new UsagePath(savablePath, componentContainer.guid);
                     ProcessComponent(objectLookupSave, componentContainer.component, componentPath);
@@ -70,6 +68,7 @@ namespace SaveLoadCore
                 var reflectedField = fieldInfo.GetValue(reflectedObject);
                 memberList.Add((fieldInfo, reflectedField));
 
+                if (reflectedField is UnityEngine.Component) continue;
                 UsagePath path = new UsagePath(usagePath, fieldInfo.Name);
                 ProcessComponent(objectLookupSave, reflectedField, path);
             }
@@ -80,246 +79,192 @@ namespace SaveLoadCore
                 var reflectedProperty = propertyInfo.GetValue(reflectedObject);
                 memberList.Add((propertyInfo, reflectedProperty));
 
+                if (reflectedProperty is UnityEngine.Component) continue;
                 UsagePath path = new UsagePath(usagePath, propertyInfo.Name);
                 ProcessComponent(objectLookupSave, reflectedProperty, path);
             }
         }
 
-        /// <summary>
-        /// Builds a dictionary that maps objects to their corresponding GuidPath, based on the provided list of savable components.
-        /// </summary>
-        /// <param name="savableComponents">The list of savable components used to construct the lookup dictionary</param>
-        /// <returns>Returns a dictionary where the keys are objects and the values are GuidPath instances representing their paths</returns>
-        private Dictionary<object, UsagePath> BuildObjectToGuidPathLookup(List<Savable> savableComponents)
-        {
-            Dictionary<object, UsagePath> referenceLookup = new Dictionary<object, UsagePath>();
-
-            foreach (var savable in savableComponents)
-            {
-                UsagePath savablePath = new UsagePath(null, savable.SceneGuid);
-                foreach (var component in savable.ReferenceList)
-                {
-                    UsagePath componentPath = new UsagePath(savablePath, component.guid);
-                    referenceLookup.Add(component.component, componentPath);
-                }
-            }
-
-            return referenceLookup;
-        }
-
-        /// <summary>
-        /// Builds a dictionary that maps GuidPath instances to their corresponding objects, based on the provided list of savable components.
-        /// </summary>
-        /// <param name="savableComponents">The list of savable components used to construct the lookup dictionary</param>
-        /// <returns>Returns a dictionary where the keys are GuidPath instances and the values are objects representing the components</returns>
-        private Dictionary<UsagePath, object> BuildGuidPathToObjectLookup(List<Savable> savableComponents)
-        {
-            Dictionary<UsagePath, object> referenceLookup = new Dictionary<UsagePath, object>();
-
-            foreach (var savable in savableComponents)
-            {
-                UsagePath savablePath = new UsagePath(null, savable.SceneGuid);
-                foreach (var component in savable.ReferenceList)
-                {
-                    UsagePath componentPath = new UsagePath(savablePath, component.guid);
-                    referenceLookup.Add(componentPath, component.component);
-                }
-            }
-
-            return referenceLookup;
-        }
-
-
-        private SaveContainer CreateSerializeSaveData(SavableLookupSave lookupSave,
-            Dictionary<object, UsagePath> referenceLookup)
+        private SaveContainer CreateSerializeSaveData(SavableLookupSave lookupSave)
         {
             SaveContainer saveContainer = new SaveContainer();
 
-            foreach (var (_, sceneObjectData) in lookupSave.SceneObjectDataList)
+            foreach (var (savableObject, sceneObjectData) in lookupSave.SceneObjectDataList)
             {
                 var creatorGuidPath = sceneObjectData.CreatorPath;
-                Type saveType = sceneObjectData.SavableObject.GetType();
-                List<(string fieldName, object obj)> saveElements = new();
-                saveContainer.SaveBuffers.Add(new SaveBuffer(saveType, creatorGuidPath, saveElements));
 
-                foreach (var (memberInfo, memberObject) in sceneObjectData.MemberList)
+                //object may has member
+                if (savableObject is UnityEngine.Object)
                 {
-                    if (memberObject == null)
+                    if (savableObject is UnityEngine.Component)
                     {
-                        saveElements.Add((memberInfo.Name, null));
-                    }
-                    else if (memberObject.GetType().IsClass)
-                    {
-                        if (memberObject is UnityEngine.Object)
-                        {
-                            if (memberObject is UnityEngine.Component)
-                            {
-                                if (referenceLookup.TryGetValue(memberObject, out UsagePath referencedUsagePath))
-                                {
-                                    saveElements.Add((memberInfo.Name, referencedUsagePath));
-                                }
-                                else
-                                {
-                                    Debug.LogWarning(
-                                        $"You need to add a savable component to the origin GameObject of the '{memberObject.GetType()}' component. Then you need to apply an " +
-                                        $"ID by adding it into the ReferenceList. This will enable support for component referencing!");
-                                }
-                            }
-                            else
-                            {
-                                throw new NotImplementedException("Saving Unity Assets is not supported yet!");
-                            }
-                        }
-                        else if (lookupSave.SceneObjectDataList.TryGetValue(memberObject,
-                                     out SceneObjectData referencedSceneObjectData))
-                        {
-                            //only for references with [Savable] attribute
-                            saveElements.Add((memberInfo.Name, referencedSceneObjectData.CreatorPath));
-                        }
-                        else
-                        {
-                            NonAttributeSerialization(saveElements, memberInfo, memberObject);
-                        }
+                        AddComponentSaveBuffer(sceneObjectData, saveContainer, lookupSave);
                     }
                     else
                     {
-                        NonAttributeSerialization(saveElements, memberInfo, memberObject);
+                        throw new NotImplementedException();
                     }
+                }
+                else if (sceneObjectData.MemberList.Count != 0)
+                {
+                    AddComponentSaveBuffer(sceneObjectData, saveContainer, lookupSave);
+                }
+                //object has never members at this point
+                else if (SerializationHelper.IsSerializable(savableObject.GetType()))
+                {
+                    saveContainer.SaveBuffers.Add(new SerializeSaveBuffer(savableObject, creatorGuidPath));
+                }
+                else
+                {
+                    Debug.LogError($"The object of type {savableObject.GetType()} is not supported!");
                 }
             }
 
             return saveContainer;
         }
-
-        private void NonAttributeSerialization(List<(string fieldName, object obj)> saveElements, MemberInfo memberInfo,
-            object memberObject)
+        
+        private void AddComponentSaveBuffer(SceneObjectData sceneObjectData, SaveContainer saveContainer, SavableLookupSave lookupSave)
         {
-            if (TryCustomSerialization())
-            {
+            Type saveType = sceneObjectData.SavableObject.GetType();
+            List<(string fieldName, object obj)> saveElements = new();
+            saveContainer.SaveBuffers.Add(new ComponentSaveBuffer(saveType, sceneObjectData.CreatorPath, saveElements));
 
-            }
-            else if
-                (SerializationHelper.IsSerializable(memberObject
-                    .GetType())) //maybe add bool for enabling c# serialization
+            //memberList elements are always saved as references -> either from scene or from save data
+            foreach (var (memberInfo, memberObject) in sceneObjectData.MemberList)
             {
-                saveElements.Add((memberInfo.Name, memberObject));
-            }
-            else
-            {
-                Debug.LogError($"The object of type {memberObject.GetType()} is not supported!");
+                switch (memberObject)
+                {
+                    case null:
+                        saveElements.Add((memberInfo.Name, null));
+                        break;
+                    default:
+                    {
+                        if (lookupSave.SceneObjectDataList.TryGetValue(memberObject,
+                                out SceneObjectData referencedSceneObjectData))
+                        {
+                            saveElements.Add((memberInfo.Name, referencedSceneObjectData.CreatorPath));
+                        }
+                        else
+                        {
+                            Debug.LogWarning(
+                                $"You need to add a savable component to the origin GameObject of the '{memberObject.GetType()}' component. Then you need to apply an " +
+                                $"ID by adding it into the ReferenceList. This will enable support for component referencing!");
+                        }
+
+                        break;
+                    }
+                }
             }
         }
 
-        private bool TryCustomSerialization()
+        private void BuildScene(SaveContainer saveContainer, List<Savable> savables)
         {
-            return false;
-        }
-
-        private SceneComposite BuildSceneComposite(SaveContainer saveContainer, List<Savable> savables)
-        {
-            List<(MemberComposite, string, UsagePath)> referenceResolveList = new();
-            
             SceneComposite sceneComposite = new SceneComposite(savables);
-            sceneComposite.BuildMemberList();
-
             foreach (var saveBuffer in saveContainer.SaveBuffers)
             {
-                var guidPath = saveBuffer.CreatorGuidPath.GetPath();
+                var guidPath = saveBuffer.OriginGuidPath.GetPath();
 
                 var savablePath = guidPath.Pop();
                 if (!sceneComposite.TryGetComposite(savablePath, out SavableComposite savableComposite))
                 {
                     Debug.LogError("Scene Composite doesn't contain a the path to the savable");
                 }
-                savableComposite.BuildMemberList();
 
                 var componentPath = guidPath.Pop();
                 if (!savableComposite.TryGetComposite(componentPath, out MemberComposite memberComposite))
                 {
                     Debug.LogError("Savable Composite doesn't contain a the path to the component");
                 }
-                memberComposite.BuildMemberList();
 
                 //walk existing member path
                 MemberComposite currentComposite = memberComposite;
                 while (guidPath.Count != 0)
                 {
-                    var memberPath = guidPath.Pop();
-                    if (!currentComposite.TryGetComposite(memberPath, out MemberComposite newComposite))
+                    if (!currentComposite.TryGetOrCreateComposite(guidPath, saveBuffer, out MemberComposite newComposite))
                     {
                         Debug.LogError("Savable Composite doesn't contain a the path to the component");
                     }
-                    newComposite.BuildMemberList();
                     currentComposite = newComposite;
                 }
-                
-                //create member at new object
-                foreach (var (memberName, obj) in saveBuffer.SaveElements)
+
+                if (saveBuffer is ComponentSaveBuffer attributeSaveBuffer)
                 {
-                    if (obj is UsagePath usagePath)
-                    {
-                        referenceResolveList.Add((currentComposite, memberName, usagePath));
-                        currentComposite.WriteMember(memberName, null);
-                    }
-                    else
-                    {
-                        currentComposite.WriteMember(memberName, obj);
-                    }
+                    currentComposite.ApplySaveElementsToMember(attributeSaveBuffer.SaveElements);
                 }
             }
             
-            foreach (var (baseComposite, memberName, usagePath) in referenceResolveList)
+            foreach (var saveContainerSaveBuffer in saveContainer.SaveBuffers)
             {
-                var foundElement = baseComposite.MemberList.Find(x => x.Name == memberName);
-                if (foundElement == null)
+                if (saveContainerSaveBuffer is ComponentSaveBuffer attributeSaveBuffer)
                 {
-                    continue;
-                } 
-                
-                switch (foundElement)
-                {
-                    case FieldInfo fieldInfo:
-                        var fieldValue = fieldInfo.GetValue(baseComposite.GetCompositeObject());
-                        if (fieldValue == null)
+                    var creatorBaseComposite = sceneComposite.FindTargetComposite(attributeSaveBuffer.OriginGuidPath.GetPath());
+                    foreach (var (memberName, obj) in attributeSaveBuffer.SaveElements)
+                    {
+                        if (obj is UsagePath usagePath && creatorBaseComposite is MemberComposite creatorMemberComposite)
                         {
-                            var composite = sceneComposite.FindTargetComposite(usagePath.GetPath());
-                            fieldInfo.SetValue(baseComposite.GetCompositeObject(), composite.GetCompositeObject());
+                            var memberInfo = creatorMemberComposite.MemberList.Find(x => x.Name == memberName);
+                            if (memberInfo == null)
+                            {
+                                continue;
+                            }
+
+                            if (sceneComposite.FindTargetComposite(usagePath.GetPath()) is not MemberComposite targetComposite) continue;
+                            
+                            switch (memberInfo)
+                            {
+                                case FieldInfo fieldInfo:
+                                    fieldInfo.SetValue(creatorMemberComposite.SavableObject, targetComposite.SavableObject);
+                                    break;
+                                case PropertyInfo propertyInfo:
+                                    propertyInfo.SetValue(creatorMemberComposite.SavableObject, targetComposite.SavableObject);
+                                    break;
+                            }
                         }
-                        break;
-                    case PropertyInfo propertyInfo:
-                        var propertyValue = propertyInfo.GetValue(baseComposite.GetCompositeObject());
-                        if (propertyValue == null)
-                        {
-                            var composite = sceneComposite.FindTargetComposite(usagePath.GetPath());
-                            propertyInfo.SetValue(baseComposite.GetCompositeObject(), composite.GetCompositeObject());
-                        }
-                        break;
+                    }
                 }
             }
-
-            return sceneComposite;
         }
     }
 
     [Serializable]
     public class SaveContainer
     {
-        public readonly List<SaveBuffer> SaveBuffers = new();
+        public readonly List<ISaveBuffer> SaveBuffers = new();
+    }
+
+    public interface ISaveBuffer
+    {
+        UsagePath OriginGuidPath { get; }
     }
 
     [Serializable]
-    public class SaveBuffer
+    public class ComponentSaveBuffer : ISaveBuffer
     {
+        public UsagePath OriginGuidPath { get; }
+        
         public Type SavableType;
-        public UsagePath CreatorGuidPath;
         public List<(string fieldName, object obj)> SaveElements;
 
-        public SaveBuffer(Type savableType, UsagePath creatorGuidPath,
+        public ComponentSaveBuffer(Type savableType, UsagePath creatorGuidPath,
             List<(string fieldName, object obj)> saveElements)
         {
             SavableType = savableType;
-            CreatorGuidPath = creatorGuidPath;
+            OriginGuidPath = creatorGuidPath;
             SaveElements = saveElements;
+        }
+    }
+    
+    [Serializable]
+    public class SerializeSaveBuffer : ISaveBuffer
+    {
+        public UsagePath OriginGuidPath { get; }
+        
+        public object Data;
+
+        public SerializeSaveBuffer(object data, UsagePath creatorGuidPath)
+        {
+            Data = data;
+            OriginGuidPath = creatorGuidPath;
         }
     }
 
@@ -353,14 +298,25 @@ namespace SaveLoadCore
 
             return path;
         }
+
+        public override string ToString()
+        {
+            string path = "";
+            
+            UsagePath currentPath = this;
+            while (currentPath != null)
+            {
+                path = currentPath._identifier + "/" + path;
+                currentPath = currentPath._parentPath;
+            }
+
+            return path;
+        }
     }
     
     public abstract class BaseComposite
     {
         public readonly Dictionary<string, BaseComposite> Composite = new();
-        private bool _isBuildComplete;
-
-        public abstract object GetCompositeObject();
         
         public BaseComposite FindTargetComposite(Stack<string> pathStack)
         {
@@ -378,35 +334,22 @@ namespace SaveLoadCore
 
             return value.FindTargetComposite(pathStack);
         }
-
-        public void BuildMemberList()
-        {
-            if (_isBuildComplete) return;
-            
-            InternalBuildMemberList();
-            _isBuildComplete = true;
-        }
-
-        protected abstract void InternalBuildMemberList();
     }
 
     public class SceneComposite : BaseComposite
     {
-        public List<Savable> SceneSavable;
+        private readonly List<Savable> _sceneSavable;
         
         public SceneComposite(List<Savable> sceneSavable)
         {
-            SceneSavable = sceneSavable;
+            _sceneSavable = sceneSavable;
+
+            Build();
         }
 
-        public override object GetCompositeObject()
+        private void Build()
         {
-            return SceneSavable;
-        }
-
-        protected override void InternalBuildMemberList()
-        {
-            foreach (var savable in SceneSavable)
+            foreach (var savable in _sceneSavable)
             {
                 UsagePath nextPath = new UsagePath(null, savable.SceneGuid);
                 Composite.Add(savable.SceneGuid, new SavableComposite(nextPath, savable));
@@ -430,16 +373,19 @@ namespace SaveLoadCore
         {
             CreatorPath = creatorPath;
             Savable = savable;
+
+            Build();
         }
 
-        public override object GetCompositeObject()
-        {
-            return Savable;
-        }
-
-        protected override void InternalBuildMemberList()
+        private void Build()
         {
             foreach (var componentsContainer in Savable.SavableList)
+            {
+                UsagePath nextPath = new UsagePath(CreatorPath, componentsContainer.guid);
+                Composite.Add(componentsContainer.guid, new MemberComposite(nextPath, componentsContainer.component));
+            }
+            
+            foreach (var componentsContainer in Savable.ReferenceList)
             {
                 UsagePath nextPath = new UsagePath(CreatorPath, componentsContainer.guid);
                 Composite.Add(componentsContainer.guid, new MemberComposite(nextPath, componentsContainer.component));
@@ -465,74 +411,119 @@ namespace SaveLoadCore
             CreatorPath = creatorPath;
             SavableObject = savableObject;
             MemberList = new();
+
+            Build();
         }
 
-        public override object GetCompositeObject()
+        private void Build()
         {
-            return SavableObject;
-        }
-
-        protected override void InternalBuildMemberList()
-        {
+            if (SavableObject == null) return;
+            
             var fieldList = ReflectionUtility.GetFieldInfos<SavableAttribute>(SavableObject.GetType());
             foreach (var fieldInfo in fieldList)
             {
                 MemberList.Add(fieldInfo);
-                var fieldValue = fieldInfo.GetValue(SavableObject);
-                if (fieldValue != null)
-                {
-                    var fieldUsagePath = new UsagePath(CreatorPath, fieldInfo.Name);
-                    Composite[fieldInfo.Name] = new MemberComposite(fieldUsagePath, fieldValue);
-                }
+                Composite[fieldInfo.Name] = null;
             }
             
             var propertyList = ReflectionUtility.GetPropertyInfos<SavableAttribute>(SavableObject.GetType());
             foreach (var propertyInfo in propertyList)
             {
                 MemberList.Add(propertyInfo);
-                var propertyValue = propertyInfo.GetValue(SavableObject);
-                if (propertyValue != null)
+                Composite[propertyInfo.Name] = null;
+            }
+        }
+
+        public void ApplySaveElementsToMember(List<(string, object)> saveElements)
+        {
+            foreach (var (fieldName, obj) in saveElements)
+            {
+                if (obj is null or UsagePath)
                 {
-                    var fieldUsagePath = new UsagePath(CreatorPath, propertyInfo.Name);
-                    Composite[propertyInfo.Name] = new MemberComposite(fieldUsagePath, propertyValue);
+                    //References will be applied later, when all objects got created!
+                    return;
+                }
+                
+                if (!Composite.ContainsKey(fieldName)) continue;
+
+                var memberInfo = MemberList.Find(x => x.Name == fieldName);
+                if (memberInfo == null) continue;
+                
+                //if is not a class, there is no reference to keep track of -> just add it
+                var fieldUsagePath = new UsagePath(CreatorPath, fieldName);
+                Composite[fieldName] = new MemberComposite(fieldUsagePath, obj);
+                switch (memberInfo)
+                {
+                    case FieldInfo fieldInfo:
+                        fieldInfo.SetValue(SavableObject, obj);
+                        break;
+                    case PropertyInfo propertyInfo:
+                        propertyInfo.SetValue(SavableObject, obj);
+                        break;
                 }
             }
         }
         
-        public bool TryGetComposite(string memberName, out MemberComposite memberComposite)
+        public bool TryGetOrCreateComposite(Stack<string> path, ISaveBuffer saveBuffer, out MemberComposite memberComposite)
+        {
+            memberComposite = default;
+            var memberName = path.Pop();
+
+            if (TryGetComposite(memberName, out memberComposite) && memberComposite != null)
+            {
+                return true;
+            }
+
+            if (Composite.ContainsKey(memberName) && Composite[memberName] == null && path.Count == 0)
+            {
+                var memberInfo = MemberList.Find(x => x.Name == memberName);
+                if (memberInfo == null) return false;
+                
+                var fieldUsagePath = new UsagePath(CreatorPath, memberName);
+                if (saveBuffer is SerializeSaveBuffer serializeSaveBuffer)
+                {
+                    memberComposite = new MemberComposite(fieldUsagePath, serializeSaveBuffer.Data);
+                    Composite[memberName] = memberComposite;
+                
+                    switch (memberInfo)
+                    {
+                        case FieldInfo fieldInfo:
+                            fieldInfo.SetValue(SavableObject, serializeSaveBuffer.Data);
+                            break;
+                        case PropertyInfo propertyInfo:
+                            propertyInfo.SetValue(SavableObject, serializeSaveBuffer.Data);
+                            break;
+                    }
+                }
+                else if (saveBuffer is ComponentSaveBuffer attributeSaveBuffer)
+                {
+                    object instance = Activator.CreateInstance(attributeSaveBuffer.SavableType);
+                    
+                    memberComposite = new MemberComposite(fieldUsagePath, instance);
+                    Composite[memberName] = memberComposite;
+                
+                    switch (memberInfo)
+                    {
+                        case FieldInfo fieldInfo:
+                            fieldInfo.SetValue(SavableObject, instance);
+                            break;
+                        case PropertyInfo propertyInfo:
+                            propertyInfo.SetValue(SavableObject, instance);
+                            break;
+                    }
+                }
+
+                return true;
+            }
+            
+            return false;
+        }
+
+        private bool TryGetComposite(string memberName, out MemberComposite memberComposite)
         {
             bool result = Composite.TryGetValue(memberName, out BaseComposite composite);
             memberComposite = composite as MemberComposite;
             return result;
-        }
-
-        public void WriteMember(string memberName, object obj)
-        {
-            var memberInfo = MemberList.Find(x => x.Name == memberName);
-            if (memberInfo == null)
-            {
-                Debug.LogWarning($"Couldn't find a fitting member for {memberName} of type {obj}!");
-            }
-            
-            switch (memberInfo)
-            {
-                case FieldInfo fieldInfo:
-                    fieldInfo.SetValue(SavableObject, obj);
-                    if (obj != null)
-                    {
-                        var fieldUsagePath = new UsagePath(CreatorPath, fieldInfo.Name);
-                        Composite[fieldInfo.Name] = new MemberComposite(fieldUsagePath, obj);
-                    }
-                    break;
-                case PropertyInfo propertyInfo:
-                    propertyInfo.SetValue(SavableObject, obj);
-                    if (obj != null)
-                    {
-                        var propertyUsagePath = new UsagePath(CreatorPath, propertyInfo.Name);
-                        Composite[propertyInfo.Name] = new MemberComposite(propertyUsagePath, obj);
-                    }
-                    break;
-            }
         }
     }
 
