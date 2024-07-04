@@ -68,12 +68,9 @@ namespace SaveLoadCore
                 var reflectedField = fieldInfo.GetValue(targetObject);
                 memberList.Add((fieldInfo, reflectedField));
 
-                if (reflectedField is UnityEngine.Component)
-                {
-                    Debug.LogWarning($"Tried to process an object that derives from {nameof(UnityEngine.Component)}. " +
-                                     $"This is not allowed, because they always exist on a {nameof(GuidPath)} depth of 2!");
-                    continue;
-                }
+                //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
+                if (reflectedField is UnityEngine.Component) continue;
+                
                 var path = new GuidPath(guidPath, fieldInfo.Name);
                 ProcessSavableElement(saveElementLookup, reflectedField, path);
             }
@@ -84,12 +81,9 @@ namespace SaveLoadCore
                 var reflectedProperty = propertyInfo.GetValue(targetObject);
                 memberList.Add((propertyInfo, reflectedProperty));
 
-                if (reflectedProperty is UnityEngine.Component)
-                {
-                    Debug.LogWarning($"Tried to process an object that derives from {nameof(UnityEngine.Component)}. " +
-                                     $"This is not allowed, because they always exist on a {nameof(GuidPath)} depth of 2!");
-                    continue;
-                }
+                //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
+                if (reflectedProperty is UnityEngine.Component) continue;
+                
                 var path = new GuidPath(guidPath, propertyInfo.Name);
                 ProcessSavableElement(saveElementLookup, reflectedProperty, path);
             }
@@ -205,14 +199,10 @@ namespace SaveLoadCore
                     currentComposite = newComposite;
                 }
 
-                //apply data
+                //apply save elements to member -> can only be done for a componentDataBuffer, because they store their member!
                 if (saveBuffer is ComponentDataBuffer attributeSaveBuffer)
                 {
                     currentComposite.ApplySaveElementsToMember(attributeSaveBuffer.SaveElements);
-                }
-                else
-                {
-                    Debug.LogWarning($"The type {saveBuffer.GetType()} is not a {nameof(ComponentDataBuffer)}, which is required!");
                 }
             }
 
