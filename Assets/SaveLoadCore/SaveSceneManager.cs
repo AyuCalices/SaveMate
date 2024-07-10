@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using SaveLoadCore.Utility;
@@ -7,6 +6,7 @@ using UnityEngine;
 
 namespace SaveLoadCore
 {
+    /// TODO: IEnumerables must act similar to the member system, just that the gathering of the savable elements is different -> counts the same for an savable class attribute
     public class SaveSceneManager : MonoBehaviour
     {
         [ContextMenu("Save Scene Data")]
@@ -110,7 +110,7 @@ namespace SaveLoadCore
                         //TODO: either field/property or method or class attribute system here
                         
                         var saveType = saveObject.GetType();
-                        var saveMember = new List<(string, object)>();
+                        var saveMember = new Dictionary<string, object>();
                         dataBufferContainer.SaveBuffers.Add(new ComponentDataBuffer(saveType, creatorGuidPath, saveMember));
                         
                         FillSaveMember(saveElement, saveElementLookup, saveMember);
@@ -127,21 +127,21 @@ namespace SaveLoadCore
                     //TODO: either field/property or method or class attribute system here
                     
                     var saveType = saveObject.GetType();
-                    var saveMember = new List<(string, object)>();
+                    var saveMember = new Dictionary<string, object>();
                     dataBufferContainer.SaveBuffers.Add(new ObjectDataBuffer(saveType, creatorGuidPath, saveMember));
                     
                     FillSaveMember(saveElement, saveElementLookup, saveMember);
                 }
+                //If an object doesn't have any member: it is a serializable or has a converter
                 else if (ObjectConverter.TryGetConverter(saveObject.GetType(), out IConvertable convertable))
                 {
                     var saveType = saveObject.GetType();
-                    var saveMember = new List<(string, object)>();
+                    var saveMember = new Dictionary<string, object>();
                     var objectDataBuffer = new ObjectDataBuffer(saveType, creatorGuidPath, saveMember);
                     dataBufferContainer.SaveBuffers.Add(objectDataBuffer);
                     
-                    convertable.OnSave(objectDataBuffer, saveObject, saveElementLookup);
+                    convertable.OnSave(objectDataBuffer, saveObject);
                 }
-                //If an object doesn't have any member, it is expected, that it is C# Serializable.
                 else if (SerializationHelper.IsSerializable(saveObject.GetType()))
                 {
                     dataBufferContainer.SaveBuffers.Add(new SerializeDataBuffer(saveObject, creatorGuidPath));
@@ -155,7 +155,7 @@ namespace SaveLoadCore
             return dataBufferContainer;
         }
         
-        private void FillSaveMember(SaveElement saveElement, SaveElementLookup saveElementLookup, List<(string, object)> saveMember)
+        private void FillSaveMember(SaveElement saveElement, SaveElementLookup saveElementLookup, Dictionary<string, object> saveMember)
         {
             //memberList elements are always saved as references -> either from scene or from save data
             foreach (var (memberInfo, memberObject) in saveElement.MemberList)
@@ -163,14 +163,14 @@ namespace SaveLoadCore
                 switch (memberObject)
                 {
                     case null:
-                        saveMember.Add((memberInfo.Name, null));
+                        saveMember.Add(memberInfo.Name, null);
                         break;
                     default:
                     {
                         if (saveElementLookup.Elements.TryGetValue(memberObject,
                                 out var foundSaveElement))
                         {
-                            saveMember.Add((memberInfo.Name, foundSaveElement.CreatorPath));
+                            saveMember.Add(memberInfo.Name, foundSaveElement.CreatorPath);
                         }
                         else
                         {
@@ -240,7 +240,7 @@ namespace SaveLoadCore
     [Serializable]
     public class ComponentDataBuffer : BaseReferencableDataBuffer
     {
-        public ComponentDataBuffer(Type savableType, GuidPath creatorGuidPath, List<(string fieldName, object obj)> saveElements) : base(savableType, creatorGuidPath, saveElements)
+        public ComponentDataBuffer(Type savableType, GuidPath creatorGuidPath, Dictionary<string, object> saveElements) : base(savableType, creatorGuidPath, saveElements)
         {
         }
     }
@@ -248,7 +248,7 @@ namespace SaveLoadCore
     [Serializable]
     public class ObjectDataBuffer : BaseReferencableDataBuffer
     {
-        public ObjectDataBuffer(Type savableType, GuidPath creatorGuidPath, List<(string fieldName, object obj)> saveElements) : base(savableType, creatorGuidPath, saveElements)
+        public ObjectDataBuffer(Type savableType, GuidPath creatorGuidPath, Dictionary<string, object> saveElements) : base(savableType, creatorGuidPath, saveElements)
         {
         }
     }
@@ -263,10 +263,10 @@ namespace SaveLoadCore
         public GuidPath OriginGuidPath { get; }
         
         public Type SavableType;
-        public List<(string fieldName, object obj)> SaveElements;
+        public Dictionary<string, object> SaveElements;
 
         public BaseReferencableDataBuffer(Type savableType, GuidPath creatorGuidPath,
-            List<(string fieldName, object obj)> saveElements)
+            Dictionary<string, object> saveElements)
         {
             SavableType = savableType;
             OriginGuidPath = creatorGuidPath;
@@ -473,7 +473,7 @@ namespace SaveLoadCore
                 {
                     if (ObjectConverter.TryGetConverter(objectSaveBuffer.SavableType, out IConvertable convertable))
                     {
-                        var data = convertable.OnLoad(objectSaveBuffer, referenceBuilder);
+                        var data = convertable.OnLoad(objectSaveBuffer);
                         UpdateComposite(currentMemberName, data, out _);
                         ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, data);
                     }
@@ -497,7 +497,7 @@ namespace SaveLoadCore
             }
         }
         
-        public void LoadMemberData(ReferenceBuilder referenceBuilder, List<(string, object)> saveElements)
+        public void LoadMemberData(ReferenceBuilder referenceBuilder, Dictionary<string, object> saveElements)
         {
             foreach (var (memberName, obj) in saveElements)
             {
@@ -568,11 +568,6 @@ namespace SaveLoadCore
                 
                 ReflectionUtility.ApplyMemberValue(memberInfo, memberOwner, targetComposite.SavableObject);
             }
-        }
-
-        public void StoreAction(Action<SceneElementComposite> action)
-        {
-            _actionList.Add(action);
         }
     }
 }

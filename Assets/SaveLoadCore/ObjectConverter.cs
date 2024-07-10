@@ -1,10 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using JetBrains.Annotations;
-using SaveLoadCore.Utility;
 using UnityEngine;
 
 namespace SaveLoadCore
@@ -47,63 +45,134 @@ namespace SaveLoadCore
             }
         }
 
-        public static bool AddConverter(IConvertable convertable)
+        private static void AddConverter(IConvertable convertable)
         {
             var type = convertable.GetConvertType();
-            if (_convertableList.TryAdd(type, convertable)) return true;
-            
-            Debug.LogWarning($"Type of {type} is already registered!");
-            return false;
-        }
+            if (_convertableList.TryAdd(type, convertable)) return;
 
-        public static bool RemoveConverter(IConvertable convertable)
-        {
-            var type = convertable.GetConvertType();
-            if (!_convertableList.ContainsKey(type))
-            {
-                Debug.LogWarning($"Type of {type} is not registered!");
-                return false;
-            }
-            
-            _convertableList.Remove(type);
-            return true;
+            Debug.LogWarning($"Type of {type} is already registered!");
         }
     }
 
     public interface IConvertable
     {
         Type GetConvertType();
-        void OnSave(ObjectDataBuffer saveDataBuffer, object data, SaveElementLookup saveElementLookup);
-        object OnLoad(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder);
+        void OnSave(ObjectDataBuffer saveDataBuffer, object data);
+        object OnLoad(ObjectDataBuffer loadDataBuffer);
     }
 
+    /// <summary>
+    /// Doesn't support references by choice
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public abstract class BaseConverter<T> : IConvertable
     {
-        //anything, that it present in the saveElementLookup can be used -> IConvertables are not contained which means they are not usable as referencables
-        //TODO: might not even be relevant
-        protected SaveElementLookup SaveElementLookup;
-        protected ReferenceBuilder ReferenceBuilder;
-        
         public Type GetConvertType()
         {
             return typeof(T);
         }
 
-        public void OnSave(ObjectDataBuffer saveDataBuffer, object data, SaveElementLookup saveElementLookup)
+        public void OnSave(ObjectDataBuffer saveDataBuffer, object data)
         {
-            SaveElementLookup = saveElementLookup;
             InternalOnSave(saveDataBuffer, (T)data);
         }
 
         protected abstract void InternalOnSave(ObjectDataBuffer objectDataBuffer, T data);
 
-        public object OnLoad(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
+        public object OnLoad(ObjectDataBuffer loadDataBuffer)
         {
-            ReferenceBuilder = referenceBuilder;
             return InternalOnLoad(loadDataBuffer);
         }
         
         protected abstract T InternalOnLoad(ObjectDataBuffer loadDataBuffer);
+    }
+    
+    [UsedImplicitly]
+    public class Color32Converter : BaseConverter<Color32>
+    {
+        protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, Color32 data)
+        {
+            objectDataBuffer.SaveElements.Add("r", data.r);
+            objectDataBuffer.SaveElements.Add("g", data.g);
+            objectDataBuffer.SaveElements.Add("b", data.b);
+            objectDataBuffer.SaveElements.Add("a", data.a);
+        }
+
+        protected override Color32 InternalOnLoad(ObjectDataBuffer loadDataBuffer)
+        {
+            var r = (byte)loadDataBuffer.SaveElements["r"];
+            var g = (byte)loadDataBuffer.SaveElements["g"];
+            var b = (byte)loadDataBuffer.SaveElements["b"];
+            var a = (byte)loadDataBuffer.SaveElements["a"];
+
+            return new Color32(r, g, b, a);
+        }
+    }
+    
+    [UsedImplicitly]
+    public class ColorConverter : BaseConverter<Color>
+    {
+        protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, Color data)
+        {
+            objectDataBuffer.SaveElements.Add("r", data.r);
+            objectDataBuffer.SaveElements.Add("g", data.g);
+            objectDataBuffer.SaveElements.Add("b", data.b);
+            objectDataBuffer.SaveElements.Add("a", data.a);
+        }
+
+        protected override Color InternalOnLoad(ObjectDataBuffer loadDataBuffer)
+        {
+            var r = (float)loadDataBuffer.SaveElements["r"];
+            var g = (float)loadDataBuffer.SaveElements["g"];
+            var b = (float)loadDataBuffer.SaveElements["b"];
+            var a = (float)loadDataBuffer.SaveElements["a"];
+
+            return new Color(r, g, b, a);
+        }
+    }
+    
+    [UsedImplicitly]
+    public class QuaternionConverter : BaseConverter<Quaternion>
+    {
+        protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, Quaternion data)
+        {
+            objectDataBuffer.SaveElements.Add("x", data.x);
+            objectDataBuffer.SaveElements.Add("y", data.y);
+            objectDataBuffer.SaveElements.Add("z", data.z);
+            objectDataBuffer.SaveElements.Add("w", data.w);
+        }
+
+        protected override Quaternion InternalOnLoad(ObjectDataBuffer loadDataBuffer)
+        {
+            var x = (float)loadDataBuffer.SaveElements["x"];
+            var y = (float)loadDataBuffer.SaveElements["y"];
+            var z = (float)loadDataBuffer.SaveElements["z"];
+            var w = (float)loadDataBuffer.SaveElements["w"];
+
+            return new Quaternion(x, y, z, w);
+        }
+    }
+    
+    [UsedImplicitly]
+    public class Vector4Converter : BaseConverter<Vector4>
+    {
+        protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, Vector4 data)
+        {
+            objectDataBuffer.SaveElements.Add("x", data.x);
+            objectDataBuffer.SaveElements.Add("y", data.y);
+            objectDataBuffer.SaveElements.Add("z", data.z);
+            objectDataBuffer.SaveElements.Add("w", data.w);
+        }
+
+        protected override Vector4 InternalOnLoad(ObjectDataBuffer loadDataBuffer)
+        {
+            var x = (float)loadDataBuffer.SaveElements["x"];
+            var y = (float)loadDataBuffer.SaveElements["y"];
+            var z = (float)loadDataBuffer.SaveElements["z"];
+            var w = (float)loadDataBuffer.SaveElements["w"];
+
+            return new Vector4(x, y, z, w);
+        }
     }
 
     [UsedImplicitly]
@@ -111,83 +180,36 @@ namespace SaveLoadCore
     {
         protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, Vector3 data)
         {
-            objectDataBuffer.SaveElements.Add(("x", data.x));
-            objectDataBuffer.SaveElements.Add(("y", data.y));
-            objectDataBuffer.SaveElements.Add(("z", data.z));
+            objectDataBuffer.SaveElements.Add("x", data.x);
+            objectDataBuffer.SaveElements.Add("y", data.y);
+            objectDataBuffer.SaveElements.Add("z", data.z);
         }
 
         protected override Vector3 InternalOnLoad(ObjectDataBuffer loadDataBuffer)
         {
-            //TODO: use dictionary
-            var x = (float)loadDataBuffer.SaveElements.Find(x => x.fieldName == "x").obj;
-            var y = (float)loadDataBuffer.SaveElements.Find(x => x.fieldName == "y").obj;
-            var z = (float)loadDataBuffer.SaveElements.Find(x => x.fieldName == "z").obj;
+            var x = (float)loadDataBuffer.SaveElements["x"];
+            var y = (float)loadDataBuffer.SaveElements["y"];
+            var z = (float)loadDataBuffer.SaveElements["z"];
 
             return new Vector3(x, y, z);
         }
     }
     
-    /// <summary>
-    /// TODO: this must act similar to the member system, just that the gathering of the savable elements is different -> counts the same for an savable class attribute
-    /// in here, a nested layer of potentional collection is needed
-    /// </summary>
     [UsedImplicitly]
-    public class EnumerableConverter : BaseConverter<IList>
+    public class Vector2Converter : BaseConverter<Vector2>
     {
-        protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, IList data)
+        protected override void InternalOnSave(ObjectDataBuffer objectDataBuffer, Vector2 data)
         {
-            var index = 0;
-
-            var listElements = new List<object>();
-            foreach (var obj in data)
-            {
-                //it is definitely an object with a savable attribute on it
-                if (SaveElementLookup.Elements.TryGetValue(obj, out SaveElement element))
-                {
-                    listElements.Add(element.CreatorPath);
-                    
-                }
-                //or new buffer is needed
-                else if (ObjectConverter.TryGetConverter(obj.GetType(), out IConvertable convertable))
-                {
-                    //listElements.Add(convertable.OnSave());
-                }
-                else if (SerializationHelper.IsSerializable(obj.GetType()))
-                {
-                    
-                }
-                else
-                {
-                    Debug.LogWarning($"The object of type {obj.GetType()} is not supported!");
-                }
-
-                index++;
-            }
-            
-            objectDataBuffer.SaveElements.Add(("elements", listElements));
+            objectDataBuffer.SaveElements.Add("x", data.x);
+            objectDataBuffer.SaveElements.Add("y", data.y);
         }
 
-        protected override IList InternalOnLoad(ObjectDataBuffer loadDataBuffer)
+        protected override Vector2 InternalOnLoad(ObjectDataBuffer loadDataBuffer)
         {
-            var list = (List<object>)loadDataBuffer.SaveElements.Find(x => x.fieldName == "elements").obj;
-            ReferenceBuilder.StoreAction(BuildReference);
-            return list;
+            var x = (float)loadDataBuffer.SaveElements["x"];
+            var y = (float)loadDataBuffer.SaveElements["y"];
 
-            void BuildReference(SceneElementComposite sceneElementComposite)
-            {
-                for (var i = 0; i < list.Count; i++)
-                {
-                    if (list[i] is not GuidPath targetGuidPath) continue;
-                    
-                    if (sceneElementComposite.FindTargetComposite(targetGuidPath.ToStack()) is not ElementComposite targetComposite)
-                    {
-                        Debug.LogWarning("Wasn't able to find the corresponding composite!");
-                        return;
-                    }
-
-                    list[i] = targetComposite.SavableObject;
-                }
-            }
+            return new Vector2(x, y);
         }
     }
 }

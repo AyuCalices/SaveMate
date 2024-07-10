@@ -121,6 +121,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed9e68354ebd82d42be588c03b5fdee2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  list: {x: 0, y: 0, z: 0}
 --- !u!114 &4870954460756958664
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -133,6 +134,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed9e68354ebd82d42be588c03b5fdee2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  list: {x: 0, y: 0, z: 0}
 --- !u!114 &77368802237414058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -145,6 +147,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed9e68354ebd82d42be588c03b5fdee2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  list: {x: 0, y: 0, z: 0}
 --- !u!114 &992641326338897387
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -166,6 +169,12 @@ MonoBehaviour:
   - guid: 67c5be3b-3565-45ab-a0c7-c22b3ef7f60b
     component: {fileID: 1930533846477088563}
   - guid: 75888801-8803-4d1a-9f80-7965146a7b3e
+    component: {fileID: 77368802237414058}
+  - guid: 751d7b48-79a1-4474-9b8f-fc69385ace4d
+    component: {fileID: 1930533846477088563}
+  - guid: f4426b60-5fd6-49eb-8875-1e4222ef65fc
+    component: {fileID: 4870954460756958664}
+  - guid: 6350d668-faf1-4840-9f2b-fd9a14661fac
     component: {fileID: 77368802237414058}
   serializeFieldSavableReferenceList:
   - guid: 4e5f67e3-e912-419d-ad48-28057dbe7ce3
