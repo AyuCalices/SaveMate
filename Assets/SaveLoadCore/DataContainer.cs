@@ -23,6 +23,19 @@ namespace SaveLoadCore
     
     public static class ReflectionUtility
     {
+        public static void ApplyMemberValue(MemberInfo memberInfo, object memberOwner, object data)
+        {
+            switch (memberInfo)
+            {
+                case FieldInfo fieldInfo:
+                    fieldInfo.SetValue(memberOwner, data);
+                    break;
+                case PropertyInfo propertyInfo:
+                    propertyInfo.SetValue(memberOwner, data);
+                    break;
+            }
+        }
+        
         public static Dictionary<Type, List<string>> GetFieldsAndPropertiesWithAttribute<T>() where T : Attribute
         {
             var typeLookup = new Dictionary<Type, List<string>>();

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using SaveLoadCore.Utility;
@@ -22,8 +23,11 @@ namespace SaveLoadCore
         {
             var savableList = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var dataBufferContainer = SaveLoadManager.Load<DataBufferContainer>();
-            var sceneElementComposite = CreateSaveElements(dataBufferContainer, savableList);
-            ApplySaveElementsReferences(dataBufferContainer, sceneElementComposite);
+            
+            var sceneElementComposite = new SceneElementComposite(savableList);
+            var referenceBuilder = new ReferenceBuilder(sceneElementComposite);
+            CreateSaveElements(dataBufferContainer, sceneElementComposite, referenceBuilder);
+            referenceBuilder.BuildReferences();
         }
 
         private SaveElementLookup BuildSaveElementLookup(List<Savable> savableList)
@@ -58,8 +62,7 @@ namespace SaveLoadCore
             var saveElement = new SaveElement()
             {
                 CreatorPath = guidPath,
-                MemberList = memberList,
-                SavableObject = targetObject
+                MemberList = memberList
             };
             saveElementLookup.Elements.Add(targetObject, saveElement);
 
@@ -104,9 +107,11 @@ namespace SaveLoadCore
                 {
                     if (saveObject is UnityEngine.Component)
                     {
-                        var saveType = saveElement.SavableObject.GetType();
+                        //TODO: either field/property or method or class attribute system here
+                        
+                        var saveType = saveObject.GetType();
                         var saveMember = new List<(string, object)>();
-                        dataBufferContainer.SaveBuffers.Add(new ComponentDataBuffer(saveType, saveElement.CreatorPath, saveMember));
+                        dataBufferContainer.SaveBuffers.Add(new ComponentDataBuffer(saveType, creatorGuidPath, saveMember));
                         
                         FillSaveMember(saveElement, saveElementLookup, saveMember);
                     }
@@ -119,13 +124,23 @@ namespace SaveLoadCore
                 //This makes sure, that member can be saved as references for custom classes and structs
                 else if (saveElement.MemberList.Count != 0)
                 {
-                    var saveType = saveElement.SavableObject.GetType();
+                    //TODO: either field/property or method or class attribute system here
+                    
+                    var saveType = saveObject.GetType();
                     var saveMember = new List<(string, object)>();
-                    dataBufferContainer.SaveBuffers.Add(new ObjectDataBuffer(saveType, saveElement.CreatorPath, saveMember));
+                    dataBufferContainer.SaveBuffers.Add(new ObjectDataBuffer(saveType, creatorGuidPath, saveMember));
                     
                     FillSaveMember(saveElement, saveElementLookup, saveMember);
                 }
-                //TODO: Serialize custom types
+                else if (ObjectConverter.TryGetConverter(saveObject.GetType(), out IConvertable convertable))
+                {
+                    var saveType = saveObject.GetType();
+                    var saveMember = new List<(string, object)>();
+                    var objectDataBuffer = new ObjectDataBuffer(saveType, creatorGuidPath, saveMember);
+                    dataBufferContainer.SaveBuffers.Add(objectDataBuffer);
+                    
+                    convertable.OnSave(objectDataBuffer, saveObject, saveElementLookup);
+                }
                 //If an object doesn't have any member, it is expected, that it is C# Serializable.
                 else if (SerializationHelper.IsSerializable(saveObject.GetType()))
                 {
@@ -170,9 +185,8 @@ namespace SaveLoadCore
             }
         }
 
-        private SceneElementComposite CreateSaveElements(DataBufferContainer dataBufferContainer, List<Savable> savableList)
+        private void CreateSaveElements(DataBufferContainer dataBufferContainer, SceneElementComposite sceneElementComposite, ReferenceBuilder referenceBuilder)
         {
-            var sceneElementComposite = new SceneElementComposite(savableList);
             foreach (var saveBuffer in dataBufferContainer.SaveBuffers)
             {
                 var guidPath = saveBuffer.OriginGuidPath.ToStack();
@@ -189,14 +203,15 @@ namespace SaveLoadCore
                         && newComposite is ElementComposite newElementComposite
                         && saveBuffer is ComponentDataBuffer componentDataBuffer)
                     {
-                        newElementComposite.LoadMemberData(componentDataBuffer.SaveElements);
+                        //TODO: either field/property or method or class attribute system here
+                        newElementComposite.LoadMemberData(referenceBuilder, componentDataBuffer.SaveElements);
                         break;
                     }
 
                     //load data structure
                     if (!hasFoundComposite && currentComposite is ElementComposite currentElementComposite)
                     {
-                        currentElementComposite.LoadObjectData(savablePath, saveBuffer);
+                        currentElementComposite.LoadObjectData(referenceBuilder, savablePath, saveBuffer);
                         break;
                     }
 
@@ -206,47 +221,6 @@ namespace SaveLoadCore
                     }
                     
                     currentComposite = newComposite;
-                }
-            }
-
-            return sceneElementComposite;
-        }
-        
-        private void ApplySaveElementsReferences(DataBufferContainer dataBufferContainer, SceneElementComposite sceneElementComposite)
-        {
-            foreach (var saveContainerSaveBuffer in dataBufferContainer.SaveBuffers)
-            {
-                if (saveContainerSaveBuffer is not BaseReferencableDataBuffer attributeSaveBuffer) continue;
-                
-                var creatorBaseComposite = sceneElementComposite.FindTargetComposite(attributeSaveBuffer.OriginGuidPath.ToStack());
-                foreach (var (memberName, obj) in attributeSaveBuffer.SaveElements)
-                {
-                    if (obj is GuidPath usagePath && creatorBaseComposite is ElementComposite creatorMemberComposite)
-                    {
-                        var memberInfo = creatorMemberComposite.MemberList.Find(x => x.Name == memberName);
-                        if (memberInfo == null)
-                        {
-                            Debug.LogWarning("Wasn't able to find the corresponding member!");
-                            continue;
-                        }
-
-                        if (sceneElementComposite.FindTargetComposite(usagePath.ToStack()) is not ElementComposite
-                            targetComposite)
-                        {
-                            Debug.LogWarning("Wasn't able to find the corresponding composite!");
-                            continue;
-                        }
-                            
-                        switch (memberInfo)
-                        {
-                            case FieldInfo fieldInfo:
-                                fieldInfo.SetValue(creatorMemberComposite.SavableObject, targetComposite.SavableObject);
-                                break;
-                            case PropertyInfo propertyInfo:
-                                propertyInfo.SetValue(creatorMemberComposite.SavableObject, targetComposite.SavableObject);
-                                break;
-                        }
-                    }
                 }
             }
         }
@@ -369,7 +343,6 @@ namespace SaveLoadCore
     public class SaveElement
     {
         public GuidPath CreatorPath;
-        public object SavableObject;
         public List<(MemberInfo MemberInfo, object MemberObject)> MemberList;
     }
     
@@ -479,7 +452,7 @@ namespace SaveLoadCore
             }
         }
         
-        public void LoadObjectData(string currentMemberName, IDataBuffer dataBuffer)
+        public void LoadObjectData(ReferenceBuilder referenceBuilder, string currentMemberName, IDataBuffer dataBuffer)
         {
             if (!Composite.ContainsKey(currentMemberName) || Composite[currentMemberName] != null)
             {
@@ -498,13 +471,25 @@ namespace SaveLoadCore
             {
                 case ObjectDataBuffer objectSaveBuffer:
                 {
-                    object instance = Activator.CreateInstance(objectSaveBuffer.SavableType);
-                    ApplyData(memberInfo, currentMemberName, instance, out ElementComposite elementComposite);
-                    elementComposite.LoadMemberData(objectSaveBuffer.SaveElements);
+                    if (ObjectConverter.TryGetConverter(objectSaveBuffer.SavableType, out IConvertable convertable))
+                    {
+                        var data = convertable.OnLoad(objectSaveBuffer, referenceBuilder);
+                        UpdateComposite(currentMemberName, data, out _);
+                        ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, data);
+                    }
+                    else
+                    {
+                        object instance = Activator.CreateInstance(objectSaveBuffer.SavableType);
+                        UpdateComposite(currentMemberName, instance, out ElementComposite elementComposite);
+                        ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, instance);
+                        elementComposite.LoadMemberData(referenceBuilder, objectSaveBuffer.SaveElements);
+                    }
+
                     break;
                 }
                 case SerializeDataBuffer serializeSaveBuffer:
-                    ApplyData(memberInfo, currentMemberName, serializeSaveBuffer.Data, out _);
+                    UpdateComposite(currentMemberName, serializeSaveBuffer.Data, out _);
+                    ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, serializeSaveBuffer.Data);
                     break;
                 default:
                     Debug.LogWarning($"Type of {dataBuffer.GetType()} is not supported for loading!");
@@ -512,13 +497,10 @@ namespace SaveLoadCore
             }
         }
         
-        public void LoadMemberData(List<(string, object)> saveElements)
+        public void LoadMemberData(ReferenceBuilder referenceBuilder, List<(string, object)> saveElements)
         {
             foreach (var (memberName, obj) in saveElements)
             {
-                //References will be applied later, when all objects got created!
-                if (obj is GuidPath) return;
-
                 if (!Composite.ContainsKey(memberName))
                 {
                     Debug.LogWarning("Wasn't able to find the corresponding composite!");
@@ -532,30 +514,65 @@ namespace SaveLoadCore
                     continue;
                 }
                 
-                ApplyData(memberInfo, memberName, obj, out _);
+                if (obj is GuidPath targetGuidPath)
+                {
+                    referenceBuilder.StoreMemberElement(memberInfo, SavableObject, targetGuidPath);
+                }
+                else
+                {
+                    UpdateComposite(memberName, obj, out _);
+                    ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, obj);
+                }
             }
         }
         
-        private void ApplyData(MemberInfo memberInfo, string memberName, object data, out ElementComposite elementComposite)
+        private void UpdateComposite(string memberName, object data, out ElementComposite elementComposite)
         {
-            if (data != null && !data.GetType().IsSerializable)
-            {
-                Debug.LogWarning("not serializable!");
-            }
-            
             var fieldUsagePath = new GuidPath(CreatorPath, memberName);
             elementComposite = new ElementComposite(fieldUsagePath, data);
             Composite[memberName] = elementComposite;
-                
-            switch (memberInfo)
+        }
+    }
+    
+    public class ReferenceBuilder
+    {
+        private readonly List<Action<SceneElementComposite>> _actionList = new();
+
+        private readonly SceneElementComposite _sceneElementComposite;
+
+        public ReferenceBuilder(SceneElementComposite sceneElementComposite)
+        {
+            _sceneElementComposite = sceneElementComposite;
+        }
+
+        public void BuildReferences()
+        {
+            foreach (var action in _actionList)
             {
-                case FieldInfo fieldInfo:
-                    fieldInfo.SetValue(SavableObject, data);
-                    break;
-                case PropertyInfo propertyInfo:
-                    propertyInfo.SetValue(SavableObject, data);
-                    break;
+                action.Invoke(_sceneElementComposite);
             }
+        }
+
+        public void StoreMemberElement(MemberInfo memberInfo, object memberOwner, GuidPath targetGuidPath)
+        {
+            _actionList.Add(BuildReference);
+            return;
+
+            void BuildReference(SceneElementComposite sceneElementComposite)
+            {
+                if (sceneElementComposite.FindTargetComposite(targetGuidPath.ToStack()) is not ElementComposite targetComposite)
+                {
+                    Debug.LogWarning("Wasn't able to find the corresponding composite!");
+                    return;
+                }
+                
+                ReflectionUtility.ApplyMemberValue(memberInfo, memberOwner, targetComposite.SavableObject);
+            }
+        }
+
+        public void StoreAction(Action<SceneElementComposite> action)
+        {
+            _actionList.Add(action);
         }
     }
 }

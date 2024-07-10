@@ -7,6 +7,7 @@ namespace SaveLoadCore
     public class ObjectReference : MonoBehaviour
     {
         [Savable] private ObjectTest Test { get; set; }
+        [Savable] public Vector3 list;
 
         private void Awake()
         {
