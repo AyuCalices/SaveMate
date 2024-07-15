@@ -23,6 +23,51 @@ namespace SaveLoadCore
     
     public static class ReflectionUtility
     {
+        public static BindingFlags DefaultBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+        
+        public static bool TryGetMemberInfo(object memberOwner, string memberName, out MemberInfo memberInfo)
+        {
+            var fieldInfo = memberOwner.GetType().GetField(memberName, DefaultBindingFlags);
+            if (fieldInfo != null)
+            {
+                memberInfo = fieldInfo;
+                return true;
+            }
+            
+            var propertyInfo = memberOwner.GetType().GetProperty(memberName, DefaultBindingFlags);
+            if (propertyInfo != null)
+            {
+                memberInfo = propertyInfo;
+                return true;
+            }
+
+            memberInfo = default;
+            return false;
+        }
+        
+        public static void TryApplyMemberValue(object memberOwner, string memberName, object data, bool debug = false)
+        {
+            var fieldInfo = memberOwner.GetType().GetField(memberName, DefaultBindingFlags);
+            if (fieldInfo != null)
+            {
+                fieldInfo.SetValue(memberOwner, data);
+            }
+            else if (debug)
+            {
+                Debug.LogWarning($"The requested field with name '{memberName}' was not found on type '{memberOwner.GetType()}'!");
+            }
+            
+            var propertyInfo = memberOwner.GetType().GetProperty(memberName, DefaultBindingFlags);
+            if (propertyInfo != null)
+            {
+                propertyInfo.SetValue(memberOwner, data);
+            }
+            else if (debug)
+            {
+                Debug.LogWarning($"The requested property with name '{memberName}' was not found on type '{memberOwner.GetType()}'!");
+            }
+        }
+        
         public static void ApplyMemberValue(MemberInfo memberInfo, object memberOwner, object data)
         {
             switch (memberInfo)
@@ -35,28 +80,11 @@ namespace SaveLoadCore
                     break;
             }
         }
-        
-        public static Dictionary<Type, List<string>> GetFieldsAndPropertiesWithAttribute<T>() where T : Attribute
-        {
-            var typeLookup = new Dictionary<Type, List<string>>();
-            
-            // Get all types in the current assembly
-            var types = Assembly.GetExecutingAssembly().GetTypes();
-
-            foreach (var type in types)
-            {
-                var newTypeElement = new List<string>();
-                GetFieldsAndPropertiesWithAttributeOnType<T>(type, ref newTypeElement);
-                typeLookup.Add(type, newTypeElement);
-            }
-
-            return typeLookup;
-        }
 
         public static void GetFieldsAndPropertiesWithAttributeOnType<T>(Type type, ref List<string> instances) where T : Attribute
         {
             // Get all fields of the type
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var fields = type.GetFields(DefaultBindingFlags);
             foreach (var field in fields)
             {
                 // Check if the field has the specified attribute
@@ -67,7 +95,7 @@ namespace SaveLoadCore
             }
 
             // Get all properties of the type
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var properties = type.GetProperties(DefaultBindingFlags);
             foreach (var property in properties)
             {
                 // Check if the property has the specified attribute
@@ -78,17 +106,12 @@ namespace SaveLoadCore
             }
         }
         
-        public static FieldInfo GetFieldInfo(Type type, string name)
-        {
-            return type.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-        }
-        
         public static List<FieldInfo> GetFieldInfos<T>(Type type) where T : Attribute
         {
             var foundFieldInfos = new List<FieldInfo>();
             
             // Get all fields of the type
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var fields = type.GetFields(DefaultBindingFlags);
             foreach (var field in fields)
             {
                 // Check if the field has the specified attribute
@@ -100,18 +123,13 @@ namespace SaveLoadCore
 
             return foundFieldInfos;
         }
-        
-        public static PropertyInfo GetPropertyInfo(Type type, string name)
-        {
-            return type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-        }
 
         public static List<PropertyInfo> GetPropertyInfos<T>(Type type) where T : Attribute
         {
             var foundPropertyInfos = new List<PropertyInfo>();
             
             // Get all properties of the type
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var properties = type.GetProperties(DefaultBindingFlags);
             foreach (var property in properties)
             {
                 // Check if the property has the specified attribute
@@ -127,7 +145,7 @@ namespace SaveLoadCore
         public static bool ContainsField<T>(Type type) where T : Attribute
         {
             // Get all fields of the type
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var fields = type.GetFields(DefaultBindingFlags);
             foreach (var field in fields)
             {
                 // Check if the field has the specified attribute
@@ -143,7 +161,7 @@ namespace SaveLoadCore
         public static bool ContainsProperty<T>(Type type) where T : Attribute
         {
             // Get all properties of the type
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+            var properties = type.GetProperties(DefaultBindingFlags);
             foreach (var property in properties)
             {
                 // Check if the property has the specified attribute

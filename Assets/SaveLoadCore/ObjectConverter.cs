@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
 using UnityEngine;
 
@@ -19,7 +20,24 @@ namespace SaveLoadCore
             Factories.Add(new Vector3Converter());
             Factories.Add(new Vector4Converter());
             Factories.Add(new QuaternionConverter());
-            // Add other factories as needed
+            // Add other converter as needed
+        }
+
+        public static bool HasConverter(Type type)
+        {
+            return Factories.Any(factory => factory.TryGetConverter(type, out _));
+        }
+
+        public static IConvertable GetConverter(Type type)
+        {
+            foreach (var factory in Factories)
+            {
+                if (factory.TryGetConverter(type, out IConvertable convertable))
+                {
+                    return convertable;
+                }
+            }
+            return null;
         }
 
         public static bool TryGetConverter(Type type, out IConvertable convertable)
@@ -89,40 +107,34 @@ namespace SaveLoadCore
     {
         protected override void SerializeData(ObjectDataBuffer objectDataBuffer, IList data, SaveElementLookup saveElementLookup, int currentIndex)
         {
-            //TODO: save type inside list for new DataBuffer and apply reference -> must also work if data type is object
-            
-            //user just wants to add anything into a buffer and references are resolved magically
-            //needs:    way to add new SaveElement to SaveElementLookup at the next position to be processed -> must mimic the member gathering: if it is a new element, the originPath is inside the list/convertedObject
-            //          guidPath/reference must be build into the dataBuffer
-            //          loading must make sure, the guidPath/reference is resolved correctly for all elements inside the list/convertedObject -> this includes the case, if the originPath of that object is inside the list/convertedObject
+            //TODO: developer just wants to add anything into a buffer and references are resolved magically
             
             var listElements = new List<object>();
-            var newElementCount = 0;
             for (var index = 0; index < data.Count; index++)
             {
                 var obj = data[index];
-                
-                //TODO: what if it should not be targetGuid? 
-                if (saveElementLookup.TryGetValue(obj, out SaveElement saveElement))
-                {
-                    listElements.Add(saveElement.CreatorPath);
-                }
-                //there wont be a component here ever, because it should have already been found! might be object with savable attributes on it though!
-                else    //this will handle even e.g. as new referencables/data buffer
+
+                if (!saveElementLookup.ContainsElement(obj))
                 {
                     var guidPath = new GuidPath(objectDataBuffer.OriginGuidPath, index.ToString());
-                    var memberList = new Dictionary<string, object>();
-                    var newSaveElement = new SaveElement
+                    SaveSceneManager.ProcessSavableElement(saveElementLookup, obj, guidPath, currentIndex + 1);
+                }
+                
+                //TODO: how to handle this if its handled as serializable?
+                if (saveElementLookup.TryGetValue(obj, out SaveElement saveElement))    //savable components will always be found here
+                {
+                    if (saveElement.SaveStrategy == SaveStrategy.Serializable)
                     {
-                        CreatorPath = guidPath,
-                        MemberList = memberList,
-                        Obj = obj
-                    };
-                    
-                    saveElementLookup.TryInsertAt(currentIndex + 1 + newElementCount, obj, newSaveElement);
-                    newElementCount++;
-                    
-                    listElements.Add(guidPath);
+                        listElements.Add(saveElement.Obj);
+                    }
+                    else
+                    {
+                        listElements.Add(saveElement.CreatorGuidPath);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("Couldn't add!");
                 }
             }
             objectDataBuffer.SaveElements.Add("elements", listElements);
@@ -136,6 +148,9 @@ namespace SaveLoadCore
 
         protected override IList DeserializeData(ObjectDataBuffer loadDataBuffer)
         {
+            //prepare the list for initialization
+            
+            //the activator will always intialize value types with default values
             var type = (Type)loadDataBuffer.SaveElements["type"];
             var defaultValue = type.IsValueType ? Activator.CreateInstance(type) : null;
             
@@ -151,23 +166,23 @@ namespace SaveLoadCore
 
         protected override void OnAfterDataProcessingComplete(ObjectDataBuffer loadDataBuffer, IList data, ElementComposite dataElementComposite, ReferenceBuilder referenceBuilder)
         {
-            var guidPathList = (List<object>)loadDataBuffer.SaveElements["elements"];
+            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
             
-            for (var index = 0; index < guidPathList.Count; index++)
+            for (var index = 0; index < saveElements.Count; index++)
             {
-                var obj = guidPathList[index];
+                var saveElement = saveElements[index];
                 
                 //we need custom building here!
                 dataElementComposite.Composite[index.ToString()] = null;
 
-                if (obj is GuidPath guidPath)
+                if (saveElement is GuidPath guidPath)
                 {
                     ApplyReferenceBuilder(referenceBuilder, data, index, guidPath);
                 }
                 else
                 {
-                    ElementComposite.UpdateComposite(dataElementComposite, index.ToString(), obj, out _);
-                    data[index] = dataElementComposite.SavableObject;
+                    ElementComposite.UpdateComposite(dataElementComposite, index.ToString(), saveElement);
+                    data[index] = saveElement;
                 }
             }
         }

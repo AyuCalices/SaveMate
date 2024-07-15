@@ -7,7 +7,6 @@ namespace SaveLoadCore
     public class ObjectReference : MonoBehaviour
     {
         [Savable] private ObjectTest Test { get; set; }
-        [Savable] public Vector3 list;
 
         private void Awake()
         {
@@ -15,10 +14,10 @@ namespace SaveLoadCore
             if (Test == null)
             {
                 newTest = new ObjectTest();
-                newTest.thing = new Reference[3];
-                newTest.thing[0] = new Reference();
-                newTest.thing[1] = new Reference();
-                newTest.thing[2] = new Reference();
+                newTest.thing = new List<Reference>();
+                newTest.thing.Add(new Reference());
+                newTest.thing.Add(new Reference());
+                newTest.thing.Add(new Reference());
             }
             else
             {
@@ -50,14 +49,14 @@ namespace SaveLoadCore
     [Serializable]
     public class BaseTest
     {
-        [Savable] public float value;
+        public float value;
     }
 
     [Serializable]
     public class ObjectTest : BaseTest
     {
         //TODO: array currently only for serializable things
-        [Savable] public Reference[] thing;
+        [Savable] public List<Reference> thing;
         [Savable] public string helloWorld = "hello world";
     }
 
@@ -65,6 +64,6 @@ namespace SaveLoadCore
     [Serializable]
     public class Reference
     {
-        public string element = "hi";
+        [Savable] public string element = "hi";
     }
 }

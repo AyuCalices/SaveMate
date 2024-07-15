@@ -6,38 +6,32 @@ using Random = UnityEngine.Random;
 
 public class SimpleUsageTest : MonoBehaviour
 {
-    [Savable] public List<List<Vector3>> test;
+    [Savable] public List<BaseTest> test;
 
     private void Awake()
     {
-        test = new List<List<Vector3>>();
-        
-        var listCount = Random.Range(0, 3);
-        for (int l = 0; l < listCount; l++)
+        var addCount = Random.Range(1, 1);
+        for (int a = 0; a < addCount; a++)
         {
-            var list = new List<Vector3>();
-            var addCount = Random.Range(0, 3);
-            for (int a = 0; a < addCount; a++)
-            {
-                list.Add(new Vector3(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f)));
-            }
-            test.Add(list);
+            test.Add(new BaseTest() {value = Random.Range(0f, 1f)});
         }
     }
 
     [ContextMenu("PrintList")]
     public void PrintList()
     {
+        string combinedString = String.Empty;
         for (var index = 0; index < test.Count; index++)
         {
-            var vector3List = test[index];
-            string combinedString = String.Empty;
-            foreach (var vector3 in vector3List)
-            {
-                combinedString += " | " + vector3;
-            }
-
-            Debug.Log($"list at {index} is: {combinedString}");
+            var element = test[index];
+            combinedString += " | " + element;
         }
+        Debug.Log($"list is: {combinedString}");
     }
+}
+
+[Serializable]
+public class ListSerializable
+{
+    public float numeric = 0f;
 }
