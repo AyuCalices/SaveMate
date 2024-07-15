@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using SaveLoadCore.Utility;
@@ -13,7 +14,7 @@ namespace SaveLoadCore
         public void SaveSceneData()
         {
             var savableList = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var saveElementLookup = BuildSaveElementLookup(savableList);
+            var saveElementLookup = BuildSaveElementCollections(savableList);
             var dataBufferContainer = BuildDataBufferContainer(saveElementLookup);
             SaveLoadManager.Save(dataBufferContainer);
         }
@@ -30,7 +31,7 @@ namespace SaveLoadCore
             referenceBuilder.BuildReferences();
         }
 
-        private SaveElementLookup BuildSaveElementLookup(List<Savable> savableList)
+        private SaveElementLookup BuildSaveElementCollections(List<Savable> savableList)
         {
             var saveElementLookup = new SaveElementLookup();
             foreach (var savable in savableList)
@@ -53,24 +54,33 @@ namespace SaveLoadCore
             return saveElementLookup;
         }
 
+        //target object can have: field/properties | method | class -> but can also be in a collection
+        //field/property -> already supports references -> memberSystem
+        //method -> not implemented & no references -> converterSystem with memberGathering
+        //class -> same like field/property, just different gathering of members -> memberSystem
+        //converter -> implemented, but no references -> converterSystem
+        //enumerable -> not implemented & no references -> need converter system, because memberSystem doesnt apply
+        
+        //serializale things should be saved on the object and not as reference -> value types doesnt work: if something is struct with a reference savable on it, it will cause problems -> this is optimisation which will be tacled at the end!
         private void ProcessSavableElement(SaveElementLookup saveElementLookup, object targetObject, GuidPath guidPath)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
-            if (targetObject == null || saveElementLookup.Elements.ContainsKey(targetObject)) return;
+            if (targetObject == null || saveElementLookup.ContainsElement(targetObject)) return;
 
-            var memberList = new List<(MemberInfo MemberInfo, object MemberObject)>();
+            var memberList = new Dictionary<string, object>();
             var saveElement = new SaveElement()
             {
                 CreatorPath = guidPath,
+                Obj = targetObject,
                 MemberList = memberList
             };
-            saveElementLookup.Elements.Add(targetObject, saveElement);
+            saveElementLookup.AddElement(targetObject, saveElement);
 
             var fieldInfoList = ReflectionUtility.GetFieldInfos<SavableAttribute>(targetObject.GetType());
             foreach (var fieldInfo in fieldInfoList)
             {
                 var reflectedField = fieldInfo.GetValue(targetObject);
-                memberList.Add((fieldInfo, reflectedField));
+                memberList.Add(fieldInfo.Name, reflectedField);
 
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
                 if (reflectedField is UnityEngine.Component) continue;
@@ -83,7 +93,7 @@ namespace SaveLoadCore
             foreach (var propertyInfo in propertyInfoList)
             {
                 var reflectedProperty = propertyInfo.GetValue(targetObject);
-                memberList.Add((propertyInfo, reflectedProperty));
+                memberList.Add(propertyInfo.Name, reflectedProperty);
 
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
                 if (reflectedProperty is UnityEngine.Component) continue;
@@ -96,10 +106,12 @@ namespace SaveLoadCore
         private DataBufferContainer BuildDataBufferContainer(SaveElementLookup saveElementLookup)
         {
             var dataBufferContainer = new DataBufferContainer();
-
-            foreach (var (saveObject, saveElement) in saveElementLookup.Elements)
+            
+            for (int index = 0; index < saveElementLookup.Count(); index++)
             {
+                SaveElement saveElement = saveElementLookup.GetAt(index);
                 var creatorGuidPath = saveElement.CreatorPath;
+                var saveObject = saveElement.Obj;
 
                 //UnityEngine.Object must always be handled as a reference, so it needs a guidPath.
                 //In that matter it doesn't matter for them if they contain member marked as [Save].
@@ -133,15 +145,16 @@ namespace SaveLoadCore
                     FillSaveMember(saveElement, saveElementLookup, saveMember);
                 }
                 //If an object doesn't have any member: it is a serializable or has a converter
-                else if (ObjectConverter.TryGetConverter(saveObject.GetType(), out IConvertable convertable))
+                else if (ConverterFactoryRegistry.TryGetConverter(saveObject.GetType(), out IConvertable convertable))
                 {
                     var saveType = saveObject.GetType();
                     var saveMember = new Dictionary<string, object>();
                     var objectDataBuffer = new ObjectDataBuffer(saveType, creatorGuidPath, saveMember);
                     dataBufferContainer.SaveBuffers.Add(objectDataBuffer);
                     
-                    convertable.OnSave(objectDataBuffer, saveObject);
+                    convertable.OnSave(objectDataBuffer, saveObject, saveElementLookup, index);
                 }
+                //TODO: somehow save this directly on the saveBuffer
                 else if (SerializationHelper.IsSerializable(saveObject.GetType()))
                 {
                     dataBufferContainer.SaveBuffers.Add(new SerializeDataBuffer(saveObject, creatorGuidPath));
@@ -158,24 +171,24 @@ namespace SaveLoadCore
         private void FillSaveMember(SaveElement saveElement, SaveElementLookup saveElementLookup, Dictionary<string, object> saveMember)
         {
             //memberList elements are always saved as references -> either from scene or from save data
-            foreach (var (memberInfo, memberObject) in saveElement.MemberList)
+            foreach (var (objectName, obj) in saveElement.MemberList)
             {
-                switch (memberObject)
+                switch (obj)
                 {
                     case null:
-                        saveMember.Add(memberInfo.Name, null);
+                        saveMember.Add(objectName, null);
                         break;
                     default:
                     {
-                        if (saveElementLookup.Elements.TryGetValue(memberObject,
+                        if (saveElementLookup.TryGetValue(obj,
                                 out var foundSaveElement))
                         {
-                            saveMember.Add(memberInfo.Name, foundSaveElement.CreatorPath);
+                            saveMember.Add(objectName, foundSaveElement.CreatorPath);
                         }
                         else
                         {
                             Debug.LogWarning(
-                                $"You need to add a savable component to the origin GameObject of the '{memberObject.GetType()}' component. Then you need to apply an " +
+                                $"You need to add a savable component to the origin GameObject of the '{obj.GetType()}' component. Then you need to apply an " +
                                 $"ID by adding it into the ReferenceList. This will enable support for component referencing!");
                         }
 
@@ -223,6 +236,62 @@ namespace SaveLoadCore
                     currentComposite = newComposite;
                 }
             }
+        }
+    }
+
+    public class SaveElementLookup
+    {
+        private readonly Dictionary<object, SaveElement> _objectLookup = new();
+        private readonly List<SaveElement> _saveElementList = new();
+
+        public bool ContainsElement(object saveObject)
+        {
+            return _objectLookup.ContainsKey(saveObject);
+        }
+
+        public bool TryAddElement(object saveObject, SaveElement saveElement)
+        {
+            if (_objectLookup.TryAdd(saveObject, saveElement))
+            {
+                _saveElementList.Add(saveElement);
+                return true;
+            }
+
+            Debug.LogWarning("Save Object already contained in the SaveElementLookup!");
+            return false;
+        }
+
+        public void AddElement(object saveObject, SaveElement saveElement)
+        {
+            _objectLookup.Add(saveObject, saveElement);
+            _saveElementList.Add(saveElement);
+        }
+
+        public bool TryGetValue(object saveObject, out SaveElement saveElement)
+        {
+            return _objectLookup.TryGetValue(saveObject, out saveElement);
+        }
+
+        public int Count()
+        {
+            return _saveElementList.Count;
+        }
+
+        public SaveElement GetAt(int index)
+        {
+            return _saveElementList[index];
+        }
+
+        public bool TryInsertAt(int index, object saveObject, SaveElement saveElement)
+        {
+            if (_objectLookup.TryAdd(saveObject, saveElement))
+            {
+                _saveElementList.Insert(index, saveElement);
+                return true;
+            }
+
+            Debug.LogWarning("Save Object already contained in the SaveElementLookup!");
+            return false;
         }
     }
 
@@ -291,6 +360,7 @@ namespace SaveLoadCore
         }
     }
 
+    //TODO: different types of guidPath -> each one will know how to be found
     [Serializable]
     public class GuidPath
     {
@@ -332,23 +402,19 @@ namespace SaveLoadCore
         }
     }
     
-    public class SaveElementLookup
-    {
-        public readonly Dictionary<object, SaveElement> Elements = new();
-    }
-    
     /// <summary>
     /// represents a savable object. every SavabeObject knows, where they are used, what memberInfo it has and which objects belong to this memberInfo
     /// </summary>
     public class SaveElement
     {
         public GuidPath CreatorPath;
-        public List<(MemberInfo MemberInfo, object MemberObject)> MemberList;
+        public object Obj;
+        public Dictionary<string, object> MemberList;
     }
     
     public abstract class BaseElementComposite
     {
-        protected readonly Dictionary<string, BaseElementComposite> Composite = new();
+        public readonly Dictionary<string, BaseElementComposite> Composite = new();
         
         public BaseElementComposite FindTargetComposite(Stack<string> pathStack)
         {
@@ -441,14 +507,14 @@ namespace SaveLoadCore
             foreach (var fieldInfo in fieldList)
             {
                 MemberList.Add(fieldInfo);
-                Composite[fieldInfo.Name] = default;
+                Composite[fieldInfo.Name] = null;
             }
             
             var propertyList = ReflectionUtility.GetPropertyInfos<SavableAttribute>(SavableObject.GetType());
             foreach (var propertyInfo in propertyList)
             {
                 MemberList.Add(propertyInfo);
-                Composite[propertyInfo.Name] = default;
+                Composite[propertyInfo.Name] = null;
             }
         }
         
@@ -460,27 +526,35 @@ namespace SaveLoadCore
                 return;
             }
             
+            //TODO: there might be a name dependant to a list, that needs to be resolved!
             var memberInfo = MemberList.Find(x => x.Name == currentMemberName);
-            if (memberInfo == null)
-            {
-                Debug.LogWarning("Wasn't able to find the corresponding member!");
-                return;
-            }
             
             switch (dataBuffer)
             {
                 case ObjectDataBuffer objectSaveBuffer:
                 {
-                    if (ObjectConverter.TryGetConverter(objectSaveBuffer.SavableType, out IConvertable convertable))
+                    if (ConverterFactoryRegistry.TryGetConverter(objectSaveBuffer.SavableType, out IConvertable convertable))
                     {
-                        var data = convertable.OnLoad(objectSaveBuffer);
-                        UpdateComposite(currentMemberName, data, out _);
-                        ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, data);
+                        convertable.OnLoad(objectSaveBuffer, referenceBuilder, data =>
+                        {
+                            UpdateComposite(this, currentMemberName, data, out ElementComposite newElementComposite);
+                            if (memberInfo != null)
+                            {
+                                ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, data);
+                            }
+                            return newElementComposite;
+                        });
                     }
                     else
                     {
+                        if (memberInfo == null)
+                        {
+                            Debug.LogWarning("Wasn't able to find the corresponding member!");
+                            return;
+                        }
+                        
                         object instance = Activator.CreateInstance(objectSaveBuffer.SavableType);
-                        UpdateComposite(currentMemberName, instance, out ElementComposite elementComposite);
+                        UpdateComposite(this, currentMemberName, instance, out ElementComposite elementComposite);
                         ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, instance);
                         elementComposite.LoadMemberData(referenceBuilder, objectSaveBuffer.SaveElements);
                     }
@@ -488,7 +562,13 @@ namespace SaveLoadCore
                     break;
                 }
                 case SerializeDataBuffer serializeSaveBuffer:
-                    UpdateComposite(currentMemberName, serializeSaveBuffer.Data, out _);
+                    if (memberInfo == null)
+                    {
+                        Debug.LogWarning("Wasn't able to find the corresponding member!");
+                        return;
+                    }
+                    
+                    UpdateComposite(this, currentMemberName, serializeSaveBuffer.Data, out _);
                     ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, serializeSaveBuffer.Data);
                     break;
                 default:
@@ -514,29 +594,32 @@ namespace SaveLoadCore
                     continue;
                 }
                 
+                //currently, everything is a guidPath
                 if (obj is GuidPath targetGuidPath)
                 {
-                    referenceBuilder.StoreMemberElement(memberInfo, SavableObject, targetGuidPath);
+                    referenceBuilder.StoreAction(targetGuidPath, composite => 
+                        ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, composite.SavableObject));
                 }
+                //this should only happen, if it is serializable
                 else
                 {
-                    UpdateComposite(memberName, obj, out _);
+                    UpdateComposite(this, memberName, obj, out _);
                     ReflectionUtility.ApplyMemberValue(memberInfo, SavableObject, obj);
                 }
             }
         }
         
-        private void UpdateComposite(string memberName, object data, out ElementComposite elementComposite)
+        public static void UpdateComposite(ElementComposite elementComposite, string memberName, object data, out ElementComposite newElementComposite)
         {
-            var fieldUsagePath = new GuidPath(CreatorPath, memberName);
-            elementComposite = new ElementComposite(fieldUsagePath, data);
-            Composite[memberName] = elementComposite;
+            var fieldUsagePath = new GuidPath(elementComposite.CreatorPath, memberName);
+            newElementComposite = new ElementComposite(fieldUsagePath, data);
+            elementComposite.Composite[memberName] = newElementComposite;
         }
     }
     
     public class ReferenceBuilder
     {
-        private readonly List<Action<SceneElementComposite>> _actionList = new();
+        private readonly List<Action> _actionList = new();
 
         private readonly SceneElementComposite _sceneElementComposite;
 
@@ -549,25 +632,22 @@ namespace SaveLoadCore
         {
             foreach (var action in _actionList)
             {
-                action.Invoke(_sceneElementComposite);
+                action.Invoke();
             }
         }
-
-        public void StoreMemberElement(MemberInfo memberInfo, object memberOwner, GuidPath targetGuidPath)
+        
+        public void StoreAction(GuidPath targetGuidPath, Action<ElementComposite> onElementCompositeFound)
         {
-            _actionList.Add(BuildReference);
-            return;
-
-            void BuildReference(SceneElementComposite sceneElementComposite)
+            _actionList.Add(() =>
             {
-                if (sceneElementComposite.FindTargetComposite(targetGuidPath.ToStack()) is not ElementComposite targetComposite)
+                if (_sceneElementComposite.FindTargetComposite(targetGuidPath.ToStack()) is not ElementComposite targetComposite)
                 {
                     Debug.LogWarning("Wasn't able to find the corresponding composite!");
                     return;
                 }
                 
-                ReflectionUtility.ApplyMemberValue(memberInfo, memberOwner, targetComposite.SavableObject);
-            }
+                onElementCompositeFound.Invoke(targetComposite);
+            });
         }
     }
 }
