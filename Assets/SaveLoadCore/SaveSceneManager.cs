@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using SaveLoadCore.Utility;
 using UnityEngine;
@@ -22,7 +23,7 @@ namespace SaveLoadCore
         [ContextMenu("Save Scene Data")]
         public void SaveSceneData()
         {
-            var savableList = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var savableList = UnityObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var saveElementLookup = BuildSaveElementCollections(savableList);
             var dataBufferContainer = BuildDataBufferContainer(saveElementLookup);
             SaveLoadManager.Save(dataBufferContainer);
@@ -31,12 +32,12 @@ namespace SaveLoadCore
         [ContextMenu("Load Scene Data")]
         public void LoadSceneData()
         {
-            var savableList = GameObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var savableList = UnityObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var dataBufferContainer = SaveLoadManager.Load<DataBufferContainer>();
             
-            var referenceBuilder = new ReferenceBuilder();
+            var referenceBuilder = new DeserializeReferenceBuilder();
             var createdObjectsLookup = PrepareSaveElementInstances(dataBufferContainer, savableList, referenceBuilder);
-            referenceBuilder.BuildReferences(createdObjectsLookup);
+            referenceBuilder.InvokeAll(createdObjectsLookup);
         }
 
         private SaveElementLookup BuildSaveElementCollections(List<Savable> savableList)
@@ -168,7 +169,8 @@ namespace SaveLoadCore
                     case SaveStrategy.ObjectConverter:
                         var converter = ConverterFactoryRegistry.GetConverter(saveObject.GetType());
                         var objectDataBuffer = new ObjectDataBuffer(saveObject.GetType(), creatorGuidPath, saveData);
-                        converter.OnSave(objectDataBuffer, saveObject, saveElementLookup, index);
+                        var serializeReferenceBuilder = new SerializeReferenceBuilder(objectDataBuffer, saveElementLookup, index);
+                        converter.OnSave(saveObject, serializeReferenceBuilder);
                         dataBufferContainer.SaveBuffers.Add(creatorGuidPath, objectDataBuffer);
                         break;
                     
@@ -224,7 +226,7 @@ namespace SaveLoadCore
             }
         }
 
-        private Dictionary<GuidPath, object> PrepareSaveElementInstances(DataBufferContainer dataBufferContainer, List<Savable> savableList, ReferenceBuilder referenceBuilder)
+        private Dictionary<GuidPath, object> PrepareSaveElementInstances(DataBufferContainer dataBufferContainer, List<Savable> savableList, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             var createdObjectsLookup = new Dictionary<GuidPath, object>();
             
@@ -244,7 +246,7 @@ namespace SaveLoadCore
                         foreach (var componentContainer in combinedList)
                         {
                             if (componentContainer.guid != searchedComponentGuid) continue;
-                            WriteSavableMember(componentContainer.component, componentDataBuffer.SaveElements, referenceBuilder);
+                            WriteSavableMember(componentContainer.component, componentDataBuffer.SaveElements, deserializeReferenceBuilder);
                             createdObjectsLookup.Add(guidPath, componentContainer.component);
                         }
                     }
@@ -253,13 +255,13 @@ namespace SaveLoadCore
                 {
                     if (ConverterFactoryRegistry.TryGetConverter(objectDataBuffer.SavableType, out IConvertable convertable))
                     {
-                        var instance = convertable.OnLoad(objectDataBuffer, referenceBuilder);
+                        var instance = convertable.OnLoad(objectDataBuffer, deserializeReferenceBuilder);
                         createdObjectsLookup.Add(guidPath, instance);
                     }
                     else
                     {
                         var instance = Activator.CreateInstance(objectDataBuffer.SavableType);
-                        WriteSavableMember(instance, objectDataBuffer.SaveElements, referenceBuilder);
+                        WriteSavableMember(instance, objectDataBuffer.SaveElements, deserializeReferenceBuilder);
                         createdObjectsLookup.Add(guidPath, instance);
                     }
                 }
@@ -268,13 +270,13 @@ namespace SaveLoadCore
             return createdObjectsLookup;
         }
 
-        private void WriteSavableMember(object memberOwner, Dictionary<string, object> savableMember, ReferenceBuilder referenceBuilder)
+        private void WriteSavableMember(object memberOwner, Dictionary<string, object> savableMember, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             foreach (var (identifier, obj) in savableMember)
             {
                 if (obj is GuidPath referenceGuidPath)
                 {
-                    referenceBuilder.StoreAction(referenceGuidPath, targetObject => 
+                    deserializeReferenceBuilder.EnqueueAction(referenceGuidPath, targetObject => 
                         ReflectionUtility.TryApplyMemberValue(memberOwner, identifier, targetObject, true));
                 }
                 else
@@ -446,30 +448,105 @@ namespace SaveLoadCore
         public object Obj;
         public Dictionary<string, object> MemberInfoList;
     }
-    
-    public class ReferenceBuilder
-    {
-        private readonly List<Action<Dictionary<GuidPath, object>>> _actionList = new();
 
-        public void BuildReferences(Dictionary<GuidPath, object> createdObjectsLookup)
+    public class SerializeReferenceBuilder
+    {
+        private readonly ObjectDataBuffer _objectDataBuffer;
+        private readonly SaveElementLookup _saveElementLookup;
+        private readonly int _currentIndex;
+
+        public SerializeReferenceBuilder(ObjectDataBuffer objectDataBuffer, SaveElementLookup saveElementLookup, int currentIndex)
         {
-            foreach (var action in _actionList)
+            _objectDataBuffer = objectDataBuffer;
+            _saveElementLookup = saveElementLookup;
+            _currentIndex = currentIndex;
+        }
+
+        public void AddSerializable(string uniqueIdentifier, object obj)
+        {
+            _objectDataBuffer.SaveElements.Add(uniqueIdentifier, obj);
+        }
+
+        public object ToSavableObject(string uniqueIdentifier, object obj)
+        {
+            var guidPath = new GuidPath(_objectDataBuffer.OriginGuidPath, uniqueIdentifier);
+            if (!_saveElementLookup.ContainsElement(obj))
             {
-                action.Invoke(createdObjectsLookup);
+                SaveSceneManager.ProcessSavableElement(_saveElementLookup, obj, guidPath, _currentIndex + 1);
+            }
+                
+            if (_saveElementLookup.TryGetValue(obj, out SaveElement saveElement))
+            {
+                return saveElement.SaveStrategy == SaveStrategy.Serializable ? saveElement.Obj : saveElement.CreatorGuidPath;
+            }
+
+            throw new InvalidOperationException("The object could not be processed or retrieved from the save element lookup.");
+        }
+        
+        public void AddReferencable(string uniqueIdentifier, object obj)
+        {
+            AddSerializable(uniqueIdentifier, ToSavableObject(uniqueIdentifier, obj));
+        }
+    }
+    
+    public class DeserializeReferenceBuilder
+    {
+        private readonly Queue<Action<Dictionary<GuidPath, object>>> _actionList = new();
+
+        public void InvokeAll(Dictionary<GuidPath, object> createdObjectsLookup)
+        {
+            while (_actionList.Count != 0)
+            {
+                _actionList.Dequeue().Invoke(createdObjectsLookup);
             }
         }
         
-        public void StoreAction(GuidPath targetGuidPath, Action<object> onElementCompositeFound)
+        public void EnqueueAction(object obj, Action<object> onElementCompositeFound)
         {
-            _actionList.Add(createdObjectsLookup =>
+            _actionList.Enqueue(createdObjectsLookup =>
             {
-                if (!createdObjectsLookup.TryGetValue(targetGuidPath, out object value))
+                if (obj is GuidPath guidPath)
                 {
-                    Debug.LogWarning("Wasn't able to find the created object!");
-                    return;
+                    if (!createdObjectsLookup.TryGetValue(guidPath, out object value))
+                    {
+                        Debug.LogWarning("Wasn't able to find the created object!");
+                        return;
+                    }
+                    
+                    onElementCompositeFound.Invoke(value);
                 }
+                else
+                {
+                    onElementCompositeFound.Invoke(obj);
+                }
+            });
+        }
+        
+        public void EnqueueAction(object[] objectGroup, Action<object[]> onElementCompositeFound)
+        {
+            _actionList.Enqueue(createdObjectsLookup =>
+            {
+                var convertedGroup = new object[objectGroup.Length];
                 
-                onElementCompositeFound.Invoke(value);
+                for (var index = 0; index < objectGroup.Length; index++)
+                {
+                    if (objectGroup[index] is GuidPath guidPath)
+                    {
+                        if (!createdObjectsLookup.TryGetValue(guidPath, out object value))
+                        {
+                            Debug.LogWarning("Wasn't able to find the created object!");
+                            return;
+                        }
+
+                        convertedGroup[index] = value;
+                    }
+                    else
+                    {
+                        convertedGroup[index] = objectGroup[index];
+                    }
+                }
+
+                onElementCompositeFound.Invoke(convertedGroup);
             });
         }
     }

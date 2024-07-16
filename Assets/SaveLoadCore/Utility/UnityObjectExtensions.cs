@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using UnityEngine;
@@ -7,7 +6,7 @@ using Object = UnityEngine.Object;
 
 namespace SaveLoadCore.Utility
 {
-    public static class GameObjectExtensions
+    public static class UnityObjectExtensions
     {
         /// <summary>
         /// Checks if a GameObject has been destroyed.
@@ -32,6 +31,25 @@ namespace SaveLoadCore.Utility
         public static bool IsUnityNull<T>(this T obj)
         {
             return obj == null || obj.Equals(null);
+        }
+        
+        public static bool IsSerializable(this object obj)
+        {
+            var type = obj.GetType();
+            
+            // Check if the type is marked with the [Serializable] attribute
+            if (type.IsSerializable)
+            {
+                return true;
+            }
+
+            // Check if the type implements the ISerializable interface
+            if (typeof(ISerializable).IsAssignableFrom(type))
+            {
+                return true;
+            }
+
+            return false;
         }
         
         public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
@@ -72,26 +90,6 @@ namespace SaveLoadCore.Utility
             }
 
             return path;
-        }
-    }
-    
-    public static class SerializationHelper
-    {
-        public static bool IsSerializable(Type type)
-        {
-            // Check if the type is marked with the [Serializable] attribute
-            if (type.IsSerializable)
-            {
-                return true;
-            }
-
-            // Check if the type implements the ISerializable interface
-            if (typeof(ISerializable).IsAssignableFrom(type))
-            {
-                return true;
-            }
-
-            return false;
         }
     }
 }
