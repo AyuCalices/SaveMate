@@ -57,7 +57,7 @@ namespace SaveLoadCore
     public interface IConvertable
     {
         void OnSave(ObjectDataBuffer saveDataBuffer, object data, SaveElementLookup saveElementLookup, int currentIndex);
-        void OnLoad(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder, Func<object, ElementComposite> processData);
+        object OnLoad(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder);
     }
     
     public interface IConverterFactory
@@ -90,16 +90,12 @@ namespace SaveLoadCore
 
         protected abstract void SerializeData(ObjectDataBuffer objectDataBuffer, T data, SaveElementLookup saveElementLookup, int currentIndex);
 
-        public void OnLoad(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder, Func<object, ElementComposite> processData)
+        public object OnLoad(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
-            var data = DeserializeData(loadDataBuffer);
-            var newElementComposite = processData.Invoke(data);
-            OnAfterDataProcessingComplete(loadDataBuffer, data, newElementComposite, referenceBuilder);
+            return DeserializeData(loadDataBuffer, referenceBuilder);
         }
         
-        protected abstract T DeserializeData(ObjectDataBuffer loadDataBuffer);
-
-        protected virtual void OnAfterDataProcessingComplete(ObjectDataBuffer loadDataBuffer, T data, ElementComposite dataElementComposite, ReferenceBuilder referenceBuilder) {}
+        protected abstract T DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder);
     }
 
     [UsedImplicitly]
@@ -114,14 +110,14 @@ namespace SaveLoadCore
             {
                 var obj = data[index];
 
+                //from here
                 if (!saveElementLookup.ContainsElement(obj))
                 {
                     var guidPath = new GuidPath(objectDataBuffer.OriginGuidPath, index.ToString());
                     SaveSceneManager.ProcessSavableElement(saveElementLookup, obj, guidPath, currentIndex + 1);
                 }
                 
-                //TODO: how to handle this if its handled as serializable?
-                if (saveElementLookup.TryGetValue(obj, out SaveElement saveElement))    //savable components will always be found here
+                if (saveElementLookup.TryGetValue(obj, out SaveElement saveElement))
                 {
                     if (saveElement.SaveStrategy == SaveStrategy.Serializable)
                     {
@@ -136,60 +132,43 @@ namespace SaveLoadCore
                 {
                     Debug.LogWarning("Couldn't add!");
                 }
+                //to here is generic! -> just add
             }
             objectDataBuffer.SaveElements.Add("elements", listElements);
             
             var containedType = data.GetType().GetGenericArguments()[0];
             objectDataBuffer.SaveElements.Add("type", containedType);
-            
-            var count = data.Count;
-            objectDataBuffer.SaveElements.Add("count", count);
         }
 
-        protected override IList DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override IList DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
-            //prepare the list for initialization
+            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
             
             //the activator will always intialize value types with default values
             var type = (Type)loadDataBuffer.SaveElements["type"];
             var defaultValue = type.IsValueType ? Activator.CreateInstance(type) : null;
             
-            int elementCount = (int)loadDataBuffer.SaveElements["count"];
             IList list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(type));
-            for (int index = 0; index < elementCount; index++)
+            for (int index = 0; index < saveElements.Count; index++)
             {
-                list.Add(defaultValue);
+                var saveElement = saveElements[index];
+                if (saveElement is GuidPath referenceGuidPath)
+                {
+                    list.Add(defaultValue);
+                    ApplyReferenceBuilder(referenceBuilder, list, index, referenceGuidPath);
+                }
+                else
+                {
+                    list.Add(saveElement);
+                }
             }
 
             return list;
         }
 
-        protected override void OnAfterDataProcessingComplete(ObjectDataBuffer loadDataBuffer, IList data, ElementComposite dataElementComposite, ReferenceBuilder referenceBuilder)
-        {
-            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
-            
-            for (var index = 0; index < saveElements.Count; index++)
-            {
-                var saveElement = saveElements[index];
-                
-                //we need custom building here!
-                dataElementComposite.Composite[index.ToString()] = null;
-
-                if (saveElement is GuidPath guidPath)
-                {
-                    ApplyReferenceBuilder(referenceBuilder, data, index, guidPath);
-                }
-                else
-                {
-                    ElementComposite.UpdateComposite(dataElementComposite, index.ToString(), saveElement);
-                    data[index] = saveElement;
-                }
-            }
-        }
-
         private void ApplyReferenceBuilder(ReferenceBuilder referenceBuilder, IList list, int index, GuidPath targetGuidPath)
         {
-            referenceBuilder.StoreAction(targetGuidPath, composite => list[index] = composite.SavableObject);
+            referenceBuilder.StoreAction(targetGuidPath, targetObject => list[index] = targetObject);
         }
     }
     
@@ -204,7 +183,7 @@ namespace SaveLoadCore
             objectDataBuffer.SaveElements.Add("a", data.a);
         }
 
-        protected override Color32 DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override Color32 DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
             var r = (byte)loadDataBuffer.SaveElements["r"];
             var g = (byte)loadDataBuffer.SaveElements["g"];
@@ -226,7 +205,7 @@ namespace SaveLoadCore
             objectDataBuffer.SaveElements.Add("a", data.a);
         }
 
-        protected override Color DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override Color DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
             var r = (float)loadDataBuffer.SaveElements["r"];
             var g = (float)loadDataBuffer.SaveElements["g"];
@@ -248,7 +227,7 @@ namespace SaveLoadCore
             objectDataBuffer.SaveElements.Add("w", data.w);
         }
 
-        protected override Quaternion DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override Quaternion DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
             var x = (float)loadDataBuffer.SaveElements["x"];
             var y = (float)loadDataBuffer.SaveElements["y"];
@@ -270,7 +249,7 @@ namespace SaveLoadCore
             objectDataBuffer.SaveElements.Add("w", data.w);
         }
 
-        protected override Vector4 DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override Vector4 DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
             var x = (float)loadDataBuffer.SaveElements["x"];
             var y = (float)loadDataBuffer.SaveElements["y"];
@@ -291,7 +270,7 @@ namespace SaveLoadCore
             objectDataBuffer.SaveElements.Add("z", data.z);
         }
 
-        protected override Vector3 DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override Vector3 DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
             var x = (float)loadDataBuffer.SaveElements["x"];
             var y = (float)loadDataBuffer.SaveElements["y"];
@@ -310,7 +289,7 @@ namespace SaveLoadCore
             objectDataBuffer.SaveElements.Add("y", data.y);
         }
 
-        protected override Vector2 DeserializeData(ObjectDataBuffer loadDataBuffer)
+        protected override Vector2 DeserializeData(ObjectDataBuffer loadDataBuffer, ReferenceBuilder referenceBuilder)
         {
             var x = (float)loadDataBuffer.SaveElements["x"];
             var y = (float)loadDataBuffer.SaveElements["y"];

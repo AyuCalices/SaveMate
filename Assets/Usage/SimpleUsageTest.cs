@@ -33,5 +33,5 @@ public class SimpleUsageTest : MonoBehaviour
 [Serializable]
 public class ListSerializable
 {
-    public float numeric = 0f;
+    [Savable] public float numeric = 0f;
 }

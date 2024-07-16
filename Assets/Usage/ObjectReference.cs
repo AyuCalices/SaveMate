@@ -15,9 +15,10 @@ namespace SaveLoadCore
             {
                 newTest = new ObjectTest();
                 newTest.thing = new List<Reference>();
-                newTest.thing.Add(new Reference());
-                newTest.thing.Add(new Reference());
-                newTest.thing.Add(new Reference());
+                var reference = new Reference();
+                newTest.thing.Add(reference);
+                newTest.thing.Add(reference);
+                newTest.thing.Add(reference);
             }
             else
             {
@@ -42,14 +43,14 @@ namespace SaveLoadCore
         [ContextMenu("Remove")]
         public void Remove()
         {
-            Test = null;
+            Test.thing = null;
         }
     }
 
     [Serializable]
     public class BaseTest
     {
-        public float value;
+        [Savable] public float value;
     }
 
     [Serializable]

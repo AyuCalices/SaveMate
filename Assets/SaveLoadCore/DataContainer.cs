@@ -25,59 +25,25 @@ namespace SaveLoadCore
     {
         public static BindingFlags DefaultBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
         
-        public static bool TryGetMemberInfo(object memberOwner, string memberName, out MemberInfo memberInfo)
-        {
-            var fieldInfo = memberOwner.GetType().GetField(memberName, DefaultBindingFlags);
-            if (fieldInfo != null)
-            {
-                memberInfo = fieldInfo;
-                return true;
-            }
-            
-            var propertyInfo = memberOwner.GetType().GetProperty(memberName, DefaultBindingFlags);
-            if (propertyInfo != null)
-            {
-                memberInfo = propertyInfo;
-                return true;
-            }
-
-            memberInfo = default;
-            return false;
-        }
-        
         public static void TryApplyMemberValue(object memberOwner, string memberName, object data, bool debug = false)
         {
             var fieldInfo = memberOwner.GetType().GetField(memberName, DefaultBindingFlags);
             if (fieldInfo != null)
             {
                 fieldInfo.SetValue(memberOwner, data);
-            }
-            else if (debug)
-            {
-                Debug.LogWarning($"The requested field with name '{memberName}' was not found on type '{memberOwner.GetType()}'!");
+                return;
             }
             
             var propertyInfo = memberOwner.GetType().GetProperty(memberName, DefaultBindingFlags);
             if (propertyInfo != null)
             {
                 propertyInfo.SetValue(memberOwner, data);
+                return;
             }
-            else if (debug)
+            
+            if (debug)
             {
                 Debug.LogWarning($"The requested property with name '{memberName}' was not found on type '{memberOwner.GetType()}'!");
-            }
-        }
-        
-        public static void ApplyMemberValue(MemberInfo memberInfo, object memberOwner, object data)
-        {
-            switch (memberInfo)
-            {
-                case FieldInfo fieldInfo:
-                    fieldInfo.SetValue(memberOwner, data);
-                    break;
-                case PropertyInfo propertyInfo:
-                    propertyInfo.SetValue(memberOwner, data);
-                    break;
             }
         }
 
