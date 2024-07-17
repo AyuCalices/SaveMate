@@ -199,7 +199,10 @@ namespace SaveLoadCore
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
             var foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
-                ReflectionUtility.ContainsProperty<SavableAttribute>, ReflectionUtility.ContainsField<SavableAttribute>);
+                ReflectionUtility.ClassHasAttribute<SavableAttribute>,
+                ReflectionUtility.ContainsProperty<SavableMemberAttribute>, 
+                ReflectionUtility.ContainsField<SavableMemberAttribute>,
+                ReflectionUtility.ContainsInterface<ISavable>);
             
             //update removed elements and those that are kept 
             for (var index = serializeFieldSavableList.Count - 1; index >= 0; index--)

@@ -6,7 +6,7 @@ namespace SaveLoadCore
 {
     public class ObjectReference : MonoBehaviour
     {
-        [Savable] private ObjectTest Test { get; set; }
+        [SavableMember] private ObjectTest Test { get; set; }
 
         private void Awake()
         {
@@ -50,21 +50,21 @@ namespace SaveLoadCore
     [Serializable]
     public class BaseTest
     {
-        [Savable] public float value;
+        [SavableMember] public float value;
     }
 
     [Serializable]
     public class ObjectTest : BaseTest
     {
         //TODO: array currently only for serializable things
-        [Savable] public List<Reference> thing;
-        [Savable] public string helloWorld = "hello world";
+        [SavableMember] public List<Reference> thing;
+        [SavableMember] public string helloWorld = "hello world";
     }
 
     //TODO: error when serializable is removed
     [Serializable]
     public class Reference
     {
-        [Savable] public string element = "hi";
+        [SavableMember] public string element = "hi";
     }
 }

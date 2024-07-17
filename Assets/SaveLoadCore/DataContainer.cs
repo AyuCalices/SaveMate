@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -17,6 +18,11 @@ namespace SaveLoadCore
     //1.2 die hierarchy einer scene durchgehen & savables einsammeln -> scenen gebunden
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class SavableMemberAttribute : Attribute
+    {
+    }
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public class SavableAttribute : Attribute
     {
     }
@@ -108,6 +114,19 @@ namespace SaveLoadCore
             return foundPropertyInfos;
         }
 
+        //TODO: this is no reflection
+        public static bool TryConvertTo<T>(object instance, out T convertedType) where T : class
+        {
+            if (instance is T validInstance)
+            {
+                convertedType = validInstance;
+                return true;
+            }
+
+            convertedType = null;
+            return false;
+        }
+
         public static bool ContainsField<T>(Type type) where T : Attribute
         {
             // Get all fields of the type
@@ -122,6 +141,16 @@ namespace SaveLoadCore
             }
 
             return false;
+        }
+        
+        public static bool ContainsInterface<T>(Type type) where T : class
+        {
+            return typeof(T).IsAssignableFrom(type);
+        }
+        
+        public static bool ClassHasAttribute<T>(Type type) where T : Attribute
+        {
+            return type.GetCustomAttributes(typeof(T), false).Length > 0;
         }
 
         public static bool ContainsProperty<T>(Type type) where T : Attribute

@@ -6,7 +6,7 @@ namespace SaveLoadCore
 {
     public class CircleReference : MonoBehaviour
     {
-        [Savable] private CircleObject Test { get; set; }
+        [SavableMember] private CircleObject Test { get; set; }
 
         private void Awake()
         {
@@ -40,6 +40,6 @@ namespace SaveLoadCore
     [Serializable]
     public class CircleObject
     {
-        [Savable] public CircleObject circleElement;
+        [SavableMember] public CircleObject circleElement;
     }
 }

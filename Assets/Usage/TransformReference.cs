@@ -5,7 +5,7 @@ namespace SaveLoadCore
 {
     public class TransformReference : MonoBehaviour
     {
-        [Savable] public Transform Test { get; set; }
+        [SavableMember] public Transform Test { get; set; }
 
         private void Awake()
         {

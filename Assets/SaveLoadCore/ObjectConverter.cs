@@ -7,11 +7,11 @@ using UnityEngine;
 
 namespace SaveLoadCore
 {
-    public static class ConverterFactoryRegistry
+    public static class ConverterRegistry
     {
-        private static readonly List<IConverterFactory> Factories = new();
+        private static readonly List<IConvertable> Factories = new();
 
-        static ConverterFactoryRegistry()
+        static ConverterRegistry()
         {
             //collections
             Factories.Add(new ArrayConverter());    //array must be processed before list, because an array inherits from IList but needs an own converter
@@ -62,20 +62,22 @@ namespace SaveLoadCore
 
     public interface IConvertable
     {
-        void OnSave(object data, SerializeReferenceBuilder serializeReferenceBuilder);
-        object OnLoad(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder);
+        bool TryGetConverter(Type type, out IConvertable convertable);
+        void OnSave(object data, SaveDataHandler saveDataHandler);
+        void OnLoad(LoadDataHandler loadDataHandler);
     }
     
-    public interface IConverterFactory
+    public interface ISavable
     {
-        bool TryGetConverter(Type type, out IConvertable convertable);
+        void OnSave(SaveDataHandler saveDataHandler);
+        void OnLoad(LoadDataHandler loadDataHandler);
     }
 
     /// <summary>
     /// Doesn't support references by choice
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public abstract class BaseConverter<T> : IConvertable, IConverterFactory
+    public abstract class BaseConverter<T> : IConvertable
     {
         public virtual bool TryGetConverter(Type type, out IConvertable convertable)
         {
@@ -89,87 +91,84 @@ namespace SaveLoadCore
             return false;
         }
         
-        public void OnSave(object data, SerializeReferenceBuilder serializeReferenceBuilder)
+        public void OnSave(object data, SaveDataHandler saveDataHandler)
         {
-            SerializeData((T)data, serializeReferenceBuilder);
+            OnSave((T)data, saveDataHandler);
         }
 
-        protected abstract void SerializeData(T data, SerializeReferenceBuilder serializeReferenceBuilder);
+        protected abstract void OnSave(T data, SaveDataHandler saveDataHandler);
 
-        public object OnLoad(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
-        {
-            return DeserializeData(loadDataBuffer, deserializeReferenceBuilder);
-        }
-        
-        protected abstract T DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder);
+        public abstract void OnLoad(LoadDataHandler loadDataHandler);
     }
     
     [UsedImplicitly]
     public class StackConverter : BaseConverter<Stack>
     {
-        protected override void SerializeData(Stack data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Stack data, SaveDataHandler saveDataHandler)
         {
-            var listElements = data.ToArray();
-            for (var index = 0; index < listElements.Length; index++)
+            var saveElements = data.ToArray();
+            for (var index = 0; index < saveElements.Length; index++)
             {
-                listElements[index] = serializeReferenceBuilder.ToSavableObject(index.ToString(), listElements[index]);
+                saveElements[index] = saveDataHandler.ToReferencableObject(index.ToString(), saveElements[index]);
             }
-            serializeReferenceBuilder.AddSerializable("elements", listElements);
+            saveDataHandler.AddSerializable("elements", saveElements);
             
             var containedType = data.GetType().GetGenericArguments()[0];
-            serializeReferenceBuilder.AddSerializable("type", containedType);
+            saveDataHandler.AddSerializable("type", containedType);
         }
 
-        protected override Stack DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
-            var type = (Type)loadDataBuffer.SaveElements["type"];
+            var loadElements = loadDataHandler.GetSaveElement<List<object>>("elements");
+            var type = loadDataHandler.GetSaveElement<Type>("type");
             
-            var listType = typeof(Stack<>).MakeGenericType(type);
-            var list = (Stack)Activator.CreateInstance(listType);
-            foreach (var saveElement in saveElements)
+            var stackType = typeof(Stack<>).MakeGenericType(type);
+            var stack = (Stack)Activator.CreateInstance(stackType);
+            
+            loadDataHandler.InitializeInstance(stack);
+            
+            foreach (var saveElement in loadElements)
             {
-                deserializeReferenceBuilder.EnqueueAction(saveElement, targetObject => list.Push(targetObject));
+                loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => stack.Push(foundObject));
             }
-
-            return list;
         }
     }
     
     [UsedImplicitly]
     public class QueueConverter : BaseConverter<Queue>
     {
-        protected override void SerializeData(Queue data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Queue data, SaveDataHandler saveDataHandler)
         {
-            var listElements = data.ToArray();
-            for (var index = 0; index < listElements.Length; index++)
+            var saveElements = data.ToArray();
+            for (var index = 0; index < saveElements.Length; index++)
             {
-                listElements[index] = serializeReferenceBuilder.ToSavableObject(index.ToString(), listElements[index]);
+                saveElements[index] = saveDataHandler.ToReferencableObject(index.ToString(), saveElements[index]);
             }
-            serializeReferenceBuilder.AddSerializable("elements", listElements);
+            saveDataHandler.AddSerializable("elements", saveElements);
             
             var containedType = data.GetType().GetGenericArguments()[0];
-            serializeReferenceBuilder.AddSerializable("type", containedType);
+            saveDataHandler.AddSerializable("type", containedType);
         }
 
-        protected override Queue DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
-            var type = (Type)loadDataBuffer.SaveElements["type"];
+            var loadElements = loadDataHandler.GetSaveElement<List<object>>("elements");
+            var type = loadDataHandler.GetSaveElement<Type>("type");
             
-            var listType = typeof(Queue<>).MakeGenericType(type);
-            var list = (Queue)Activator.CreateInstance(listType);
-            foreach (var saveElement in saveElements)
+            var queueType = typeof(Queue<>).MakeGenericType(type);
+            var queue = (Queue)Activator.CreateInstance(queueType);
+            
+            loadDataHandler.InitializeInstance(queue);
+            
+            foreach (var saveElement in loadElements)
             {
-                deserializeReferenceBuilder.EnqueueAction(saveElement, targetObject => list.Enqueue(targetObject));
+                loadDataHandler.EnqueueReferenceBuilding(saveElement, targetObject => queue.Enqueue(targetObject));
             }
-
-            return list;
         }
     }
     
     [UsedImplicitly]
-    public class ArrayConverter : IConvertable, IConverterFactory
+    public class ArrayConverter : IConvertable
     {
         public bool TryGetConverter(Type type, out IConvertable convertable)
         {
@@ -183,244 +182,245 @@ namespace SaveLoadCore
             return false;
         }
         
-        public void OnSave(object data, SerializeReferenceBuilder serializeReferenceBuilder)
+        public void OnSave(object data, SaveDataHandler saveDataHandler)
         {
-            var listElements = new List<object>();
+            var saveElements = new List<object>();
             var index = 0;
             foreach (var obj in (Array)data)
             {
-                var savable = serializeReferenceBuilder.ToSavableObject(index.ToString(), obj);
-                listElements.Add(savable);
+                var savable = saveDataHandler.ToReferencableObject(index.ToString(), obj);
+                saveElements.Add(savable);
                 index++;
             }
-            serializeReferenceBuilder.AddSerializable("elements", listElements);
+            saveDataHandler.AddSerializable("elements", saveElements);
             
             var containedType = data.GetType().GetElementType();
-            serializeReferenceBuilder.AddSerializable("type", containedType);
+            saveDataHandler.AddSerializable("type", containedType);
         }
 
-        public object OnLoad(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
-            var type = (Type)loadDataBuffer.SaveElements["type"];
+            var loadElements = loadDataHandler.GetSaveElement<List<object>>("elements");
+            var type = loadDataHandler.GetSaveElement<Type>("type");
             
-            var array = Array.CreateInstance(type, saveElements.Count);
+            var array = Array.CreateInstance(type, loadElements.Count);
+            
+            loadDataHandler.InitializeInstance(array);
 
-            for (var index = 0; index < saveElements.Count; index++)
+            for (var index = 0; index < loadElements.Count; index++)
             {
                 var innerScopeIndex = index;
-                deserializeReferenceBuilder.EnqueueAction(saveElements[index], targetObject => array.SetValue(targetObject, innerScopeIndex));
+                loadDataHandler.EnqueueReferenceBuilding(loadElements[index], targetObject => array.SetValue(targetObject, innerScopeIndex));
             }
-
-            return array;
         }
     }
 
     [UsedImplicitly]
     public class ListConverter : BaseConverter<IList>
     {
-        protected override void SerializeData(IList data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(IList data, SaveDataHandler saveDataHandler)
         {
             var listElements = new List<object>();
             for (var index = 0; index < data.Count; index++)
             {
-                var savable = serializeReferenceBuilder.ToSavableObject(index.ToString(), data[index]);
+                var savable = saveDataHandler.ToReferencableObject(index.ToString(), data[index]);
                 listElements.Add(savable);
             }
-            serializeReferenceBuilder.AddSerializable("elements", listElements);
+            saveDataHandler.AddSerializable("elements", listElements);
             
             var containedType = data.GetType().GetGenericArguments()[0];
-            serializeReferenceBuilder.AddSerializable("type", containedType);
+            saveDataHandler.AddSerializable("type", containedType);
         }
 
-        protected override IList DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = (List<object>)loadDataBuffer.SaveElements["elements"];
-            var type = (Type)loadDataBuffer.SaveElements["type"];
+            var saveElements = loadDataHandler.GetSaveElement<List<object>>("elements");
+            var type = loadDataHandler.GetSaveElement<Type>("type");
             
             var listType = typeof(List<>).MakeGenericType(type);
             var list = (IList)Activator.CreateInstance(listType);
+            
+            loadDataHandler.InitializeInstance(list);
+            
             foreach (var saveElement in saveElements)
             {
-                deserializeReferenceBuilder.EnqueueAction(saveElement, targetObject => list.Add(targetObject));
+                loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => list.Add(foundObject));
             }
-
-            return list;
         }
     }
     
     [UsedImplicitly]
     public class DictionaryConverter : BaseConverter<IDictionary>
     {
-        protected override void SerializeData(IDictionary data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(IDictionary data, SaveDataHandler saveDataHandler)
         {
             var listElements = new Dictionary<object, object>();
 
             var index = 0;
             foreach (var dataKey in data.Keys)
             {
-                var savableKey = serializeReferenceBuilder.ToSavableObject(index.ToString(), dataKey);
-                var savableValue = serializeReferenceBuilder.ToSavableObject(index.ToString(), data[dataKey]);
+                var savableKey = saveDataHandler.ToReferencableObject(index.ToString(), dataKey);
+                var savableValue = saveDataHandler.ToReferencableObject(index.ToString(), data[dataKey]);
                 listElements.Add(savableKey, savableValue);
                 
                 index++;
             }
-            serializeReferenceBuilder.AddSerializable("elements", listElements);
+            saveDataHandler.AddSerializable("elements", listElements);
             
             var keyType = data.GetType().GetGenericArguments()[0];
-            serializeReferenceBuilder.AddSerializable("keyType", keyType);
+            saveDataHandler.AddSerializable("keyType", keyType);
             
             var valueType = data.GetType().GetGenericArguments()[1];
-            serializeReferenceBuilder.AddSerializable("valueType", valueType);
+            saveDataHandler.AddSerializable("valueType", valueType);
         }
 
-        protected override IDictionary DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = (Dictionary<object, object>)loadDataBuffer.SaveElements["elements"];
+            var saveElements = loadDataHandler.GetSaveElement<Dictionary<object, object>>("elements");
             
             //the activator will always intialize value types with default values
-            var keyType = (Type)loadDataBuffer.SaveElements["keyType"];
-            var valueType = (Type)loadDataBuffer.SaveElements["valueType"];
+            var keyType = loadDataHandler.GetSaveElement<Type>("keyType");
+            var valueType = loadDataHandler.GetSaveElement<Type>("valueType");
             
             var dictionaryType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
             var dictionary = (IDictionary)Activator.CreateInstance(dictionaryType);
+            
+            loadDataHandler.InitializeInstance(dictionary);
 
             foreach (var (key, value) in saveElements)
             {
                 var objectGroup = new[] { key, value };
-                deserializeReferenceBuilder.EnqueueAction(objectGroup, targetObject =>
+                loadDataHandler.EnqueueReferenceBuilding(objectGroup, foundObject =>
                 {
-                    dictionary.Add(targetObject[0], targetObject[1]);
+                    dictionary.Add(foundObject[0], foundObject[1]);
                 });
             }
-
-            return dictionary;
         }
     }
     
     [UsedImplicitly]
     public class Color32Converter : BaseConverter<Color32>
     {
-        protected override void SerializeData(Color32 data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Color32 data, SaveDataHandler saveDataHandler)
         {
-            serializeReferenceBuilder.AddSerializable("r", data.r);
-            serializeReferenceBuilder.AddSerializable("g", data.g);
-            serializeReferenceBuilder.AddSerializable("b", data.b);
-            serializeReferenceBuilder.AddSerializable("a", data.a);
+            saveDataHandler.AddSerializable("r", data.r);
+            saveDataHandler.AddSerializable("g", data.g);
+            saveDataHandler.AddSerializable("b", data.b);
+            saveDataHandler.AddSerializable("a", data.a);
         }
 
-        protected override Color32 DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var r = (byte)loadDataBuffer.SaveElements["r"];
-            var g = (byte)loadDataBuffer.SaveElements["g"];
-            var b = (byte)loadDataBuffer.SaveElements["b"];
-            var a = (byte)loadDataBuffer.SaveElements["a"];
-
-            return new Color32(r, g, b, a);
+            var r = loadDataHandler.GetSaveElement<byte>("r");
+            var g = loadDataHandler.GetSaveElement<byte>("g");
+            var b = loadDataHandler.GetSaveElement<byte>("b");
+            var a = loadDataHandler.GetSaveElement<byte>("a");
+            
+            loadDataHandler.InitializeInstance(new Color32(r, g, b, a));
         }
     }
     
     [UsedImplicitly]
     public class ColorConverter : BaseConverter<Color>
     {
-        protected override void SerializeData(Color data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Color data, SaveDataHandler saveDataHandler)
         {
-            serializeReferenceBuilder.AddSerializable("r", data.r);
-            serializeReferenceBuilder.AddSerializable("g", data.g);
-            serializeReferenceBuilder.AddSerializable("b", data.b);
-            serializeReferenceBuilder.AddSerializable("a", data.a);
+            saveDataHandler.AddSerializable("r", data.r);
+            saveDataHandler.AddSerializable("g", data.g);
+            saveDataHandler.AddSerializable("b", data.b);
+            saveDataHandler.AddSerializable("a", data.a);
         }
 
-        protected override Color DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var r = (float)loadDataBuffer.SaveElements["r"];
-            var g = (float)loadDataBuffer.SaveElements["g"];
-            var b = (float)loadDataBuffer.SaveElements["b"];
-            var a = (float)loadDataBuffer.SaveElements["a"];
+            var r = loadDataHandler.GetSaveElement<float>("r");
+            var g = loadDataHandler.GetSaveElement<float>("g");
+            var b = loadDataHandler.GetSaveElement<float>("b");
+            var a = loadDataHandler.GetSaveElement<float>("a");
 
-            return new Color(r, g, b, a);
+            loadDataHandler.InitializeInstance(new Color(r, g, b, a));
         }
     }
     
     [UsedImplicitly]
     public class QuaternionConverter : BaseConverter<Quaternion>
     {
-        protected override void SerializeData(Quaternion data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Quaternion data, SaveDataHandler saveDataHandler)
         {
-            serializeReferenceBuilder.AddSerializable("x", data.x);
-            serializeReferenceBuilder.AddSerializable("y", data.y);
-            serializeReferenceBuilder.AddSerializable("z", data.z);
-            serializeReferenceBuilder.AddSerializable("w", data.w);
+            saveDataHandler.AddSerializable("x", data.x);
+            saveDataHandler.AddSerializable("y", data.y);
+            saveDataHandler.AddSerializable("z", data.z);
+            saveDataHandler.AddSerializable("w", data.w);
         }
 
-        protected override Quaternion DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var x = (float)loadDataBuffer.SaveElements["x"];
-            var y = (float)loadDataBuffer.SaveElements["y"];
-            var z = (float)loadDataBuffer.SaveElements["z"];
-            var w = (float)loadDataBuffer.SaveElements["w"];
-
-            return new Quaternion(x, y, z, w);
+            var x = loadDataHandler.GetSaveElement<float>("x");
+            var y = loadDataHandler.GetSaveElement<float>("y");
+            var z = loadDataHandler.GetSaveElement<float>("z");
+            var w = loadDataHandler.GetSaveElement<float>("w");
+            
+            loadDataHandler.InitializeInstance(new Quaternion(x, y, z, w));
         }
     }
     
     [UsedImplicitly]
     public class Vector4Converter : BaseConverter<Vector4>
     {
-        protected override void SerializeData(Vector4 data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Vector4 data, SaveDataHandler saveDataHandler)
         {
-            serializeReferenceBuilder.AddSerializable("x", data.x);
-            serializeReferenceBuilder.AddSerializable("y", data.y);
-            serializeReferenceBuilder.AddSerializable("z", data.z);
-            serializeReferenceBuilder.AddSerializable("w", data.w);
+            saveDataHandler.AddSerializable("x", data.x);
+            saveDataHandler.AddSerializable("y", data.y);
+            saveDataHandler.AddSerializable("z", data.z);
+            saveDataHandler.AddSerializable("w", data.w);
         }
 
-        protected override Vector4 DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var x = (float)loadDataBuffer.SaveElements["x"];
-            var y = (float)loadDataBuffer.SaveElements["y"];
-            var z = (float)loadDataBuffer.SaveElements["z"];
-            var w = (float)loadDataBuffer.SaveElements["w"];
-
-            return new Vector4(x, y, z, w);
+            var x = loadDataHandler.GetSaveElement<float>("x");
+            var y = loadDataHandler.GetSaveElement<float>("y");
+            var z = loadDataHandler.GetSaveElement<float>("z");
+            var w = loadDataHandler.GetSaveElement<float>("w");
+            
+            loadDataHandler.InitializeInstance(new Vector4(x, y, z, w));
         }
     }
 
     [UsedImplicitly]
     public class Vector3Converter : BaseConverter<Vector3>
     {
-        protected override void SerializeData(Vector3 data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Vector3 data, SaveDataHandler saveDataHandler)
         {
-            serializeReferenceBuilder.AddSerializable("x", data.x);
-            serializeReferenceBuilder.AddSerializable("y", data.y);
-            serializeReferenceBuilder.AddSerializable("z", data.z);
+            saveDataHandler.AddSerializable("x", data.x);
+            saveDataHandler.AddSerializable("y", data.y);
+            saveDataHandler.AddSerializable("z", data.z);
         }
 
-        protected override Vector3 DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var x = (float)loadDataBuffer.SaveElements["x"];
-            var y = (float)loadDataBuffer.SaveElements["y"];
-            var z = (float)loadDataBuffer.SaveElements["z"];
-
-            return new Vector3(x, y, z);
+            var x = loadDataHandler.GetSaveElement<float>("x");
+            var y = loadDataHandler.GetSaveElement<float>("y");
+            var z = loadDataHandler.GetSaveElement<float>("z");
+            
+            loadDataHandler.InitializeInstance(new Vector3(x, y, z));
         }
     }
     
     [UsedImplicitly]
     public class Vector2Converter : BaseConverter<Vector2>
     {
-        protected override void SerializeData(Vector2 data, SerializeReferenceBuilder serializeReferenceBuilder)
+        protected override void OnSave(Vector2 data, SaveDataHandler saveDataHandler)
         {
-            serializeReferenceBuilder.AddSerializable("x", data.x);
-            serializeReferenceBuilder.AddSerializable("y", data.y);
+            saveDataHandler.AddSerializable("x", data.x);
+            saveDataHandler.AddSerializable("y", data.y);
         }
 
-        protected override Vector2 DeserializeData(ObjectDataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var x = (float)loadDataBuffer.SaveElements["x"];
-            var y = (float)loadDataBuffer.SaveElements["y"];
-
-            return new Vector2(x, y);
+            var x = loadDataHandler.GetSaveElement<float>("x");
+            var y = loadDataHandler.GetSaveElement<float>("y");
+            
+            loadDataHandler.InitializeInstance(new Vector2(x, y));
         }
     }
 }

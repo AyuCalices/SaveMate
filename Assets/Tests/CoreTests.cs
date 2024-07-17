@@ -233,16 +233,16 @@ namespace Tests
 
         public class AttributeTestType
         {
-            [Savable] private string _privateString = "_privateString";
-            [Savable] protected string protectedString = "protectedString";
-            [Savable] public string publicString = "publicString";
+            [SavableMember] private string _privateString = "_privateString";
+            [SavableMember] protected string protectedString = "protectedString";
+            [SavableMember] public string publicString = "publicString";
         }
         
         [Test]
         public void SavableAttributeCollectorPass()
         {
             List<string> collectedSavableList = new List<string>();
-            ReflectionUtility.GetFieldsAndPropertiesWithAttributeOnType<SavableAttribute>(typeof(AttributeTestType), ref collectedSavableList);
+            ReflectionUtility.GetFieldsAndPropertiesWithAttributeOnType<SavableMemberAttribute>(typeof(AttributeTestType), ref collectedSavableList);
             
             Assert.Contains("_privateString", collectedSavableList, "Doesnt contain private string");
             Assert.Contains("protectedString", collectedSavableList, "Doesnt contain protected string");
