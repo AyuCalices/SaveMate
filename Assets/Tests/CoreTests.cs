@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using SaveLoadCore;
-using SaveLoadCore.Core;
-using SaveLoadCore.Core.Attributes;
-using SaveLoadCore.Utility;
+using SaveLoadSystem.Core;
+using SaveLoadSystem.Core.Attributes;
+using SaveLoadSystem.Utility;
 using UnityEngine;
 
 namespace Tests
