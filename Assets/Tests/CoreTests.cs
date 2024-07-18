@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using SaveLoadCore;
+using SaveLoadCore.Core;
+using SaveLoadCore.Core.Attributes;
+using SaveLoadCore.Utility;
 using UnityEngine;
 
 namespace Tests
@@ -233,16 +236,16 @@ namespace Tests
 
         public class AttributeTestType
         {
-            [SavableMember] private string _privateString = "_privateString";
-            [SavableMember] protected string protectedString = "protectedString";
-            [SavableMember] public string publicString = "publicString";
+            [Savable] private string _privateString = "_privateString";
+            [Savable] protected string protectedString = "protectedString";
+            [Savable] public string publicString = "publicString";
         }
         
         [Test]
         public void SavableAttributeCollectorPass()
         {
             List<string> collectedSavableList = new List<string>();
-            ReflectionUtility.GetFieldsAndPropertiesWithAttributeOnType<SavableMemberAttribute>(typeof(AttributeTestType), ref collectedSavableList);
+            ReflectionUtility.GetFieldsAndPropertiesWithAttributeOnType<SavableAttribute>(typeof(AttributeTestType), ref collectedSavableList);
             
             Assert.Contains("_privateString", collectedSavableList, "Doesnt contain private string");
             Assert.Contains("protectedString", collectedSavableList, "Doesnt contain protected string");

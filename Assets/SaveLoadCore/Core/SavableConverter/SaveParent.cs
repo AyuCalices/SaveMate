@@ -1,7 +1,6 @@
-using SaveLoadCore;
 using UnityEngine;
 
-namespace Usage
+namespace SaveLoadCore.Core.SavableConverter
 {
     public class SaveParent : MonoBehaviour, ISavable
     {

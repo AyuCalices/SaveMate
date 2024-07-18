@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using SaveLoadCore.Core.Attributes;
+using SaveLoadCore.Core.SavableConverter;
 using SaveLoadCore.Utility;
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveLoadCore
+namespace SaveLoadCore.Core.Component
 {
     [DisallowMultipleComponent]
     public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
@@ -199,9 +201,9 @@ namespace SaveLoadCore
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
             var foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
-                ReflectionUtility.ClassHasAttribute<SavableAttribute>,
-                ReflectionUtility.ContainsProperty<SavableMemberAttribute>, 
-                ReflectionUtility.ContainsField<SavableMemberAttribute>,
+                ReflectionUtility.ClassHasAttribute<SavableSchemaAttribute>,
+                ReflectionUtility.ContainsProperty<SavableAttribute>, 
+                ReflectionUtility.ContainsField<SavableAttribute>,
                 ReflectionUtility.ContainsInterface<ISavable>);
             
             //update removed elements and those that are kept 
@@ -228,7 +230,7 @@ namespace SaveLoadCore
             }
 
             //add new elements
-            foreach (Component foundElement in foundElements) 
+            foreach (UnityEngine.Component foundElement in foundElements) 
             {
                 var guid = Guid.NewGuid().ToString();
                 
@@ -272,12 +274,5 @@ namespace SaveLoadCore
             }
 #endif
         }
-    }
-
-    [Serializable]
-    public class ComponentsContainer
-    {
-        public string guid;
-        public Component component;
     }
 }

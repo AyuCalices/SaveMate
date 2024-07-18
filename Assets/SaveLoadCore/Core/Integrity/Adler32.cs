@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 
-namespace SaveLoadCore.Integrity
+namespace SaveLoadCore.Core.Integrity
 {
     /*
     Adler-32

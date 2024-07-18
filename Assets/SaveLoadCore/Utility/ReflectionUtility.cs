@@ -1,32 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-namespace SaveLoadCore
+namespace SaveLoadCore.Utility
 {
-    //für jede instanz darf nur eine id vorhanden sein
-    //1. alle instanzen genau einmal einsammeln und für jedes eine id vergeben
-    //2. durch alle instanzen durchgehen und gucken, in welchen instanzen sie verwendet werden
-    //3. in den instanzen, in denen sie verwendet werden, müssen die referenzen mit einer id ausgetauscht werden
-    //4. beim deserialisieren werden erst alle klassen initialisiert -> der referenz type ist zunächst null
-    //5. alle referenzen werden mittels der pointer aufgefüllt
-    
-    //1. gathering instances options:
-    //1.1 eine RegisterSaveable methode für das manuelle registrieren
-    //1.2 die hierarchy einer scene durchgehen & savables einsammeln -> scenen gebunden
-
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class SavableMemberAttribute : Attribute
-    {
-    }
-
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public class SavableAttribute : Attribute
-    {
-    }
-    
     public static class ReflectionUtility
     {
         public static BindingFlags DefaultBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
@@ -122,19 +100,6 @@ namespace SaveLoadCore
             }
 
             return foundPropertyInfos;
-        }
-
-        //TODO: this is no reflection
-        public static bool TryConvertTo<T>(object instance, out T convertedType) where T : class
-        {
-            if (instance is T validInstance)
-            {
-                convertedType = validInstance;
-                return true;
-            }
-
-            convertedType = null;
-            return false;
         }
 
         public static bool ContainsField<T>(Type type) where T : Attribute

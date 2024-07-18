@@ -3,7 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace SaveLoadCore.Integrity
+namespace SaveLoadCore.Core.Integrity
 {
     /*
     Hashing (MD5, SHA-1, SHA-256, etc.)

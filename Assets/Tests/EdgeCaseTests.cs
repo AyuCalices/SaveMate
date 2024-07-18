@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using SaveLoadCore;
+using SaveLoadCore.Core;
 
 namespace Tests
 {

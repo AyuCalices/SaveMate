@@ -1,10 +1,11 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-using SaveLoadCore.Integrity;
+using SaveLoadCore.Core.Integrity;
+using SaveLoadCore.Core.Serializable;
 using UnityEngine;
 
-namespace SaveLoadCore
+namespace SaveLoadCore.Core
 {
     public static class SaveLoadManager
     {

@@ -1,11 +1,12 @@
 using System;
+using SaveLoadCore.Core.Attributes;
 using UnityEngine;
 
 namespace SaveLoadCore
 {
     public class GameObjectReference : MonoBehaviour
     {
-        [SavableMember] private GameObject Test { get; set; }
+        [Savable] private GameObject Test { get; set; }
 
         private void Awake()
         {

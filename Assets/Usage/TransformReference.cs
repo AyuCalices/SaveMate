@@ -1,11 +1,12 @@
 using System;
+using SaveLoadCore.Core.Attributes;
 using UnityEngine;
 
 namespace SaveLoadCore
 {
     public class TransformReference : MonoBehaviour
     {
-        [SavableMember] public Transform Test { get; set; }
+        [Savable] public Transform Test { get; set; }
 
         private void Awake()
         {

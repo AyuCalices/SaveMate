@@ -1,7 +1,7 @@
 using System.IO;
 
 //chatGPT
-namespace SaveLoadCore.Integrity
+namespace SaveLoadCore.Core.Integrity
 {
     /*
     CRC-32

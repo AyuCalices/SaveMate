@@ -33,25 +33,6 @@ namespace SaveLoadCore.Utility
             return obj == null || obj.Equals(null);
         }
         
-        public static bool IsSerializable(this object obj)
-        {
-            var type = obj.GetType();
-            
-            // Check if the type is marked with the [Serializable] attribute
-            if (type.IsSerializable)
-            {
-                return true;
-            }
-
-            // Check if the type implements the ISerializable interface
-            if (typeof(ISerializable).IsAssignableFrom(type))
-            {
-                return true;
-            }
-
-            return false;
-        }
-        
         public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
         {
             var objectsInScene = new List<T>();

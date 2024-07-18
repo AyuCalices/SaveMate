@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using SaveLoadCore.Core.Attributes;
 using UnityEngine;
 
 namespace SaveLoadCore
 {
     public class CircleReference : MonoBehaviour
     {
-        [SavableMember] private CircleObject Test { get; set; }
+        [Savable] private CircleObject Test { get; set; }
 
         private void Awake()
         {
@@ -40,6 +41,6 @@ namespace SaveLoadCore
     [Serializable]
     public class CircleObject
     {
-        [SavableMember] public CircleObject circleElement;
+        [Savable] public CircleObject circleElement;
     }
 }

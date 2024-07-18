@@ -1,6 +1,6 @@
 using System;
 
-namespace SaveLoadCore
+namespace SaveLoadCore.Core.Serializable
 {
     [Serializable]
     public class SaveMetaData

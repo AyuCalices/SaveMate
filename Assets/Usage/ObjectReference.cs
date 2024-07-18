@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using SaveLoadCore.Core.Attributes;
 using UnityEngine;
 
 namespace SaveLoadCore
 {
     public class ObjectReference : MonoBehaviour
     {
-        [SavableMember] private ObjectTest Test { get; set; }
+        [Savable] private ObjectTest Test { get; set; }
 
         private void Awake()
         {
@@ -50,21 +51,19 @@ namespace SaveLoadCore
     [Serializable]
     public class BaseTest
     {
-        [SavableMember] public float value;
+        [Savable] public float value;
     }
 
     [Serializable]
     public class ObjectTest : BaseTest
     {
-        //TODO: array currently only for serializable things
-        [SavableMember] public List<Reference> thing;
-        [SavableMember] public string helloWorld = "hello world";
+        [Savable] public List<Reference> thing;
+        [Savable] public string helloWorld = "hello world";
     }
 
-    //TODO: error when serializable is removed
     [Serializable]
     public class Reference
     {
-        [SavableMember] public string element = "hi";
+        [Savable] public string element = "hi";
     }
 }

@@ -1,11 +1,12 @@
 using System;
 using SaveLoadCore;
+using SaveLoadCore.Core.Attributes;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 public class SimpleUsageTest : MonoBehaviour
 {
-    [SavableMember] public ListSerializable[] test;
+    [Savable] public ListSerializable[] test;
 
     private void Awake()
     {
@@ -34,5 +35,5 @@ public class SimpleUsageTest : MonoBehaviour
 [Serializable]
 public class ListSerializable
 {
-    [SavableMember] public float numeric;
+    [Savable] public float numeric;
 }
