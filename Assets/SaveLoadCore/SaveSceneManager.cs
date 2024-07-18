@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using SaveLoadCore.Utility;
 using UnityEngine;
 
@@ -11,9 +12,9 @@ namespace SaveLoadCore
         NotSupported,
         UnityObject,
         UnityComponent,
-        SavableObject,
-        ISavable,
-        IConvertable,
+        AutomaticSavable,
+        CustomSavable,
+        CustomConvertable,
         Serializable
     }
     
@@ -39,9 +40,9 @@ namespace SaveLoadCore
             referenceBuilder.InvokeAll(createdObjectsLookup);
         }
 
-        private SaveElementLookup BuildSaveElementCollections(List<Savable> savableList)
+        private SavableElementLookup BuildSaveElementCollections(List<Savable> savableList)
         {
-            var saveElementLookup = new SaveElementLookup();
+            var saveElementLookup = new SavableElementLookup();
             foreach (var savable in savableList)
             {
                 var savableGuidPath = new GuidPath(null, savable.SceneGuid);
@@ -70,13 +71,13 @@ namespace SaveLoadCore
         //enumerable -> not implemented & no references -> need converter system, because memberSystem doesnt apply
         
         //serializale things should be saved on the object and not as reference -> value types doesnt work: if something is struct with a reference savable on it, it will cause problems -> this is optimisation which will be tacled at the end!
-        public static void ProcessSavableElement(SaveElementLookup saveElementLookup, object targetObject, GuidPath guidPath, int insertIndex)
+        public static void ProcessSavableElement(SavableElementLookup savableElementLookup, object targetObject, GuidPath guidPath, int insertIndex)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
-            if (targetObject == null || saveElementLookup.ContainsElement(targetObject)) return;
+            if (targetObject == null || savableElementLookup.ContainsElement(targetObject)) return;
 
             var memberList = new Dictionary<string, object>();
-            var saveElement = new SaveElement()
+            var saveElement = new SavableElement()
             {
                 SaveStrategy = SaveStrategy.NotSupported,
                 CreatorGuidPath = guidPath,
@@ -84,11 +85,24 @@ namespace SaveLoadCore
                 MemberInfoList = memberList
             };
             
-            saveElementLookup.InsertElement(insertIndex, saveElement);
+            savableElementLookup.InsertElement(insertIndex, saveElement);
             insertIndex++;
 
+            //initialize fields and properties
+            IEnumerable<FieldInfo> fieldInfoList;
+            IEnumerable<PropertyInfo> propertyInfoList;
+            if (ReflectionUtility.ClassHasAttribute<SavableAttribute>(targetObject.GetType()))
+            {
+                fieldInfoList = ReflectionUtility.GetFieldInfos(targetObject.GetType());
+                propertyInfoList = ReflectionUtility.GetPropertyInfos(targetObject.GetType());
+            }
+            else
+            {
+                fieldInfoList = ReflectionUtility.GetFieldInfosWithAttribute<SavableMemberAttribute>(targetObject.GetType());
+                propertyInfoList = ReflectionUtility.GetPropertyInfosWithAttribute<SavableMemberAttribute>(targetObject.GetType());
+            }
+
             //recursion with field and property members
-            var fieldInfoList = ReflectionUtility.GetFieldInfos<SavableMemberAttribute>(targetObject.GetType());
             foreach (var fieldInfo in fieldInfoList)
             {
                 var reflectedField = fieldInfo.GetValue(targetObject);
@@ -98,10 +112,9 @@ namespace SaveLoadCore
                 if (reflectedField is UnityEngine.Component) continue;
                 
                 var path = new GuidPath(guidPath, fieldInfo.Name);
-                ProcessSavableElement(saveElementLookup, reflectedField, path, insertIndex);
+                ProcessSavableElement(savableElementLookup, reflectedField, path, insertIndex);
             }
-
-            var propertyInfoList = ReflectionUtility.GetPropertyInfos<SavableMemberAttribute>(targetObject.GetType());
+            
             foreach (var propertyInfo in propertyInfoList)
             {
                 var reflectedProperty = propertyInfo.GetValue(targetObject);
@@ -111,7 +124,7 @@ namespace SaveLoadCore
                 if (reflectedProperty is UnityEngine.Component) continue;
                 
                 var path = new GuidPath(guidPath, propertyInfo.Name);
-                ProcessSavableElement(saveElementLookup, reflectedProperty, path, insertIndex);
+                ProcessSavableElement(savableElementLookup, reflectedProperty, path, insertIndex);
             }
             
             //define save strategy TODO: to strategy pattern
@@ -128,15 +141,15 @@ namespace SaveLoadCore
             }
             else if (memberList.Count != 0)
             {
-                saveElement.SaveStrategy = SaveStrategy.SavableObject;
+                saveElement.SaveStrategy = SaveStrategy.AutomaticSavable;
             }
             else if (targetObject is ISavable)
             {
-                saveElement.SaveStrategy = SaveStrategy.ISavable;
+                saveElement.SaveStrategy = SaveStrategy.CustomSavable;
             }
             else if (ConverterRegistry.HasConverter(targetObject.GetType()))
             {
-                saveElement.SaveStrategy = SaveStrategy.IConvertable;
+                saveElement.SaveStrategy = SaveStrategy.CustomConvertable;
             }
             else
             {
@@ -144,13 +157,13 @@ namespace SaveLoadCore
             }
         }
 
-        private DataBufferContainer BuildDataBufferContainer(SaveElementLookup saveElementLookup)
+        private DataBufferContainer BuildDataBufferContainer(SavableElementLookup savableElementLookup)
         {
             var dataBufferContainer = new DataBufferContainer();
             
-            for (var index = 0; index < saveElementLookup.Count(); index++)
+            for (var index = 0; index < savableElementLookup.Count(); index++)
             {
-                var saveElement = saveElementLookup.GetAt(index);
+                var saveElement = savableElementLookup.GetAt(index);
                 var creatorGuidPath = saveElement.CreatorGuidPath;
                 var saveObject = saveElement.Obj;
                 
@@ -161,11 +174,10 @@ namespace SaveLoadCore
                         break;
                     
                     case SaveStrategy.UnityComponent:
-                        var componentSaveData = new Dictionary<string, object>();
-                        var componentDataBuffer = new DataBuffer(SaveStrategy.UnityComponent, creatorGuidPath, saveObject.GetType(), componentSaveData);
+                        var componentDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleSavableMember(saveElement, saveElementLookup, componentSaveData);
-                        HandleInterfaceOnSave(saveObject, componentDataBuffer, saveElementLookup, index);
+                        HandleSavableMember(saveElement, componentDataBuffer, savableElementLookup);
+                        HandleInterfaceOnSave(saveObject, componentDataBuffer, savableElementLookup, index);
                         
                         dataBufferContainer.DataBuffers.Add(creatorGuidPath, componentDataBuffer);
                         break;
@@ -173,36 +185,36 @@ namespace SaveLoadCore
                     case SaveStrategy.UnityObject:
                         break;
                     
-                    case SaveStrategy.SavableObject:
-                        var savableObjectData = new Dictionary<string, object>();
-                        var savableObjectDataBuffer = new DataBuffer(SaveStrategy.SavableObject, creatorGuidPath, saveObject.GetType(), savableObjectData);
+                    case SaveStrategy.AutomaticSavable:
+                        var savableObjectDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleSavableMember(saveElement, saveElementLookup, savableObjectData);
-                        HandleInterfaceOnSave(saveObject, savableObjectDataBuffer, saveElementLookup, index);
+                        HandleSavableMember(saveElement, savableObjectDataBuffer, savableElementLookup);
+                        HandleInterfaceOnSave(saveObject, savableObjectDataBuffer, savableElementLookup, index);
                         
                         dataBufferContainer.DataBuffers.Add(creatorGuidPath, savableObjectDataBuffer);
                         break;
                     
-                    case SaveStrategy.ISavable:
-                        var savableSaveData = new Dictionary<string, object>();
-                        var savableDataBuffer = new DataBuffer(SaveStrategy.SavableObject, creatorGuidPath, saveObject.GetType(), savableSaveData);
+                    case SaveStrategy.CustomSavable:
+                        var savableDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleInterfaceOnSave(saveObject, savableDataBuffer, saveElementLookup, index);
+                        HandleInterfaceOnSave(saveObject, savableDataBuffer, savableElementLookup, index);
                         
                         dataBufferContainer.DataBuffers.Add(creatorGuidPath, savableDataBuffer);
                         break;
                     
-                    case SaveStrategy.IConvertable:
-                        var convertableSaveData = new Dictionary<string, object>();
-                        var convertableDataBuffer = new DataBuffer(SaveStrategy.SavableObject, creatorGuidPath, saveObject.GetType(), convertableSaveData);
+                    case SaveStrategy.CustomConvertable:
+                        var convertableDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        var saveDataHandler = new SaveDataHandler(convertableDataBuffer, saveElementLookup, index);
+                        convertableDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
+                        var saveDataHandler = new SaveDataHandler(convertableDataBuffer, savableElementLookup, index);
                         ConverterRegistry.GetConverter(saveObject.GetType()).OnSave(saveObject, saveDataHandler);
                         
                         dataBufferContainer.DataBuffers.Add(creatorGuidPath, convertableDataBuffer);
                         break;
 
                     case SaveStrategy.Serializable:
+                        break;
+                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -211,26 +223,32 @@ namespace SaveLoadCore
             return dataBufferContainer;
         }
 
-        private void HandleInterfaceOnSave(object saveObject, DataBuffer objectDataBuffer, SaveElementLookup saveElementLookup, int index)
+        private void HandleInterfaceOnSave(object saveObject, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, int index)
         {
             if (!ReflectionUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
             
-            objectSavable.OnSave(new SaveDataHandler(objectDataBuffer, saveElementLookup, index));
+            objectDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
+            objectSavable.OnSave(new SaveDataHandler(objectDataBuffer, savableElementLookup, index));
         }
         
-        private void HandleSavableMember(SaveElement saveElement, SaveElementLookup saveElementLookup, Dictionary<string, object> saveMember)
+        private void HandleSavableMember(SavableElement savableElement, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup)
         {
-            foreach (var (objectName, obj) in saveElement.MemberInfoList)
+            if (savableElement.MemberInfoList.Count == 0) return;
+
+            var saveData = new Dictionary<string, object>();
+            objectDataBuffer.SetDefinedSaveData(saveData);
+            
+            foreach (var (objectName, obj) in savableElement.MemberInfoList)
             {
                 if (obj == null)
                 {
-                    saveMember.Add(objectName, null);
+                    saveData.Add(objectName, null);
                 }
                 else
                 {
-                    if (saveElementLookup.TryGetValue(obj, out var foundSaveElement))
+                    if (savableElementLookup.TryGetValue(obj, out var foundSaveElement))
                     {
-                        saveMember.Add(objectName, foundSaveElement.SaveStrategy == SaveStrategy.Serializable ? 
+                        saveData.Add(objectName, foundSaveElement.SaveStrategy == SaveStrategy.Serializable ? 
                             foundSaveElement.Obj : foundSaveElement.CreatorGuidPath);
                     }
                     else
@@ -273,7 +291,7 @@ namespace SaveLoadCore
                             {
                                 if (componentContainer.guid != searchedComponentGuid) continue;
                                 
-                                WriteSavableMember(componentContainer.component, dataBuffer.SaveElements, deserializeReferenceBuilder);
+                                WriteSavableMember(componentContainer.component, dataBuffer.DefinedSaveData, deserializeReferenceBuilder);
                                 HandleInterfaceOnLoad(componentContainer.component, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
                                 
                                 createdObjectsLookup.Add(guidPath, componentContainer.component);
@@ -281,16 +299,16 @@ namespace SaveLoadCore
                         }
                         break;
                     
-                    case SaveStrategy.SavableObject:
+                    case SaveStrategy.AutomaticSavable:
                         var savableObjectInstance = Activator.CreateInstance(dataBuffer.SavableType);
                         
-                        WriteSavableMember(savableObjectInstance, dataBuffer.SaveElements, deserializeReferenceBuilder);
+                        WriteSavableMember(savableObjectInstance, dataBuffer.DefinedSaveData, deserializeReferenceBuilder);
                         HandleInterfaceOnLoad(savableObjectInstance, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
 
                         createdObjectsLookup.Add(guidPath, savableObjectInstance);
                         break;
                     
-                    case SaveStrategy.ISavable:
+                    case SaveStrategy.CustomSavable:
                         var savableInterfaceInstance = Activator.CreateInstance(dataBuffer.SavableType);
                         
                         HandleInterfaceOnLoad(savableInterfaceInstance, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
@@ -298,7 +316,7 @@ namespace SaveLoadCore
                         createdObjectsLookup.Add(guidPath, savableInterfaceInstance);
                         break;
 
-                    case SaveStrategy.IConvertable:
+                    case SaveStrategy.CustomConvertable:
                         if (ConverterRegistry.TryGetConverter(dataBuffer.SavableType, out IConvertable convertable))
                         {
                             var loadDataHandler = new LoadDataHandler(dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
@@ -307,6 +325,8 @@ namespace SaveLoadCore
                         break;
                     
                     case SaveStrategy.Serializable:
+                        break;
+                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -325,6 +345,8 @@ namespace SaveLoadCore
 
         private void WriteSavableMember(object memberOwner, Dictionary<string, object> savableMember, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
+            if (savableMember == null) return;
+            
             foreach (var (identifier, obj) in savableMember)
             {
                 if (obj is GuidPath referenceGuidPath)
@@ -340,43 +362,25 @@ namespace SaveLoadCore
         }
     }
 
-    public class SaveElementLookup
+    public class SavableElementLookup
     {
-        private readonly Dictionary<object, SaveElement> _objectLookup = new();
-        private readonly List<SaveElement> _saveElementList = new();
+        private readonly Dictionary<object, SavableElement> _objectLookup = new();
+        private readonly List<SavableElement> _saveElementList = new();
 
         public bool ContainsElement(object saveObject)
         {
             return _objectLookup.ContainsKey(saveObject);
         }
-
-        public bool TryAddElement(SaveElement saveElement)
-        {
-            if (_objectLookup.TryAdd(saveElement.Obj, saveElement))
-            {
-                _saveElementList.Add(saveElement);
-                return true;
-            }
-
-            Debug.LogWarning("Save Object already contained in the SaveElementLookup!");
-            return false;
-        }
-
-        public void AddElement(SaveElement saveElement)
-        {
-            _objectLookup.Add(saveElement.Obj, saveElement);
-            _saveElementList.Add(saveElement);
-        }
         
-        public void InsertElement(int index, SaveElement saveElement)
+        public void InsertElement(int index, SavableElement savableElement)
         {
-            _objectLookup.Add(saveElement.Obj, saveElement);
-            _saveElementList.Insert(index, saveElement);
+            _objectLookup.Add(savableElement.Obj, savableElement);
+            _saveElementList.Insert(index, savableElement);
         }
 
-        public bool TryGetValue(object saveObject, out SaveElement saveElement)
+        public bool TryGetValue(object saveObject, out SavableElement savableElement)
         {
-            return _objectLookup.TryGetValue(saveObject, out saveElement);
+            return _objectLookup.TryGetValue(saveObject, out savableElement);
         }
 
         public int Count()
@@ -384,22 +388,18 @@ namespace SaveLoadCore
             return _saveElementList.Count;
         }
 
-        public SaveElement GetAt(int index)
+        public SavableElement GetAt(int index)
         {
             return _saveElementList[index];
         }
-
-        public bool TryInsertAt(int index, object saveObject, SaveElement saveElement)
-        {
-            if (_objectLookup.TryAdd(saveObject, saveElement))
-            {
-                _saveElementList.Insert(index, saveElement);
-                return true;
-            }
-
-            Debug.LogWarning("Save Object already contained in the SaveElementLookup!");
-            return false;
-        }
+    }
+    
+    public class SavableElement
+    {
+        public SaveStrategy SaveStrategy;
+        public GuidPath CreatorGuidPath;
+        public object Obj;
+        public Dictionary<string, object> MemberInfoList;
     }
 
     [Serializable]
@@ -417,14 +417,24 @@ namespace SaveLoadCore
         public SaveStrategy saveStrategy;
         public GuidPath originGuidPath;
         public Type SavableType;
-        public Dictionary<string, object> SaveElements;
+        public Dictionary<string, object> DefinedSaveData;
+        public Dictionary<string, object> CustomSaveData;
 
-        public DataBuffer(SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType, Dictionary<string, object> saveElements)
+        public DataBuffer(SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType)
         {
             this.saveStrategy = saveStrategy;
             originGuidPath = creatorGuidPath;
             SavableType = savableType;
-            SaveElements = saveElements;
+        }
+
+        public void SetDefinedSaveData(Dictionary<string, object> definedSaveData)
+        {
+            DefinedSaveData = definedSaveData;
+        }
+
+        public void SetCustomSaveData(Dictionary<string, object> customSaveData)
+        {
+            CustomSaveData = customSaveData;
         }
     }
 
@@ -468,45 +478,34 @@ namespace SaveLoadCore
             return pathString;
         }
     }
-    
-    /// <summary>
-    /// represents a savable object. every SavabeObject knows, where they are used, what memberInfo it has and which objects belong to this memberInfo
-    /// </summary>
-    public class SaveElement
-    {
-        public SaveStrategy SaveStrategy;
-        public GuidPath CreatorGuidPath;
-        public object Obj;
-        public Dictionary<string, object> MemberInfoList;
-    }
 
     public class SaveDataHandler
     {
         private readonly DataBuffer _objectDataBuffer;
-        private readonly SaveElementLookup _saveElementLookup;
+        private readonly SavableElementLookup _savableElementLookup;
         private readonly int _currentIndex;
 
-        public SaveDataHandler(DataBuffer objectDataBuffer, SaveElementLookup saveElementLookup, int currentIndex)
+        public SaveDataHandler(DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, int currentIndex)
         {
             _objectDataBuffer = objectDataBuffer;
-            _saveElementLookup = saveElementLookup;
+            _savableElementLookup = savableElementLookup;
             _currentIndex = currentIndex;
         }
 
         public void AddSerializable(string uniqueIdentifier, object obj)
         {
-            _objectDataBuffer.SaveElements.Add(uniqueIdentifier, obj);
+            _objectDataBuffer.CustomSaveData.Add(uniqueIdentifier, obj);
         }
 
         public object ToReferencableObject(string uniqueIdentifier, object obj)
         {
             var guidPath = new GuidPath(_objectDataBuffer.originGuidPath, uniqueIdentifier);
-            if (!_saveElementLookup.ContainsElement(obj))
+            if (!_savableElementLookup.ContainsElement(obj))
             {
-                SaveSceneManager.ProcessSavableElement(_saveElementLookup, obj, guidPath, _currentIndex + 1);
+                SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);
             }
                 
-            if (_saveElementLookup.TryGetValue(obj, out SaveElement saveElement))
+            if (_savableElementLookup.TryGetValue(obj, out SavableElement saveElement))
             {
                 return saveElement.SaveStrategy == SaveStrategy.Serializable ? saveElement.Obj : saveElement.CreatorGuidPath;
             }
@@ -537,12 +536,12 @@ namespace SaveLoadCore
 
         public T GetSaveElement<T>(string identifier)
         {
-            return (T)_loadDataBuffer.SaveElements[identifier];
+            return (T)_loadDataBuffer.CustomSaveData[identifier];
         }
 
         public object GetSaveElement(string identifier)
         {
-            return _loadDataBuffer.SaveElements[identifier];
+            return _loadDataBuffer.CustomSaveData[identifier];
         }
 
         public void InitializeInstance(object obj)

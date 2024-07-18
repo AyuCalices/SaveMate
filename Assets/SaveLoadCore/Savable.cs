@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace SaveLoadCore
 {
-    //TODO: there might be another case, when the buffer and the serializeField must be triggered!
+    [DisallowMultipleComponent]
     public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
     {
         [SerializeField] private string hierarchyPath;

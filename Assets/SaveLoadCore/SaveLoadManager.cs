@@ -26,6 +26,8 @@ namespace SaveLoadCore
             
             dataStream.Close();
             metaStream.Close();
+            
+            Debug.LogWarning("Save Successful");
         }
         
         private static bool TryLoadData<T>(out T data, string savePath = "", string saveName = "player", string saveType = "data", Func<FileStream, T, bool> onDeserializeSuccessful = null) where T : class
