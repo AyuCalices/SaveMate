@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using SaveLoadCore;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.Attributes;
 using SaveLoadSystem.Utility;
