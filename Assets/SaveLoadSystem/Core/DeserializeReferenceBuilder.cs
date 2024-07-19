@@ -7,29 +7,34 @@ namespace SaveLoadSystem.Core
 {
     public class DeserializeReferenceBuilder
     {
-        private readonly Queue<Action<Dictionary<GuidPath, object>>> _actionList = new();
+        private readonly Queue<Action<Dictionary<GuidPath, object>, Dictionary<string, object>>> _actionList = new();
         
-        public void InvokeAll(Dictionary<GuidPath, object> createdObjectsLookup)
+        public void InvokeAll(Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<string, object> guidPathReferenceLookup)
         {
             while (_actionList.Count != 0)
             {
-                _actionList.Dequeue().Invoke(createdObjectsLookup);
+                _actionList.Dequeue().Invoke(createdObjectsLookup, guidPathReferenceLookup);
             }
         }
         
         public void EnqueueReferenceBuilding(object obj, Action<object> onReferenceFound)
         {
-            _actionList.Enqueue(createdObjectsLookup =>
+            _actionList.Enqueue((createdObjectsLookup, guidPathReferenceLookup) =>
             {
                 if (obj is GuidPath guidPath)
                 {
-                    if (!createdObjectsLookup.TryGetValue(guidPath, out object value))
+                    if (createdObjectsLookup.TryGetValue(guidPath, out object value))
+                    {
+                        onReferenceFound.Invoke(value);
+                    }
+                    else if (guidPathReferenceLookup.TryGetValue(guidPath.ToString(), out value))
+                    {
+                        onReferenceFound.Invoke(value);
+                    }
+                    else
                     {
                         Debug.LogWarning("Wasn't able to find the created object!");
-                        return;
                     }
-                    
-                    onReferenceFound.Invoke(value);
                 }
                 else
                 {
@@ -40,7 +45,7 @@ namespace SaveLoadSystem.Core
         
         public void EnqueueReferenceBuilding(object[] objectGroup, Action<object[]> onReferenceFound)
         {
-            _actionList.Enqueue(createdObjectsLookup =>
+            _actionList.Enqueue((createdObjectsLookup, guidPathReferenceLookup) =>
             {
                 var convertedGroup = new object[objectGroup.Length];
                 
@@ -48,13 +53,18 @@ namespace SaveLoadSystem.Core
                 {
                     if (objectGroup[index] is GuidPath guidPath)
                     {
-                        if (!createdObjectsLookup.TryGetValue(guidPath, out object value))
+                        if (createdObjectsLookup.TryGetValue(guidPath, out object value))
+                        {
+                            convertedGroup[index] = value;
+                        }
+                        else if (guidPathReferenceLookup.TryGetValue(guidPath.ToString(), out value))
+                        {
+                            convertedGroup[index] = value;
+                        }
+                        else
                         {
                             Debug.LogWarning("Wasn't able to find the created object!");
-                            return;
                         }
-
-                        convertedGroup[index] = value;
                     }
                     else
                     {
