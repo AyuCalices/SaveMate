@@ -7,6 +7,6 @@ namespace SaveLoadSystem.Core
     {
         //TODO: change to tuple
         public string guid;
-        public UnityEngine.Component component;
+        public UnityEngine.Object unityObject;
     }
 }

@@ -121,6 +121,7 @@ namespace SaveLoadSystem.Core.Component
         {
             prefabSource = PrefabUtility.GetCorrespondingObjectFromOriginalSource(gameObject);
             UpdateSavableComponents();
+            SetupDefaultSavableReferenceComponents();
             UpdateSavableReferenceComponents();
 
             if (gameObject.scene.name != null)
@@ -200,7 +201,7 @@ namespace SaveLoadSystem.Core.Component
         private void UpdateSavableComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
-            var foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
+            List<UnityEngine.Object> foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
                 ReflectionUtility.ClassHasAttribute<SavableSchemaAttribute>,
                 ReflectionUtility.ContainsProperty<SavableAttribute>, 
                 ReflectionUtility.ContainsField<SavableAttribute>,
@@ -211,7 +212,7 @@ namespace SaveLoadSystem.Core.Component
             {
                 var savableContainer = serializeFieldSavableList[index];
                 
-                if (!foundElements.Exists(x => x == savableContainer.component))
+                if (!foundElements.Exists(x => x == savableContainer.unityObject))
                 {
                     RemoveFromSavableGroup(savableContainer);
                 }
@@ -225,20 +226,33 @@ namespace SaveLoadSystem.Core.Component
                         SetSavableGuidGroup(index, Guid.NewGuid().ToString());
                     }
                     
-                    foundElements.Remove(savableContainer.component);
+                    foundElements.Remove(savableContainer.unityObject);
                 }
             }
 
             //add new elements
-            foreach (UnityEngine.Component foundElement in foundElements) 
+            foreach (UnityEngine.Object foundElement in foundElements) 
             {
                 var guid = Guid.NewGuid().ToString();
                 
                 AddToSavableGroup(new ComponentsContainer
                 {
                     guid = guid,
-                    component = foundElement
+                    unityObject = foundElement
                 });
+            }
+        }
+
+        private void SetupDefaultSavableReferenceComponents()
+        {
+            if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == transform))
+            {
+                serializeFieldSavableReferenceList.Add(new ComponentsContainer{unityObject = transform, guid = Guid.NewGuid().ToString()});
+            }
+            
+            if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == gameObject))
+            {
+                serializeFieldSavableReferenceList.Add(new ComponentsContainer{unityObject = gameObject, guid = Guid.NewGuid().ToString()});
             }
         }
         
@@ -247,14 +261,14 @@ namespace SaveLoadSystem.Core.Component
             if (serializeFieldSavableReferenceList.Count == 0) return;
             
             var referenceContainer = serializeFieldSavableReferenceList[^1];
-            var duplicates = serializeFieldSavableReferenceList.FindAll(x => x.component == referenceContainer.component);
+            var duplicates = serializeFieldSavableReferenceList.FindAll(x => x.unityObject == referenceContainer.unityObject);
             for (var i = 0; i < duplicates.Count - 1; i++)
             {
-                var lastElement = serializeFieldSavableReferenceList.FindLast(x => x.component == duplicates[i].component);
-                lastElement.component = null;
+                var lastElement = serializeFieldSavableReferenceList.FindLast(x => x.unityObject == duplicates[i].unityObject);
+                lastElement.unityObject = null;
             }
             
-            if (referenceContainer.component == null) return;
+            if (referenceContainer.unityObject == null) return;
 
             if (string.IsNullOrEmpty(referenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
             {

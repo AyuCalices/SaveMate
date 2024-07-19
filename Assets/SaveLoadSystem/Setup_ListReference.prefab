@@ -136,8 +136,10 @@ MonoBehaviour:
   prefabSource: {fileID: 8505210702091788475}
   serializeFieldSceneGuid: 
   serializeFieldSavableList:
-  - guid: c8451ddf-ebd2-4c77-b0ea-e3f131173457
-    component: {fileID: 3636893589558315153}
+  - guid: 6990b274-fe17-448d-90a8-17b730f662c8
+    unityObject: {fileID: 3636893589558315153}
   serializeFieldSavableReferenceList:
-  - guid: 4e5f67e3-e912-419d-ad48-28057dbe7ce3
-    component: {fileID: 6744342313677690568}
+  - guid: 0a6d5728-c67d-41cd-81fe-1bf167b726d7
+    unityObject: {fileID: 6744342313677690568}
+  - guid: 69bac155-8ea2-4509-9882-8db1a07348fb
+    unityObject: {fileID: 8505210702091788475}

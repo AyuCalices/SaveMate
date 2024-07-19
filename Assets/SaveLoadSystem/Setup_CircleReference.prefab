@@ -161,12 +161,14 @@ MonoBehaviour:
   prefabSource: {fileID: 3486400781386082996}
   serializeFieldSceneGuid: 
   serializeFieldSavableList:
-  - guid: 07a007b5-6ffd-454b-88be-2e052184ea9e
-    component: {fileID: 9197182588449154441}
-  - guid: 1ce218b2-c799-4fb6-b479-8e5dbc131cc2
-    component: {fileID: 8662159011173090052}
-  - guid: 0d712274-1933-45c5-83b6-063bfd0a8eea
-    component: {fileID: 7496131149392342068}
+  - guid: 3992e9ed-bad6-4255-8814-22cd970739fa
+    unityObject: {fileID: 9197182588449154441}
+  - guid: 57dc242e-811f-4c1c-ac66-6794adb9375f
+    unityObject: {fileID: 8662159011173090052}
+  - guid: 2ea1159f-fb16-4463-b410-a17a87144c82
+    unityObject: {fileID: 7496131149392342068}
   serializeFieldSavableReferenceList:
-  - guid: 4e5f67e3-e912-419d-ad48-28057dbe7ce3
-    component: {fileID: 6713400618140853973}
+  - guid: 26f8b0d0-4810-4d6b-91ed-777dbc87026c
+    unityObject: {fileID: 6713400618140853973}
+  - guid: fc27d74d-4fdf-40a9-839e-9783f02edee1
+    unityObject: {fileID: 3486400781386082996}

@@ -21,6 +21,7 @@ namespace SaveLoadSystem.Utility
             var propertyInfo = memberOwner.GetType().GetProperty(memberName, DefaultBindingFlags);
             if (propertyInfo != null)
             {
+                Debug.Log(propertyInfo.Name + " " + data.GetType());
                 propertyInfo.SetValue(memberOwner, data);
                 return;
             }
@@ -144,9 +145,9 @@ namespace SaveLoadSystem.Utility
             return false;
         }
         
-        public static List<Component> GetComponentsWithTypeCondition(GameObject gameObject, params Func<Type, bool>[] collectionConditions)
+        public static List<UnityEngine.Object> GetComponentsWithTypeCondition(GameObject gameObject, params Func<Type, bool>[] collectionConditions)
         {
-            var componentsWithAttribute = new List<Component>();
+            var componentsWithAttribute = new List<UnityEngine.Object>();
             var allComponents = gameObject.GetComponents<Component>();
 
             foreach (Component component in allComponents)

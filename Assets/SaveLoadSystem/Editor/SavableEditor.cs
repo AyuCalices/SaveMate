@@ -59,14 +59,14 @@ namespace SaveLoadSystem.Editor
                 
             // Headers
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Component", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Unity Object", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Guid", EditorStyles.boldLabel);
             EditorGUILayout.EndHorizontal();
                 
             for (var i = 0; i < serializedProperty.arraySize; i++)
             {
                 var elementProperty = serializedProperty.GetArrayElementAtIndex(i);
-                var componentProperty = elementProperty.FindPropertyRelative("component");
+                var componentProperty = elementProperty.FindPropertyRelative("unityObject");
                 var pathProperty = elementProperty.FindPropertyRelative("guid");
 
                 EditorGUILayout.BeginHorizontal();
@@ -92,24 +92,28 @@ namespace SaveLoadSystem.Editor
 
             // Headers
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Component", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Unity Object", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Guid", EditorStyles.boldLabel);
             EditorGUILayout.EndHorizontal();
 
             for (var i = 0; i < serializedProperty.arraySize; i++)
             {
                 var elementProperty = serializedProperty.GetArrayElementAtIndex(i);
-                var componentProperty = elementProperty.FindPropertyRelative("component");
+                var componentProperty = elementProperty.FindPropertyRelative("unityObject");
                 var pathProperty = elementProperty.FindPropertyRelative("guid");
 
                 EditorGUILayout.BeginHorizontal();
                 EditableGUILayoutAction(componentEditable, () => EditorGUILayout.PropertyField(componentProperty, GUIContent.none));
                 EditableGUILayoutAction(guidEditable, () => EditorGUILayout.PropertyField(pathProperty, GUIContent.none));
 
-                // Add a button to remove the element
-                if (GUILayout.Button("Remove", GUILayout.Width(60)))
+                //make sure the transform and gameobject cant be removed in order for the guid to not change!
+                if (componentProperty.boxedValue is not GameObject and not Transform)
                 {
-                    serializedProperty.DeleteArrayElementAtIndex(i);
+                    // Add a button to remove the element
+                    if (GUILayout.Button("Remove", GUILayout.Width(60)))
+                    {
+                        serializedProperty.DeleteArrayElementAtIndex(i);
+                    }
                 }
 
                 EditorGUILayout.EndHorizontal();

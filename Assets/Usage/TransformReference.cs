@@ -1,4 +1,3 @@
-using System;
 using SaveLoadSystem.Core.Attributes;
 using UnityEngine;
 
@@ -6,14 +5,18 @@ namespace SaveLoadCore
 {
     public class TransformReference : MonoBehaviour
     {
-        [Savable] public Transform Test { get; set; }
+        public Texture2D sprite;
+        
+        [Savable] public Transform TransformTest { get; set; }
+        [Savable] public GameObject GameObjectTest { get; set; }
+        [Savable] public Texture2D SpriteTest { get; set; }
 
         private void Awake()
         {
-            Transform newTest;
-            if (Test == null)
+            Transform newTransformTest;
+            if (TransformTest == null)
             {
-                newTest = transform;
+                newTransformTest = transform;
             }
             else
             {
@@ -22,26 +25,53 @@ namespace SaveLoadCore
             
             foreach (TransformReference savableTest in GetComponents<TransformReference>())
             {
-                savableTest.Test = newTest;
+                savableTest.TransformTest = newTransformTest;
+            }
+            
+            
+            GameObject newGameObjectTest;
+            if (GameObjectTest == null)
+            {
+                newGameObjectTest = gameObject;
+            }
+            else
+            {
+                return;
+            }
+            
+            foreach (TransformReference savableTest in GetComponents<TransformReference>())
+            {
+                savableTest.GameObjectTest = newGameObjectTest;
+            }
+            
+            
+            Texture2D newSpriteTest;
+            if (SpriteTest == null)
+            {
+                newSpriteTest = sprite;
+            }
+            else
+            {
+                return;
+            }
+            
+            foreach (TransformReference savableTest in GetComponents<TransformReference>())
+            {
+                savableTest.SpriteTest = newSpriteTest;
             }
         }
 
         [ContextMenu("Add")]
         public void Add()
         {
-            Test.position += new Vector3(1, 1, 1);
+            TransformTest.position += new Vector3(1, 1, 1);
         }
 
         [ContextMenu("Remove")]
         public void Remove()
         {
-            Test = null;
+            TransformTest = null;
+            GameObjectTest = null;
         }
-    }
-
-    [Serializable]
-    public class Test
-    {
-        public float thing;
     }
 }

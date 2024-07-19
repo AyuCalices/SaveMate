@@ -123,6 +123,16 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &272349575 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3815208775508939759, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+  m_PrefabInstance: {fileID: 276448079}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &272349583 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4145469786286790238, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+  m_PrefabInstance: {fileID: 276448079}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &276448079
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -135,6 +145,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Setup_TransformReference
       objectReference: {fileID: 0}
+    - target: {fileID: 4111769595531981682, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: sprite
+      value: 
+      objectReference: {fileID: 10906, guid: 0000000000000000f000000000000000, type: 0}
     - target: {fileID: 4145469786286790238, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -183,6 +197,42 @@ PrefabInstance:
       propertyPath: serializeFieldSceneGuid
       value: b7b85712-bdb2-42a1-b465-012319ba935b
       objectReference: {fileID: 0}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[0].guid
+      value: 3316765b-4ac3-4311-a3d6-c1cec9eab493
+      objectReference: {fileID: 0}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[1].guid
+      value: 2092e91b-4b19-4976-9eb0-dc4473168fda
+      objectReference: {fileID: 0}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[2].guid
+      value: 3573156f-a06c-4afa-a1c1-38e05bc54ba6
+      objectReference: {fileID: 0}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[0].unityObject
+      value: 
+      objectReference: {fileID: 272349583}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[1].unityObject
+      value: 
+      objectReference: {fileID: 272349575}
+    - target: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[2].unityObject
+      value: 
+      objectReference: {fileID: 10914, guid: 0000000000000000f000000000000000, type: 0}
+    - target: {fileID: 7349438982956710142, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: sprite
+      value: 
+      objectReference: {fileID: 10914, guid: 0000000000000000f000000000000000, type: 0}
+    - target: {fileID: 7568845036812653991, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+      propertyPath: sprite
+      value: 
+      objectReference: {fileID: 10900, guid: 0000000000000000f000000000000000, type: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

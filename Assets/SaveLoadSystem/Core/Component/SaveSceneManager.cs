@@ -15,7 +15,6 @@ namespace SaveLoadSystem.Core.Component
     {
         NotSupported,
         UnityObject,
-        UnityComponent,
         AutomaticSavable,
         CustomSavable,
         CustomConvertable,
@@ -48,7 +47,7 @@ namespace SaveLoadSystem.Core.Component
 
         private Dictionary<object, GuidPath> BuildObjectReferenceLookup(List<Savable> savableList)
         {
-            var saveElementLookup = new Dictionary<object, GuidPath>();
+            var objectReferenceLookup = new Dictionary<object, GuidPath>();
             
             foreach (var savable in savableList)
             {
@@ -57,11 +56,11 @@ namespace SaveLoadSystem.Core.Component
                 foreach (var componentContainer in savable.ReferenceList)
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath, componentContainer.guid);
-                    saveElementLookup.Add(componentContainer.component, componentGuidPath);
+                    objectReferenceLookup.Add(componentContainer.unityObject, componentGuidPath);
                 }
             }
 
-            return saveElementLookup;
+            return objectReferenceLookup;
         }
 
         private SavableElementLookup BuildSavableElementLookup(List<Savable> savableList)
@@ -73,7 +72,7 @@ namespace SaveLoadSystem.Core.Component
                 foreach (var componentContainer in savable.SavableList)
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath, componentContainer.guid);
-                    ProcessSavableElement(saveElementLookup, componentContainer.component, componentGuidPath, saveElementLookup.Count());
+                    ProcessSavableElement(saveElementLookup, componentContainer.unityObject, componentGuidPath, saveElementLookup.Count());
                 }
             }
 
@@ -118,7 +117,7 @@ namespace SaveLoadSystem.Core.Component
                 memberList.Add(fieldInfo.Name, reflectedField);
                 
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
-                if (reflectedField is UnityEngine.Component) continue;
+                if (reflectedField is UnityEngine.Object) continue;
                 
                 var path = new GuidPath(guidPath, fieldInfo.Name);
                 ProcessSavableElement(savableElementLookup, reflectedField, path, insertIndex);
@@ -130,7 +129,7 @@ namespace SaveLoadSystem.Core.Component
                 memberList.Add(propertyInfo.Name, reflectedProperty);
 
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
-                if (reflectedProperty is UnityEngine.Component) continue;
+                if (reflectedProperty is UnityEngine.Object) continue;
                 
                 var path = new GuidPath(guidPath, propertyInfo.Name);
                 ProcessSavableElement(savableElementLookup, reflectedProperty, path, insertIndex);
@@ -139,14 +138,7 @@ namespace SaveLoadSystem.Core.Component
             //define save strategy TODO: to strategy pattern
             if (targetObject is UnityEngine.Object)
             {
-                if (targetObject is UnityEngine.Component)
-                {
-                    saveElement.SaveStrategy = SaveStrategy.UnityComponent;
-                }
-                else
-                {
-                    saveElement.SaveStrategy = SaveStrategy.UnityObject;
-                }
+                saveElement.SaveStrategy = SaveStrategy.UnityObject;
             }
             else if (memberList.Count != 0)
             {
@@ -182,16 +174,13 @@ namespace SaveLoadSystem.Core.Component
                         Debug.LogWarning($"The object of type {saveObject.GetType()} is not supported!");
                         break;
                     
-                    case SaveStrategy.UnityComponent:
+                    case SaveStrategy.UnityObject:
                         var componentDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, componentDataBuffer, savableElementLookup, referenceLookup);
                         HandleInterfaceOnSave(saveObject, componentDataBuffer, savableElementLookup, index);
                         
                         dataBufferContainer.DataBuffers.Add(creatorGuidPath, componentDataBuffer);
-                        break;
-                    
-                    case SaveStrategy.UnityObject:
                         break;
                     
                     case SaveStrategy.AutomaticSavable:
@@ -286,7 +275,7 @@ namespace SaveLoadSystem.Core.Component
                 foreach (var componentContainer in savable.ReferenceList)
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath, componentContainer.guid);
-                    saveElementLookup.Add(componentGuidPath.ToString(), componentContainer.component);
+                    saveElementLookup.Add(componentGuidPath.ToString(), componentContainer.unityObject);
                 }
             }
 
@@ -306,9 +295,6 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.UnityObject:
-                        break;
-                    
-                    case SaveStrategy.UnityComponent:
                         var stack = guidPath.ToStack();
                         var searchedSceneGuid = stack.Pop();
                         foreach (var savable in savableList)
@@ -322,10 +308,10 @@ namespace SaveLoadSystem.Core.Component
                             {
                                 if (componentContainer.guid != searchedComponentGuid) continue;
                                 
-                                WriteSavableMember(componentContainer.component, dataBuffer.DefinedSaveData, deserializeReferenceBuilder);
-                                HandleInterfaceOnLoad(componentContainer.component, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
+                                WriteSavableMember(componentContainer.unityObject, dataBuffer.DefinedSaveData, deserializeReferenceBuilder);
+                                HandleInterfaceOnLoad(componentContainer.unityObject, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
                                 
-                                createdObjectsLookup.Add(guidPath, componentContainer.component);
+                                createdObjectsLookup.Add(guidPath, componentContainer.unityObject);
                             }
                         }
                         break;

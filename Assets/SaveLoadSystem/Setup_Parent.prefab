@@ -50,7 +50,11 @@ MonoBehaviour:
   serializeFieldSavableList: []
   serializeFieldSavableReferenceList:
   - guid: 075515a3-e5e4-4d45-80b1-a361ccd2e7f8
-    component: {fileID: 2579836052208014260}
+    unityObject: {fileID: 0}
+  - guid: 7a88aecf-06ea-44d9-92af-79171b7f3972
+    unityObject: {fileID: 2579836052208014260}
+  - guid: e5f53c29-9931-41b2-ae38-75e495010ea9
+    unityObject: {fileID: 391224418984672259}
 --- !u!1 &4174519131802162353
 GameObject:
   m_ObjectHideFlags: 0
@@ -186,9 +190,13 @@ MonoBehaviour:
   prefabSource: {fileID: 4174519131802162353}
   serializeFieldSceneGuid: 
   serializeFieldSavableList:
-  - guid: 5de6ce74-db7b-454d-91a8-b6df608f0522
-    component: {fileID: 8039805439251132232}
-  serializeFieldSavableReferenceList: []
+  - guid: 709ea9cd-d9b5-47d2-8759-b70d001d83c7
+    unityObject: {fileID: 8039805439251132232}
+  serializeFieldSavableReferenceList:
+  - guid: 033b8909-67fa-46ad-979d-cbc2ad12dcb3
+    unityObject: {fileID: 2778556579425113092}
+  - guid: 577682a9-fde7-4285-8ecb-ad6b7cce8b54
+    unityObject: {fileID: 4174519131802162353}
 --- !u!1 &5672036955889882892
 GameObject:
   m_ObjectHideFlags: 0
@@ -240,5 +248,7 @@ MonoBehaviour:
   serializeFieldSceneGuid: 
   serializeFieldSavableList: []
   serializeFieldSavableReferenceList:
-  - guid: fa5c0d27-a9f1-479c-b949-fb426ee4a06a
-    component: {fileID: 8394477247371630475}
+  - guid: 88232791-4f74-4458-bda7-fd9928740204
+    unityObject: {fileID: 8394477247371630475}
+  - guid: 4acd4b90-f30d-4d1b-8b31-443155ed5f5c
+    unityObject: {fileID: 5672036955889882892}

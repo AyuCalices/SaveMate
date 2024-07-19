@@ -121,6 +121,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sprite: {fileID: 0}
 --- !u!114 &7568845036812653991
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -133,6 +134,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sprite: {fileID: 0}
 --- !u!114 &7349438982956710142
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -145,6 +147,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74a458d2ea4a4a94f90183e583123efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sprite: {fileID: 0}
 --- !u!114 &4874643443123014876
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -161,12 +164,14 @@ MonoBehaviour:
   prefabSource: {fileID: 3815208775508939759}
   serializeFieldSceneGuid: 
   serializeFieldSavableList:
-  - guid: dd5eca89-dc9f-46c9-8db0-e447577941fb
-    component: {fileID: 4111769595531981682}
-  - guid: 632bc5e9-cf4d-4859-8ec3-ba101c39360d
-    component: {fileID: 7568845036812653991}
-  - guid: 660957b7-8c88-499c-9da6-e5210e62e5a2
-    component: {fileID: 7349438982956710142}
+  - guid: 6dc3bfea-8fe2-47e2-a927-3da3b279ee19
+    unityObject: {fileID: 4111769595531981682}
+  - guid: eb385667-d7ac-448d-9464-6227d89f5ad6
+    unityObject: {fileID: 7568845036812653991}
+  - guid: ff5afa8e-75e5-49d1-89d0-41772639c2ea
+    unityObject: {fileID: 7349438982956710142}
   serializeFieldSavableReferenceList:
-  - guid: 0d04fd46-b633-4440-ad3b-929080626838
-    component: {fileID: 4145469786286790238}
+  - guid: 3316765b-4ac3-4311-a3d6-c1cec9eab493
+    unityObject: {fileID: 4145469786286790238}
+  - guid: ab916d45-add4-48a7-987d-4c8e8aeaffe5
+    unityObject: {fileID: 3815208775508939759}
