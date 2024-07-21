@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
 
@@ -8,12 +9,14 @@ namespace SaveLoadSystem.Core
     {
         private readonly DataBuffer _objectDataBuffer;
         private readonly SavableElementLookup _savableElementLookup;
+        private readonly Dictionary<object, GuidPath> _objectReferenceLookup;
         private readonly int _currentIndex;
 
-        public SaveDataHandler(DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, int currentIndex)
+        public SaveDataHandler(DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int currentIndex)
         {
             _objectDataBuffer = objectDataBuffer;
             _savableElementLookup = savableElementLookup;
+            _objectReferenceLookup = objectReferenceLookup;
             _currentIndex = currentIndex;
         }
 
@@ -24,7 +27,12 @@ namespace SaveLoadSystem.Core
 
         public object ToReferencableObject(string uniqueIdentifier, object obj)
         {
-            var guidPath = new GuidPath(_objectDataBuffer.originGuidPath, uniqueIdentifier);
+            if (_objectReferenceLookup.TryGetValue(obj, out GuidPath guidPath))
+            {
+                return guidPath;
+            }
+            
+            guidPath = new GuidPath(_objectDataBuffer.originGuidPath, uniqueIdentifier);
             if (!_savableElementLookup.ContainsElement(obj))
             {
                 SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);

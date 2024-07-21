@@ -210,7 +210,7 @@ namespace SaveLoadSystem.Core.Component
             }
         }
 
-        private void BuildDataBufferContainer(Dictionary<GuidPath, DataBuffer> dataBuffers, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> referenceLookup)
+        private void BuildDataBufferContainer(Dictionary<GuidPath, DataBuffer> dataBuffers, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             for (var index = 0; index < savableElementLookup.Count(); index++)
             {
@@ -227,8 +227,8 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.UnityObject:
                         var componentDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleSavableMember(saveElement, componentDataBuffer, savableElementLookup, referenceLookup);
-                        HandleInterfaceOnSave(saveObject, componentDataBuffer, savableElementLookup, index);
+                        HandleSavableMember(saveElement, componentDataBuffer, savableElementLookup, objectReferenceLookup);
+                        HandleInterfaceOnSave(saveObject, componentDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
                         dataBuffers.Add(creatorGuidPath, componentDataBuffer);
                         break;
@@ -236,8 +236,8 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.AutomaticSavable:
                         var savableObjectDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleSavableMember(saveElement, savableObjectDataBuffer, savableElementLookup, referenceLookup);
-                        HandleInterfaceOnSave(saveObject, savableObjectDataBuffer, savableElementLookup, index);
+                        HandleSavableMember(saveElement, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup);
+                        HandleInterfaceOnSave(saveObject, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
                         dataBuffers.Add(creatorGuidPath, savableObjectDataBuffer);
                         break;
@@ -245,7 +245,7 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.CustomSavable:
                         var savableDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleInterfaceOnSave(saveObject, savableDataBuffer, savableElementLookup, index);
+                        HandleInterfaceOnSave(saveObject, savableDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
                         dataBuffers.Add(creatorGuidPath, savableDataBuffer);
                         break;
@@ -254,7 +254,7 @@ namespace SaveLoadSystem.Core.Component
                         var convertableDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         convertableDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
-                        var saveDataHandler = new SaveDataHandler(convertableDataBuffer, savableElementLookup, index);
+                        var saveDataHandler = new SaveDataHandler(convertableDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         ConverterRegistry.GetConverter(saveObject.GetType()).OnSave(saveObject, saveDataHandler);
                         
                         dataBuffers.Add(creatorGuidPath, convertableDataBuffer);
@@ -269,12 +269,12 @@ namespace SaveLoadSystem.Core.Component
             }
         }
 
-        private void HandleInterfaceOnSave(object saveObject, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, int index)
+        private void HandleInterfaceOnSave(object saveObject, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int index)
         {
             if (!TypeUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
             
             objectDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
-            objectSavable.OnSave(new SaveDataHandler(objectDataBuffer, savableElementLookup, index));
+            objectSavable.OnSave(new SaveDataHandler(objectDataBuffer, savableElementLookup, objectReferenceLookup, index));
         }
         
         private void HandleSavableMember(SavableElement savableElement, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> referenceLookup)
@@ -343,7 +343,6 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.UnityObject:
-                        Debug.Log("o/");
                         var stack = guidPath.ToStack();
                         var searchedSceneGuid = stack.Pop();
                         foreach (var savable in savableList)
