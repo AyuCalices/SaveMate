@@ -44,9 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hierarchyPath: 
-  prefabSource: {fileID: 391224418984672259}
   serializeFieldSceneGuid: 
+  prefabPath: 
+  customSpawning: 0
   serializeFieldSavableList: []
   serializeFieldSavableReferenceList:
   - guid: 075515a3-e5e4-4d45-80b1-a361ccd2e7f8
@@ -186,9 +186,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hierarchyPath: 
-  prefabSource: {fileID: 4174519131802162353}
   serializeFieldSceneGuid: 
+  prefabPath: 
+  customSpawning: 0
   serializeFieldSavableList:
   - guid: 709ea9cd-d9b5-47d2-8759-b70d001d83c7
     unityObject: {fileID: 8039805439251132232}
@@ -243,9 +243,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hierarchyPath: 
-  prefabSource: {fileID: 5672036955889882892}
   serializeFieldSceneGuid: 
+  prefabPath: Assets/SaveLoadSystem/Setup_Parent.prefab
+  customSpawning: 0
   serializeFieldSavableList: []
   serializeFieldSavableReferenceList:
   - guid: 88232791-4f74-4458-bda7-fd9928740204

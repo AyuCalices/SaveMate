@@ -11,11 +11,12 @@ namespace SaveLoadSystem.Core.Component
     [DisallowMultipleComponent]
     public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
     {
-        [SerializeField] private string hierarchyPath;
-        [SerializeField] private GameObject prefabSource;
-        
         [SerializeField] private string serializeFieldSceneGuid;
         private string _resetBufferSceneGuid;
+
+        [SerializeField] private string prefabPath;
+
+        [SerializeField] private bool customSpawning;
         
         [SerializeField] private List<ComponentsContainer> serializeFieldSavableList = new();
         private readonly List<ComponentsContainer> _resetBufferSavableList = new();
@@ -23,19 +24,20 @@ namespace SaveLoadSystem.Core.Component
         [SerializeField] private List<ComponentsContainer> serializeFieldSavableReferenceList = new();
         private readonly List<ComponentsContainer> _resetBufferSavableReferenceList = new();
 
-        public string HierarchyPath => hierarchyPath;
-        public GameObject PrefabSource => prefabSource;
         public string SceneGuid => serializeFieldSceneGuid;
+        public string PrefabGuid => prefabPath;
+        public bool CustomSpawning => customSpawning;
         public List<ComponentsContainer> SavableList => serializeFieldSavableList;
         public List<ComponentsContainer> ReferenceList => serializeFieldSavableReferenceList;
-
-        private void ChangingGuidWarning(string fieldName) => Debug.LogWarning($"The parameter '{fieldName}' at the path '{hierarchyPath}' has changed when it wasn't created! This may be normal, if you opened e.g. a prefab.");
-        private void UnaccountedComponentError(string guid) => Debug.LogError($"There is an unaccounted guid `{guid}` registered. Maybe you removed a component and then restarted the scene/editor?");
         
         private void Reset()
         {
             ApplyResetBuffer();
-            serializeFieldSceneGuid = _resetBufferSceneGuid;
+        }
+
+        private void Awake()
+        {
+            SetupSceneGuid();
         }
 
         private void OnValidate()
@@ -43,33 +45,42 @@ namespace SaveLoadSystem.Core.Component
             if (Application.isPlaying) return;
             
             ApplyScriptReloadBuffer();
-            _resetBufferSceneGuid = serializeFieldSceneGuid;
-            SetupAll(false);
+            SetupAll();
         }
         
         public void OnCreateGameObjectHierarchy()
         {
-            SetupAll(true);
+            if (Application.isPlaying) return;
+            
+            SetupAll();
         }
         
         public void OnChangeGameObjectStructure()
         {
-            SetupAll(false);
+            if (Application.isPlaying) return;
+            
+            SetupAll();
         }
         
         public void OnChangeComponentProperties()
         {
-            SetupAll(false);
+            if (Application.isPlaying) return;
+            
+            SetupAll();
         }
 
         public void OnChangeGameObjectProperties()
         {
-            SetupAll(false);
+            if (Application.isPlaying) return;
+            
+            SetupAll();
         }
         
         public void OnChangeGameObjectStructureHierarchy()
         {
-            SetupAll(false);
+            if (Application.isPlaying) return;
+            
+            SetupAll();
         }
         
         /// <summary>
@@ -117,48 +128,28 @@ namespace SaveLoadSystem.Core.Component
             }
         }
 
-        private void SetupAll(bool isCreateCall)
+        private void SetupAll()
         {
-            prefabSource = PrefabUtility.GetCorrespondingObjectFromOriginalSource(gameObject);
             UpdateSavableComponents();
             SetupDefaultSavableReferenceComponents();
             UpdateSavableReferenceComponents();
 
             if (gameObject.scene.name != null)
             {
-                SetupSceneGuid(isCreateCall);
-                SetupScenePath();
+                SetupSceneGuid();
             }
             else
             {
                 ResetSceneGuid();
-                ResetScenePath();
             }
             
             SetDirty(this);
         }
         
-        private void SetupScenePath()
+        private void SetupSceneGuid()
         {
-            hierarchyPath = gameObject.GetScenePath() + "/";
-        }
-
-        private void ResetScenePath()
-        {
-            hierarchyPath = "";
-        }
-
-        private void SetupSceneGuid(bool isCreatCall)
-        {
-            if (isCreatCall)
+            if (string.IsNullOrEmpty(serializeFieldSceneGuid) && string.IsNullOrEmpty(_resetBufferSceneGuid))
             {
-                SetSceneGuidGroup(Guid.NewGuid().ToString());
-            }
-            else if (string.IsNullOrEmpty(serializeFieldSceneGuid) && string.IsNullOrEmpty(_resetBufferSceneGuid))
-            {
-                // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
-                // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                ChangingGuidWarning(nameof(serializeFieldSceneGuid));
                 SetSceneGuidGroup(Guid.NewGuid().ToString());
             }
         }
@@ -168,10 +159,15 @@ namespace SaveLoadSystem.Core.Component
             SetSceneGuidGroup("");
         }
  
-        private void SetSceneGuidGroup(string guid)
+        public void SetSceneGuidGroup(string guid)
         {
             serializeFieldSceneGuid = guid;
             _resetBufferSceneGuid = guid;
+        }
+
+        public void SetPrefabPath(string newPrefabPath)
+        {
+            prefabPath = newPrefabPath;
         }
 
         private void SetSavableReferenceGuidGroup(int index, string guid)
@@ -218,11 +214,8 @@ namespace SaveLoadSystem.Core.Component
                 }
                 else
                 {
-                    // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
-                    // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
                     if (string.IsNullOrEmpty(savableContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableList[index].guid))
                     {
-                        ChangingGuidWarning(nameof(savableContainer));
                         SetSavableGuidGroup(index, Guid.NewGuid().ToString());
                     }
                     
@@ -272,9 +265,6 @@ namespace SaveLoadSystem.Core.Component
 
             if (string.IsNullOrEmpty(referenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
             {
-                // If both 'serializeField' and 'resetBuffer' are null or empty, and this is not during initialization,
-                // it indicates that a new ID has been assigned. This results in a GUID conflict with the version control system.
-                ChangingGuidWarning(nameof(referenceContainer));
                 SetSavableReferenceGuidGroup(serializeFieldSavableReferenceList.Count - 1, Guid.NewGuid().ToString());
             }
         }

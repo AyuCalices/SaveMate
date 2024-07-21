@@ -9,8 +9,8 @@ namespace SaveLoadSystem.Editor
     public class SavableEditor : UnityEditor.Editor
     {
         private SerializedProperty _sceneGuidProperty;
-        private SerializedProperty _hierarchyPathProperty;
-        private SerializedProperty _prefabSourceProperty;
+        private SerializedProperty _prefabPathProperty;
+        private SerializedProperty _customSpawningProperty;
         private SerializedProperty _currentSavableListProperty;
         private SerializedProperty _savableReferenceListProperty;
         
@@ -21,8 +21,8 @@ namespace SaveLoadSystem.Editor
         private void OnEnable()
         {
             _sceneGuidProperty = serializedObject.FindProperty("serializeFieldSceneGuid");
-            _hierarchyPathProperty = serializedObject.FindProperty("hierarchyPath");
-            _prefabSourceProperty = serializedObject.FindProperty("prefabSource");
+            _prefabPathProperty = serializedObject.FindProperty("prefabPath");
+            _customSpawningProperty = serializedObject.FindProperty("customSpawning");
             _currentSavableListProperty = serializedObject.FindProperty("serializeFieldSavableList");
             _savableReferenceListProperty = serializedObject.FindProperty("serializeFieldSavableReferenceList");
         }
@@ -31,13 +31,17 @@ namespace SaveLoadSystem.Editor
         {
             serializedObject.Update();
             
+            if (_prefabPathProperty.stringValue != string.Empty)
+            {
+                EditorGUILayout.PropertyField(_customSpawningProperty);
+            }
+            
             // Disable editing
             GUI.enabled = false;
             
             // Display the fields
+            EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
-            EditorGUILayout.PropertyField(_hierarchyPathProperty);
-            EditorGUILayout.PropertyField(_prefabSourceProperty);
             ComponentContainerListLayout(_currentSavableListProperty, "Current Savable List", ref _showCurrentSavableList);
             
             // Enable editing back

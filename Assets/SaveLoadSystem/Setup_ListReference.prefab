@@ -132,9 +132,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hierarchyPath: 
-  prefabSource: {fileID: 8505210702091788475}
   serializeFieldSceneGuid: 
+  prefabPath: Assets/SaveLoadSystem/Setup_ListReference.prefab
+  customSpawning: 0
   serializeFieldSavableList:
   - guid: 6990b274-fe17-448d-90a8-17b730f662c8
     unityObject: {fileID: 3636893589558315153}
