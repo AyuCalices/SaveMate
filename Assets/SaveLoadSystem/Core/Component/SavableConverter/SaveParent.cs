@@ -12,7 +12,6 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            Debug.Log(name);
             var parent = loadDataHandler.GetSaveElement("parent");
             var siblingIndex = loadDataHandler.GetSaveElement<int>("siblingIndex");
             

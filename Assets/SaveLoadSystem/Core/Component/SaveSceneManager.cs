@@ -79,22 +79,21 @@ namespace SaveLoadSystem.Core.Component
                 }
             }
             
-            Debug.LogWarning("Destroyed");
-            foreach (var (prefab, sceneGuid) in destroyedSavables)
-            {
-                foreach (var savable in savableList)
-                {
-                    if (savable.SceneGuid == sceneGuid)
-                    {
-                        Debug.Log(savable.name);
-                    }
-                }
-            }
-            
             var referenceBuilder = new DeserializeReferenceBuilder();
             var createdObjectsLookup = PrepareSaveElementInstances(dataBufferContainer, savableList, referenceBuilder);
             var guidPathReferenceLookup = BuildGuidPathReferenceLookup(savableList);
             referenceBuilder.InvokeAll(createdObjectsLookup, guidPathReferenceLookup);
+            
+            Debug.LogWarning("Destroyed");
+            foreach (var (prefab, sceneGuid) in destroyedSavables)
+            {
+                foreach (var savable in savableList.Where(savable => savable.SceneGuid == sceneGuid))
+                {
+                    Destroy(savable.gameObject);
+                    savableList.Remove(savable);
+                    break;
+                }
+            }
         }
 
         private Dictionary<object, GuidPath> BuildObjectReferenceLookup(List<Savable> savableList)
