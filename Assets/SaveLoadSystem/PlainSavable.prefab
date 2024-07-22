@@ -47,7 +47,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   serializeFieldSceneGuid: 
   prefabPath: Assets/SaveLoadSystem/PlainSavable.prefab
-  customSpawning: 0
+  customSpawning: 1
   serializeFieldSavableList:
   - guid: 3479110e-b4b9-4ce4-aaaf-d49485bf8ce0
     unityObject: {fileID: 814774619166277792}

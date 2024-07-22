@@ -21,8 +21,8 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var loadElements = loadDataHandler.GetSaveElement<List<object>>("elements");
-            var type = loadDataHandler.GetSaveElement<Type>("type");
+            var loadElements = loadDataHandler.GetSerializable<List<object>>("elements");
+            var type = loadDataHandler.GetSerializable<Type>("type");
             
             var queueType = typeof(Queue<>).MakeGenericType(type);
             var queue = (Queue)Activator.CreateInstance(queueType);

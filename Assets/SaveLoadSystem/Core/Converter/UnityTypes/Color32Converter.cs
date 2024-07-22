@@ -14,10 +14,10 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var r = loadDataHandler.GetSaveElement<byte>("r");
-            var g = loadDataHandler.GetSaveElement<byte>("g");
-            var b = loadDataHandler.GetSaveElement<byte>("b");
-            var a = loadDataHandler.GetSaveElement<byte>("a");
+            var r = loadDataHandler.GetSerializable<byte>("r");
+            var g = loadDataHandler.GetSerializable<byte>("g");
+            var b = loadDataHandler.GetSerializable<byte>("b");
+            var a = loadDataHandler.GetSerializable<byte>("a");
             
             loadDataHandler.InitializeInstance(new Color32(r, g, b, a));
         }

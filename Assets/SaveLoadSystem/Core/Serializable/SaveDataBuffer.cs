@@ -1,19 +1,18 @@
 using System;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.Component;
 
 namespace SaveLoadSystem.Core.Serializable
 {
     [Serializable]
-    public class DataBuffer
+    public class SaveDataBuffer
     {
-        public SaveStrategy saveStrategy;
+        public Component.SaveStrategy saveStrategy;
         public GuidPath originGuidPath;
         public Type SavableType;
         public Dictionary<string, object> DefinedSaveData;
         public Dictionary<string, object> CustomSaveData;
 
-        public DataBuffer(SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType)
+        public SaveDataBuffer(Component.SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType)
         {
             this.saveStrategy = saveStrategy;
             originGuidPath = creatorGuidPath;

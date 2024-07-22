@@ -11,16 +11,6 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core.Component
 {
-    public enum SaveStrategy
-    {
-        NotSupported,
-        UnityObject,
-        AutomaticSavable,
-        CustomSavable,
-        CustomConvertable,
-        Serializable
-    }
-    
     public class SaveSceneManager : MonoBehaviour
     {
         [SerializeField] private PrefabRegistry prefabRegistry;
@@ -28,73 +18,49 @@ namespace SaveLoadSystem.Core.Component
         [ContextMenu("Save Scene Data")]
         public void SaveSceneData()
         {
-            Dictionary<GuidPath, DataBuffer> dataBuffers = new();
-            
+            //prepare data
+            Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer = new();
             var savableList = UnityObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-
-            List<(string, string)> currentPrefabList = new();
-            foreach (var savable in savableList)
-            {
-                if (prefabRegistry.ContainsGuid(savable.PrefabGuid))
-                {
-                    currentPrefabList.Add((savable.PrefabGuid, savable.SceneGuid));
-                }
-            }
-            
-            var dataBufferContainer = new DataBufferContainer(dataBuffers, currentPrefabList);
-            
+            var saveDataBufferContainer = new SaveDataBufferContainer(saveDataBuffer, CreatePrefabPoolList(savableList));
             var objectReferenceLookup = BuildObjectReferenceLookup(savableList);
+            
+            //core saving
             var saveElementLookup = BuildSavableElementLookup(savableList);
-            BuildDataBufferContainer(dataBuffers, saveElementLookup, objectReferenceLookup);
-            SaveLoadManager.Save(dataBufferContainer);
+            BuildDataBufferContainer(saveDataBuffer, saveElementLookup, objectReferenceLookup);
+            SaveLoadManager.Save(saveDataBufferContainer);
         }
 
         [ContextMenu("Load Scene Data")]
         public void LoadSceneData()
         {
+            //prepare data
+            var dataBufferContainer = SaveLoadManager.Load<SaveDataBufferContainer>();
             var savableList = UnityObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var prefabPoolList = CreatePrefabPoolList(savableList);     //instantiating needed prefabs must happen before performing the core load methods
+            InstantiatePrefabsOnLoad(dataBufferContainer, savableList, prefabPoolList);
             
-            List<(string, string)> currentPrefabList = new();
-            foreach (var savable in savableList)
-            {
-                if (prefabRegistry.ContainsGuid(savable.PrefabGuid))
-                {
-                    currentPrefabList.Add((savable.PrefabGuid, savable.SceneGuid));
-                }
-            }
-            
-            var dataBufferContainer = SaveLoadManager.Load<DataBufferContainer>();
-            
-            IEnumerable<(string, string)> instantiatedSavables = dataBufferContainer.PrefabList.Except(currentPrefabList);
-            IEnumerable<(string, string)> destroyedSavables = currentPrefabList.Except(dataBufferContainer.PrefabList);
-            
-            Debug.LogWarning("Instantiated");
-            foreach (var (prefab, sceneGuid) in instantiatedSavables)
-            {
-                if (prefabRegistry.TryGetSavable(prefab, out Savable savable))
-                {
-                    var instantiatedSavable = Instantiate(savable);
-                    instantiatedSavable.SetSceneGuidGroup(sceneGuid);
-                    savableList.Add(instantiatedSavable);
-                }
-            }
-            
+            //core loading
             var referenceBuilder = new DeserializeReferenceBuilder();
             var createdObjectsLookup = PrepareSaveElementInstances(dataBufferContainer, savableList, referenceBuilder);
             var guidPathReferenceLookup = BuildGuidPathReferenceLookup(savableList);
             referenceBuilder.InvokeAll(createdObjectsLookup, guidPathReferenceLookup);
             
-            Debug.LogWarning("Destroyed");
-            foreach (var (prefab, sceneGuid) in destroyedSavables)
-            {
-                foreach (var savable in savableList.Where(savable => savable.SceneGuid == sceneGuid))
-                {
-                    Destroy(savable.gameObject);
-                    savableList.Remove(savable);
-                    break;
-                }
-            }
+            //destroy prefabs, that are not present in the save file
+            DestroyPrefabsOnLoad(dataBufferContainer, savableList, prefabPoolList);
         }
+
+        #region Universal
+
+        private List<(string, string)> CreatePrefabPoolList(List<Savable> savableList)
+        {
+            return (from savable in savableList 
+                where !savable.CustomSpawning && prefabRegistry.ContainsGuid(savable.PrefabGuid) 
+                select (savable.PrefabGuid, savable.SceneGuid)).ToList();
+        }
+
+        #endregion
+
+        #region Save Methods
 
         private Dictionary<object, GuidPath> BuildObjectReferenceLookup(List<Savable> savableList)
         {
@@ -113,7 +79,7 @@ namespace SaveLoadSystem.Core.Component
 
             return objectReferenceLookup;
         }
-
+        
         private SavableElementLookup BuildSavableElementLookup(List<Savable> savableList)
         {
             var saveElementLookup = new SavableElementLookup();
@@ -209,7 +175,7 @@ namespace SaveLoadSystem.Core.Component
             }
         }
 
-        private void BuildDataBufferContainer(Dictionary<GuidPath, DataBuffer> dataBuffers, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup)
+        private void BuildDataBufferContainer(Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             for (var index = 0; index < savableElementLookup.Count(); index++)
             {
@@ -224,39 +190,39 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.UnityObject:
-                        var componentDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
+                        var componentDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, componentDataBuffer, savableElementLookup, objectReferenceLookup);
                         HandleInterfaceOnSave(saveObject, componentDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
-                        dataBuffers.Add(creatorGuidPath, componentDataBuffer);
+                        saveDataBuffer.Add(creatorGuidPath, componentDataBuffer);
                         break;
                     
                     case SaveStrategy.AutomaticSavable:
-                        var savableObjectDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
+                        var savableObjectDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup);
                         HandleInterfaceOnSave(saveObject, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
-                        dataBuffers.Add(creatorGuidPath, savableObjectDataBuffer);
+                        saveDataBuffer.Add(creatorGuidPath, savableObjectDataBuffer);
                         break;
                     
                     case SaveStrategy.CustomSavable:
-                        var savableDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
+                        var savableDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         HandleInterfaceOnSave(saveObject, savableDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
-                        dataBuffers.Add(creatorGuidPath, savableDataBuffer);
+                        saveDataBuffer.Add(creatorGuidPath, savableDataBuffer);
                         break;
                     
                     case SaveStrategy.CustomConvertable:
-                        var convertableDataBuffer = new DataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
+                        var convertableDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         convertableDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
                         var saveDataHandler = new SaveDataHandler(convertableDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         ConverterRegistry.GetConverter(saveObject.GetType()).OnSave(saveObject, saveDataHandler);
                         
-                        dataBuffers.Add(creatorGuidPath, convertableDataBuffer);
+                        saveDataBuffer.Add(creatorGuidPath, convertableDataBuffer);
                         break;
 
                     case SaveStrategy.Serializable:
@@ -267,21 +233,13 @@ namespace SaveLoadSystem.Core.Component
                 }
             }
         }
-
-        private void HandleInterfaceOnSave(object saveObject, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int index)
-        {
-            if (!TypeUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
-            
-            objectDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
-            objectSavable.OnSave(new SaveDataHandler(objectDataBuffer, savableElementLookup, objectReferenceLookup, index));
-        }
         
-        private void HandleSavableMember(SavableElement savableElement, DataBuffer objectDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> referenceLookup)
+        private void HandleSavableMember(SavableElement savableElement, SaveDataBuffer objectSaveDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> referenceLookup)
         {
             if (savableElement.MemberInfoList.Count == 0) return;
 
             var saveData = new Dictionary<string, object>();
-            objectDataBuffer.SetDefinedSaveData(saveData);
+            objectSaveDataBuffer.SetDefinedSaveData(saveData);
             
             foreach (var (objectName, obj) in savableElement.MemberInfoList)
             {
@@ -302,11 +260,50 @@ namespace SaveLoadSystem.Core.Component
                     }
                     else
                     {
-                        //TODO: overthink the timing of this warning!
                         Debug.LogWarning(
                             $"You need to add a savable component to the origin GameObject of the '{obj.GetType()}' component. Then you need to apply an " +
                             $"ID by adding it into the ReferenceList. This will enable support for component referencing!");
                     }
+                }
+            }
+        }
+
+        private void HandleInterfaceOnSave(object saveObject, SaveDataBuffer objectSaveDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int index)
+        {
+            if (!TypeUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
+            
+            objectSaveDataBuffer.SetCustomSaveData(new Dictionary<string, object>());
+            objectSavable.OnSave(new SaveDataHandler(objectSaveDataBuffer, savableElementLookup, objectReferenceLookup, index));
+        }
+
+        #endregion
+
+        #region LoadMethods
+
+        private void InstantiatePrefabsOnLoad(SaveDataBufferContainer saveDataBufferContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
+        {
+            var instantiatedSavables = saveDataBufferContainer.PrefabList.Except(currentPrefabList);
+            foreach (var (prefab, sceneGuid) in instantiatedSavables)
+            {
+                if (prefabRegistry.TryGetSavable(prefab, out Savable savable))
+                {
+                    var instantiatedSavable = Instantiate(savable);
+                    instantiatedSavable.SetSceneGuidGroup(sceneGuid);
+                    savableList.Add(instantiatedSavable);
+                }
+            }
+        }
+        
+        private void DestroyPrefabsOnLoad(SaveDataBufferContainer saveDataBufferContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
+        {
+            var destroyedSavables = currentPrefabList.Except(saveDataBufferContainer.PrefabList);
+            foreach (var (prefab, sceneGuid) in destroyedSavables)
+            {
+                foreach (var savable in savableList.Where(savable => savable.SceneGuid == sceneGuid))
+                {
+                    Destroy(savable.gameObject);
+                    savableList.Remove(savable);
+                    break;
                 }
             }
         }
@@ -328,62 +325,44 @@ namespace SaveLoadSystem.Core.Component
 
             return saveElementLookup;
         }
-
-        private Dictionary<GuidPath, object> PrepareSaveElementInstances(DataBufferContainer dataBufferContainer, List<Savable> savableList, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        
+        private Dictionary<GuidPath, object> PrepareSaveElementInstances(SaveDataBufferContainer saveDataBufferContainer, List<Savable> savableList, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             var createdObjectsLookup = new Dictionary<GuidPath, object>();
             
-            foreach (var (guidPath, dataBuffer) in dataBufferContainer.DataBuffers)
+            foreach (var (guidPath, saveDataBuffer) in saveDataBufferContainer.SaveDataBuffers)
             {
-                switch (dataBuffer.saveStrategy)
+                switch (saveDataBuffer.saveStrategy)
                 {
                     case SaveStrategy.NotSupported:
-                        Debug.LogWarning($"The object of type {dataBuffer.SavableType} is not supported!");
+                        Debug.LogWarning($"The object of type {saveDataBuffer.SavableType} is not supported!");
                         break;
                     
                     case SaveStrategy.UnityObject:
-                        var stack = guidPath.ToStack();
-                        var searchedSceneGuid = stack.Pop();
-                        foreach (var savable in savableList)
-                        {
-                            if (savable.SceneGuid != searchedSceneGuid) continue;
-                        
-                            var searchedComponentGuid = stack.Pop();
-                        
-                            var combinedList = savable.SavableList.Concat(savable.ReferenceList);
-                            foreach (var componentContainer in combinedList)
-                            {
-                                if (componentContainer.guid != searchedComponentGuid) continue;
-                                
-                                WriteSavableMember(componentContainer.unityObject, dataBuffer.DefinedSaveData, deserializeReferenceBuilder);
-                                HandleInterfaceOnLoad(componentContainer.unityObject, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
-                                
-                                createdObjectsLookup.Add(guidPath, componentContainer.unityObject);
-                            }
-                        }
+                        HandleUnityObject(savableList, saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
                         break;
                     
                     case SaveStrategy.AutomaticSavable:
-                        var savableObjectInstance = Activator.CreateInstance(dataBuffer.SavableType);
+                        var savableObjectInstance = Activator.CreateInstance(saveDataBuffer.SavableType);
                         
-                        WriteSavableMember(savableObjectInstance, dataBuffer.DefinedSaveData, deserializeReferenceBuilder);
-                        HandleInterfaceOnLoad(savableObjectInstance, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
+                        WriteSavableMember(savableObjectInstance, saveDataBuffer.DefinedSaveData, deserializeReferenceBuilder);
+                        HandleOnLoadInterface(savableObjectInstance, saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
 
                         createdObjectsLookup.Add(guidPath, savableObjectInstance);
                         break;
                     
                     case SaveStrategy.CustomSavable:
-                        var savableInterfaceInstance = Activator.CreateInstance(dataBuffer.SavableType);
+                        var savableInterfaceInstance = Activator.CreateInstance(saveDataBuffer.SavableType);
                         
-                        HandleInterfaceOnLoad(savableInterfaceInstance, dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
+                        HandleOnLoadInterface(savableInterfaceInstance, saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
 
                         createdObjectsLookup.Add(guidPath, savableInterfaceInstance);
                         break;
 
                     case SaveStrategy.CustomConvertable:
-                        if (ConverterRegistry.TryGetConverter(dataBuffer.SavableType, out IConvertable convertable))
+                        if (ConverterRegistry.TryGetConverter(saveDataBuffer.SavableType, out IConvertable convertable))
                         {
-                            var loadDataHandler = new LoadDataHandler(dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
+                            var loadDataHandler = new LoadDataHandler(saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
                             convertable.OnLoad(loadDataHandler);
                         }
                         break;
@@ -398,15 +377,32 @@ namespace SaveLoadSystem.Core.Component
 
             return createdObjectsLookup;
         }
-        
-        private void HandleInterfaceOnLoad(object loadObject, DataBuffer dataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder, 
+
+        private void HandleUnityObject(List<Savable> savableList, SaveDataBuffer saveDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder, 
             Dictionary<GuidPath, object> createdObjectsLookup, GuidPath guidPath)
         {
-            if (!TypeUtility.TryConvertTo(loadObject, out ISavable objectSavable)) return;
-            
-            objectSavable.OnLoad(new LoadDataHandler(dataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath));
+            var stack = guidPath.ToStack();
+            var searchedSceneGuid = stack.Pop();
+            foreach (var savable in savableList)
+            {
+                if (savable.SceneGuid != searchedSceneGuid) continue;
+                        
+                var searchedComponentGuid = stack.Pop();
+                        
+                var combinedList = savable.SavableList.Concat(savable.ReferenceList);
+                foreach (var componentContainer in combinedList)
+                {
+                    if (componentContainer.guid != searchedComponentGuid) continue;
+                                
+                    WriteSavableMember(componentContainer.unityObject, saveDataBuffer.DefinedSaveData, deserializeReferenceBuilder);
+                    HandleOnLoadInterface(componentContainer.unityObject, saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
+                                
+                    createdObjectsLookup.Add(guidPath, componentContainer.unityObject);
+                    return;
+                }
+            }
         }
-
+        
         private void WriteSavableMember(object memberOwner, Dictionary<string, object> savableMember, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             if (savableMember == null) return;
@@ -424,5 +420,15 @@ namespace SaveLoadSystem.Core.Component
                 }
             }
         }
+        
+        private void HandleOnLoadInterface(object loadObject, SaveDataBuffer saveDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder, 
+            Dictionary<GuidPath, object> createdObjectsLookup, GuidPath guidPath)
+        {
+            if (!TypeUtility.TryConvertTo(loadObject, out ISavable objectSavable)) return;
+            
+            objectSavable.OnLoad(new LoadDataHandler(saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath));
+        }
+
+        #endregion
     }
 }

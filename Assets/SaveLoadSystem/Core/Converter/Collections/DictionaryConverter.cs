@@ -30,10 +30,10 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = loadDataHandler.GetSaveElement<Dictionary<object, object>>("elements");
+            var saveElements = loadDataHandler.GetSerializable<Dictionary<object, object>>("elements");
             
-            var keyType = loadDataHandler.GetSaveElement<Type>("keyType");
-            var valueType = loadDataHandler.GetSaveElement<Type>("valueType");
+            var keyType = loadDataHandler.GetSerializable<Type>("keyType");
+            var valueType = loadDataHandler.GetSerializable<Type>("valueType");
             
             var dictionaryType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
             var dictionary = (IDictionary)Activator.CreateInstance(dictionaryType);

@@ -6,27 +6,48 @@ namespace SaveLoadSystem.Core
 {
     public class LoadDataHandler
     {
-        private readonly DataBuffer _loadDataBuffer;
+        private readonly SaveDataBuffer _loadSaveDataBuffer;
         private readonly DeserializeReferenceBuilder _deserializeReferenceBuilder;
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
         private readonly GuidPath _guidPath;
 
-        public LoadDataHandler(DataBuffer loadDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder, Dictionary<GuidPath, object> createdObjectsLookup, GuidPath guidPath)
+        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder, Dictionary<GuidPath, object> createdObjectsLookup, GuidPath guidPath)
         {
-            _loadDataBuffer = loadDataBuffer;
+            _loadSaveDataBuffer = loadSaveDataBuffer;
             _deserializeReferenceBuilder = deserializeReferenceBuilder;
             _createdObjectsLookup = createdObjectsLookup;
             _guidPath = guidPath;
         }
 
-        public T GetSaveElement<T>(string identifier)
+        public bool TryGetSerializable<T>(string identifier, out T obj)
         {
-            return (T)_loadDataBuffer.CustomSaveData[identifier];
+            var result = _loadSaveDataBuffer.CustomSaveData.TryGetValue(identifier, out object element);
+
+            if (result)
+            {
+                obj = (T)element;
+            }
+            else
+            {
+                obj = default;
+            }
+            
+            return result;
         }
 
-        public object GetSaveElement(string identifier)
+        public bool TryGetReferencable(string identifier, out object obj)
         {
-            return _loadDataBuffer.CustomSaveData[identifier];
+            return _loadSaveDataBuffer.CustomSaveData.TryGetValue(identifier, out obj);
+        }
+        
+        public T GetSerializable<T>(string identifier)
+        {
+            return (T)_loadSaveDataBuffer.CustomSaveData[identifier];
+        }
+
+        public object GetReferencable(string identifier)
+        {
+            return _loadSaveDataBuffer.CustomSaveData[identifier];
         }
 
         public void InitializeInstance(object obj)

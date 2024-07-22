@@ -21,8 +21,8 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var loadElements = loadDataHandler.GetSaveElement<List<object>>("elements");
-            var type = loadDataHandler.GetSaveElement<Type>("type");
+            var loadElements = loadDataHandler.GetSerializable<List<object>>("elements");
+            var type = loadDataHandler.GetSerializable<Type>("type");
             
             var stackType = typeof(Stack<>).MakeGenericType(type);
             var stack = (Stack)Activator.CreateInstance(stackType);

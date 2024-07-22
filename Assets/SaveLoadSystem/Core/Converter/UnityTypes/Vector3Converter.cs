@@ -13,9 +13,9 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var x = loadDataHandler.GetSaveElement<float>("x");
-            var y = loadDataHandler.GetSaveElement<float>("y");
-            var z = loadDataHandler.GetSaveElement<float>("z");
+            var x = loadDataHandler.GetSerializable<float>("x");
+            var y = loadDataHandler.GetSerializable<float>("y");
+            var z = loadDataHandler.GetSerializable<float>("z");
             
             loadDataHandler.InitializeInstance(new Vector3(x, y, z));
         }

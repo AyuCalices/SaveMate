@@ -35,8 +35,8 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var loadElements = loadDataHandler.GetSaveElement<List<object>>("elements");
-            var type = loadDataHandler.GetSaveElement<Type>("type");
+            var loadElements = loadDataHandler.GetSerializable<List<object>>("elements");
+            var type = loadDataHandler.GetSerializable<Type>("type");
             
             var array = Array.CreateInstance(type, loadElements.Count);
             
