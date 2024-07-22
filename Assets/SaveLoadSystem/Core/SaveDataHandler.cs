@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
+using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
@@ -47,13 +48,27 @@ namespace SaveLoadSystem.Core
             {
                 return saveElement.SaveStrategy == SaveStrategy.Serializable ? saveElement.Obj : saveElement.CreatorGuidPath;
             }
+            
+            Debug.LogWarning("The object could not be processed or retrieved from the save element lookup.");
 
-            throw new InvalidOperationException("The object could not be processed or retrieved from the save element lookup.");
+            return null;
         }
         
         public void AddReferencable(string uniqueIdentifier, object obj)
         {
             AddSerializable(uniqueIdentifier, ToReferencableObject(uniqueIdentifier, obj));
+        }
+
+        public bool TryAddReferencable(string uniqueIdentifier, object obj)
+        {
+            var referencable = ToReferencableObject(uniqueIdentifier, obj);
+            
+            if (referencable != null)
+            {
+                AddSerializable(uniqueIdentifier, referencable);
+            }
+
+            return referencable != null;
         }
     }
 }

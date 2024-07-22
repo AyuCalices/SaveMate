@@ -6,13 +6,12 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
     {
         public void OnSave(SaveDataHandler saveDataHandler)
         {
-            if (transform.parent == null)
+            if (transform.parent == null && saveDataHandler.TryAddReferencable("parent", transform.parent))
             {
                 Debug.LogWarning($"The {nameof(Savable)} object {name} needs a parent with a {typeof(Savable)} component to support Save Parenting!");
                 return;
             }
             
-            saveDataHandler.AddReferencable("parent", transform.parent);
             saveDataHandler.AddSerializable("siblingIndex", transform.GetSiblingIndex());
         }
 
