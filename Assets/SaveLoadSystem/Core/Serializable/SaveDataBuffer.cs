@@ -8,7 +8,7 @@ namespace SaveLoadSystem.Core.Serializable
     {
         public Component.SaveStrategy saveStrategy;
         public GuidPath originGuidPath;
-        public Type SavableType;
+        public string savableType;
         public Dictionary<string, object> DefinedSaveData;
         public Dictionary<string, object> CustomSaveData;
 
@@ -16,7 +16,7 @@ namespace SaveLoadSystem.Core.Serializable
         {
             this.saveStrategy = saveStrategy;
             originGuidPath = creatorGuidPath;
-            SavableType = savableType;
+            this.savableType = savableType.AssemblyQualifiedName;
         }
 
         public void SetDefinedSaveData(Dictionary<string, object> definedSaveData)

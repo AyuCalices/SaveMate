@@ -1,20 +1,19 @@
 using System;
-using SaveLoadCore;
 using SaveLoadSystem.Core.Attributes;
 using UnityEngine;
 
 namespace Usage
 {
+    [SavableObject]
     public class SavableComponent : MonoBehaviour
     {
-        [Savable] public Test test;
+        [Savable] public PlayerDataV1 migrationTestV1;
     }
 
-    //TODO: savable attribute doesnt work for monobehaviours because it will also serialize the fields and properties of the monobehaviour
-    [SavableSchema, Serializable]
-    public class Test
+    [Serializable]
+    public class PlayerDataV1
     {
-        public int value;
-        public string text = "";
+        public string playerName;
+        public int score;
     }
 }

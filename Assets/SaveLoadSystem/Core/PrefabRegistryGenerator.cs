@@ -26,16 +26,6 @@ namespace SaveLoadSystem.Core
             
             EditorApplication.delayCall -= LoadSavablePrefab;
         }
-    
-        private static string GetPlatformPath(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                return path;
-
-            path = path.Replace(@"\"[0], Path.DirectorySeparatorChar);
-            path = path.Replace(@"/"[0], Path.DirectorySeparatorChar);
-            return path;
-        }
 
         private static void ProcessAll(PrefabRegistry prefabRegistry)
         {
@@ -99,6 +89,16 @@ namespace SaveLoadSystem.Core
             }
 
             return _cachedPrefabRegistry;
+        }
+        
+        private static string GetPlatformPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
+
+            path = path.Replace(@"\"[0], Path.DirectorySeparatorChar);
+            path = path.Replace(@"/"[0], Path.DirectorySeparatorChar);
+            return path;
         }
 
         private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)

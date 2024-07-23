@@ -116,10 +116,10 @@ namespace SaveLoadSystem.Core.Component
             //initialize fields and properties
             IEnumerable<FieldInfo> fieldInfoList;
             IEnumerable<PropertyInfo> propertyInfoList;
-            if (ReflectionUtility.ClassHasAttribute<SavableSchemaAttribute>(targetObject.GetType()))
+            if (ReflectionUtility.TryGetAttribute(targetObject.GetType(), out SavableObjectAttribute savableObjectAttribute))
             {
-                fieldInfoList = ReflectionUtility.GetFieldInfos(targetObject.GetType());
-                propertyInfoList = ReflectionUtility.GetPropertyInfos(targetObject.GetType());
+                fieldInfoList = ReflectionUtility.GetFieldInfos(targetObject.GetType(), savableObjectAttribute.DeclaredOnly);
+                propertyInfoList = ReflectionUtility.GetPropertyInfos(targetObject.GetType(), savableObjectAttribute.DeclaredOnly);
             }
             else
             {
@@ -332,10 +332,17 @@ namespace SaveLoadSystem.Core.Component
             
             foreach (var (guidPath, saveDataBuffer) in saveDataBufferContainer.SaveDataBuffers)
             {
+                var type = Type.GetType(saveDataBuffer.savableType);
+                if (type == null)
+                {
+                    Debug.LogWarning("Couldn't convert the contained type!");
+                    continue;
+                }
+                
                 switch (saveDataBuffer.saveStrategy)
                 {
                     case SaveStrategy.NotSupported:
-                        Debug.LogWarning($"The object of type {saveDataBuffer.SavableType} is not supported!");
+                        Debug.LogWarning($"The object of type {saveDataBuffer.savableType} is not supported!");
                         break;
                     
                     case SaveStrategy.UnityObject:
@@ -343,7 +350,7 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.AutomaticSavable:
-                        var savableObjectInstance = Activator.CreateInstance(saveDataBuffer.SavableType);
+                        var savableObjectInstance = Activator.CreateInstance(type);
                         
                         WriteSavableMember(savableObjectInstance, saveDataBuffer.DefinedSaveData, deserializeReferenceBuilder);
                         HandleOnLoadInterface(savableObjectInstance, saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
@@ -352,7 +359,7 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.CustomSavable:
-                        var savableInterfaceInstance = Activator.CreateInstance(saveDataBuffer.SavableType);
+                        var savableInterfaceInstance = Activator.CreateInstance(type);
                         
                         HandleOnLoadInterface(savableInterfaceInstance, saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
 
@@ -360,7 +367,7 @@ namespace SaveLoadSystem.Core.Component
                         break;
 
                     case SaveStrategy.CustomConvertable:
-                        if (ConverterRegistry.TryGetConverter(saveDataBuffer.SavableType, out IConvertable convertable))
+                        if (ConverterRegistry.TryGetConverter(type, out IConvertable convertable))
                         {
                             var loadDataHandler = new LoadDataHandler(saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath);
                             convertable.OnLoad(loadDataHandler);

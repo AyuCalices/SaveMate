@@ -198,7 +198,7 @@ namespace SaveLoadSystem.Core.Component
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
             List<UnityEngine.Object> foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
-                ReflectionUtility.ClassHasAttribute<SavableSchemaAttribute>,
+                ReflectionUtility.ClassHasAttribute<SavableObjectAttribute>,
                 ReflectionUtility.ContainsProperty<SavableAttribute>, 
                 ReflectionUtility.ContainsField<SavableAttribute>,
                 ReflectionUtility.ContainsInterface<ISavable>);
