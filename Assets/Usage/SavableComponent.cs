@@ -7,7 +7,7 @@ namespace Usage
     [SavableObject]
     public class SavableComponent : MonoBehaviour
     {
-        [Savable] public PlayerDataV1 migrationTestV1;
+        public PlayerDataV1 migrationTestV1;
     }
 
     [Serializable]

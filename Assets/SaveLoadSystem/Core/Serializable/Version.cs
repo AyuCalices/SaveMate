@@ -2,6 +2,7 @@ using System;
 
 namespace SaveLoadSystem.Core.Serializable
 {
+    [Serializable]
     public readonly struct SaveVersion : IComparable<SaveVersion>
     {
         private int Major { get; }

@@ -197,11 +197,11 @@ namespace SaveLoadSystem.Core.Component
         private void UpdateSavableComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
-            List<UnityEngine.Object> foundElements = ReflectionUtility.GetComponentsWithTypeCondition(gameObject, 
-                ReflectionUtility.ClassHasAttribute<SavableObjectAttribute>,
-                ReflectionUtility.ContainsProperty<SavableAttribute>, 
-                ReflectionUtility.ContainsField<SavableAttribute>,
-                ReflectionUtility.ContainsInterface<ISavable>);
+            var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, 
+                TypeUtility.ClassHasAttribute<SavableObjectAttribute>,
+                TypeUtility.ContainsProperty<SavableAttribute>, 
+                TypeUtility.ContainsField<SavableAttribute>,
+                TypeUtility.ContainsInterface<ISavable>);
             
             //update removed elements and those that are kept 
             for (var index = serializeFieldSavableList.Count - 1; index >= 0; index--)

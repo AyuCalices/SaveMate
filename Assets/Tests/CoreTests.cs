@@ -13,7 +13,6 @@ namespace Tests
         [Serializable]
         public sealed class DataContainer
         {
-            //TODO: what if the type doesnt match the object?
             public List<(Type, object)> Data { get; set; } = new List<(Type, object)>();
         }
         
@@ -182,9 +181,9 @@ namespace Tests
         {
             DictionaryTest serialiseData = DictionaryTestElement;
         
-            SaveLoadManager.Save(serialiseData);
+            SaveLoadUtility.Save(serialiseData);
 
-            DictionaryTest deserializeData = SaveLoadManager.Load<DictionaryTest>();
+            DictionaryTest deserializeData = SaveLoadUtility.LoadSecure<DictionaryTest>();
             
             Assert.IsTrue(deserializeData.Data.Count == serialiseData.Data.Count);
         }
@@ -194,9 +193,9 @@ namespace Tests
         {
             DataContainer serialiseData = UnmanagedData;
         
-            SaveLoadManager.Save(serialiseData);
+            SaveLoadUtility.Save(serialiseData);
 
-            DataContainer deserializeData = SaveLoadManager.Load<DataContainer>();
+            DataContainer deserializeData = SaveLoadUtility.LoadSecure<DataContainer>();
         
             for (var i = 0; i < serialiseData.Data.Count; i++)
             {
@@ -219,9 +218,9 @@ namespace Tests
                 }
             };
         
-            SaveLoadManager.Save(serialiseData);
+            SaveLoadUtility.Save(serialiseData);
 
-            DataContainer deserializeData = SaveLoadManager.Load<DataContainer>();
+            DataContainer deserializeData = SaveLoadUtility.LoadSecure<DataContainer>();
         
             for (var i = 0; i < serialiseData.Data.Count; i++)
             {
@@ -244,7 +243,7 @@ namespace Tests
         public void SavableAttributeCollectorPass()
         {
             List<string> collectedSavableList = new List<string>();
-            ReflectionUtility.GetFieldsAndPropertiesWithAttributeOnType<SavableAttribute>(typeof(AttributeTestType), ref collectedSavableList);
+            TypeUtility.GetFieldsAndPropertiesWithAttributeOnType<SavableAttribute>(typeof(AttributeTestType), ref collectedSavableList);
             
             Assert.Contains("_privateString", collectedSavableList, "Doesnt contain private string");
             Assert.Contains("protectedString", collectedSavableList, "Doesnt contain protected string");

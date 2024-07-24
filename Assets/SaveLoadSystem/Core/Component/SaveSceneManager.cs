@@ -14,28 +14,46 @@ namespace SaveLoadSystem.Core.Component
     public class SaveSceneManager : MonoBehaviour
     {
         [SerializeField] private PrefabRegistry prefabRegistry;
+        [SerializeField] private bool reloadSceneOnLoad;
+        
+        //scene support options: wipe scene data -> reset of data in scene
+        
+        //request to scene to reload -> should not trigger bool save/load
+        //request to scene to create snapshot of data
+        //request to scene to load data
+        //request to scene to wipe data
+        
+        //OnSceneLoaded() -> loadOnSceneLoad bool
+        //OnSceneUnloaded() -> saveOnUnload bool
+        
+        //events:
+        //onBeforeSnapshot
+        //onAfterSnapshot
+        
+        //onBeforeLoad
+        //onAfterLoad
         
         [ContextMenu("Save Scene Data")]
         public void SaveSceneData()
         {
             //prepare data
             Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer = new();
-            var savableList = UnityObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var savableList = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var saveDataBufferContainer = new SaveDataBufferContainer(saveDataBuffer, CreatePrefabPoolList(savableList));
             var objectReferenceLookup = BuildObjectReferenceLookup(savableList);
             
             //core saving
             var saveElementLookup = BuildSavableElementLookup(savableList);
             BuildDataBufferContainer(saveDataBuffer, saveElementLookup, objectReferenceLookup);
-            SaveLoadManager.Save(saveDataBufferContainer);
+            SaveLoadUtility.Save(saveDataBufferContainer);
         }
 
         [ContextMenu("Load Scene Data")]
         public void LoadSceneData()
         {
             //prepare data
-            var dataBufferContainer = SaveLoadManager.Load<SaveDataBufferContainer>();
-            var savableList = UnityObjectExtensions.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
+            var dataBufferContainer = SaveLoadUtility.LoadSecure<SaveDataBufferContainer>();
+            var savableList = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var prefabPoolList = CreatePrefabPoolList(savableList);     //instantiating needed prefabs must happen before performing the core load methods
             InstantiatePrefabsOnLoad(dataBufferContainer, savableList, prefabPoolList);
             
@@ -116,15 +134,15 @@ namespace SaveLoadSystem.Core.Component
             //initialize fields and properties
             IEnumerable<FieldInfo> fieldInfoList;
             IEnumerable<PropertyInfo> propertyInfoList;
-            if (ReflectionUtility.TryGetAttribute(targetObject.GetType(), out SavableObjectAttribute savableObjectAttribute))
+            if (TypeUtility.TryGetAttribute(targetObject.GetType(), out SavableObjectAttribute savableObjectAttribute))
             {
-                fieldInfoList = ReflectionUtility.GetFieldInfos(targetObject.GetType(), savableObjectAttribute.DeclaredOnly);
-                propertyInfoList = ReflectionUtility.GetPropertyInfos(targetObject.GetType(), savableObjectAttribute.DeclaredOnly);
+                fieldInfoList = TypeUtility.GetFieldInfos(targetObject.GetType(), savableObjectAttribute.DeclaredOnly);
+                propertyInfoList = TypeUtility.GetPropertyInfos(targetObject.GetType(), savableObjectAttribute.DeclaredOnly);
             }
             else
             {
-                fieldInfoList = ReflectionUtility.GetFieldInfosWithAttribute<SavableAttribute>(targetObject.GetType());
-                propertyInfoList = ReflectionUtility.GetPropertyInfosWithAttribute<SavableAttribute>(targetObject.GetType());
+                fieldInfoList = TypeUtility.GetFieldInfosWithAttribute<SavableAttribute>(targetObject.GetType());
+                propertyInfoList = TypeUtility.GetPropertyInfosWithAttribute<SavableAttribute>(targetObject.GetType());
             }
 
             //recursion with field and property members
@@ -152,7 +170,6 @@ namespace SaveLoadSystem.Core.Component
                 ProcessSavableElement(savableElementLookup, reflectedProperty, path, insertIndex);
             }
             
-            //define save strategy TODO: to strategy pattern
             if (targetObject is UnityEngine.Object)
             {
                 saveElement.SaveStrategy = SaveStrategy.UnityObject;
@@ -419,11 +436,11 @@ namespace SaveLoadSystem.Core.Component
                 if (obj is GuidPath referenceGuidPath)
                 {
                     deserializeReferenceBuilder.EnqueueReferenceBuilding(referenceGuidPath, targetObject => 
-                        ReflectionUtility.TryApplyMemberValue(memberOwner, identifier, targetObject, true));
+                        TypeUtility.TryApplyMemberValue(memberOwner, identifier, targetObject, true));
                 }
                 else
                 {
-                    ReflectionUtility.TryApplyMemberValue(memberOwner, identifier, obj);
+                    TypeUtility.TryApplyMemberValue(memberOwner, identifier, obj);
                 }
             }
         }

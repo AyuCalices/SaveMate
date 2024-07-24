@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using SaveLoadSystem.Core;
+using SaveLoadSystem.Utility;
 
 namespace Tests
 {
@@ -10,9 +11,9 @@ namespace Tests
         {
             CoreTests.DataContainer serialiseData = new CoreTests.DataContainer();
         
-            SaveLoadManager.Save(serialiseData);
+            SaveLoadUtility.Save(serialiseData);
 
-            CoreTests.DataContainer deserializeData = SaveLoadManager.Load<CoreTests.DataContainer>();
+            CoreTests.DataContainer deserializeData = SaveLoadUtility.LoadSecure<CoreTests.DataContainer>();
         
             for (var i = 0; i < serialiseData.Data.Count; i++)
             {

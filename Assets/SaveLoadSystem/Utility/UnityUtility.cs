@@ -5,7 +5,7 @@ using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Utility
 {
-    public static class UnityObjectExtensions
+    public static class UnityUtility
     {
         /// <summary>
         /// Checks if a GameObject has been destroyed.
@@ -57,19 +57,16 @@ namespace SaveLoadSystem.Utility
             return objectsInAllScenes;
         }
         
-        public static string GetScenePath(this GameObject obj)
+        public static Scene[] GetActiveScenes()
         {
-            var path = obj.name;
-            var current = obj.transform;
-
-            // Traverse up the hierarchy
-            while (current.parent != null)
+            Scene[] activeScenes = new Scene[SceneManager.sceneCount];
+            
+            for (int index = 0; index < SceneManager.sceneCount; index++)
             {
-                current = current.parent;
-                path = current.name + "/" + path;
+                activeScenes[index] = SceneManager.GetSceneAt(index);
             }
 
-            return path;
+            return activeScenes;
         }
     }
 }
