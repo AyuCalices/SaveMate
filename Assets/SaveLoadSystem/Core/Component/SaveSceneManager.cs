@@ -13,58 +13,55 @@ namespace SaveLoadSystem.Core.Component
 {
     public class SaveSceneManager : MonoBehaviour
     {
+        [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private PrefabRegistry prefabRegistry;
         [SerializeField] private bool reloadSceneOnLoad;
+        [SerializeField] private bool loadOnAwake;
+        [SerializeField] private bool saveOnDestroy;
         
         //scene support options: wipe scene data -> reset of data in scene
         
         //request to scene to reload -> should not trigger bool save/load
-        //request to scene to create snapshot of data
-        //request to scene to load data
         //request to scene to wipe data
         
-        //OnSceneLoaded() -> loadOnSceneLoad bool
-        //OnSceneUnloaded() -> saveOnUnload bool
+        //OnSceneLoaded() -> loadOnSceneLoad bool (test loadOnAwake)
+        //OnSceneUnloaded() -> saveOnUnload bool (test saveOnDestroy)
         
-        //events:
+        //TODO: unity events
         //onBeforeSnapshot
         //onAfterSnapshot
         
         //onBeforeLoad
         //onAfterLoad
-        
-        [ContextMenu("Save Scene Data")]
-        public void SaveSceneData()
+
+        public SceneDataContainer CreateSnapshot()
         {
             //prepare data
             Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer = new();
             var savableList = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var saveDataBufferContainer = new SaveDataBufferContainer(saveDataBuffer, CreatePrefabPoolList(savableList));
+            var saveDataBufferContainer = new SceneDataContainer(saveDataBuffer, CreatePrefabPoolList(savableList));
             var objectReferenceLookup = BuildObjectReferenceLookup(savableList);
             
             //core saving
             var saveElementLookup = BuildSavableElementLookup(savableList);
             BuildDataBufferContainer(saveDataBuffer, saveElementLookup, objectReferenceLookup);
-            SaveLoadUtility.Save(saveDataBufferContainer);
+            return saveDataBufferContainer;
         }
 
-        [ContextMenu("Load Scene Data")]
-        public void LoadSceneData()
+        public void LoadSnapshot(SceneDataContainer sceneDataContainer)
         {
-            //prepare data
-            var dataBufferContainer = SaveLoadUtility.LoadSecure<SaveDataBufferContainer>();
             var savableList = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var prefabPoolList = CreatePrefabPoolList(savableList);     //instantiating needed prefabs must happen before performing the core load methods
-            InstantiatePrefabsOnLoad(dataBufferContainer, savableList, prefabPoolList);
+            InstantiatePrefabsOnLoad(sceneDataContainer, savableList, prefabPoolList);
             
             //core loading
             var referenceBuilder = new DeserializeReferenceBuilder();
-            var createdObjectsLookup = PrepareSaveElementInstances(dataBufferContainer, savableList, referenceBuilder);
+            var createdObjectsLookup = PrepareSaveElementInstances(sceneDataContainer, savableList, referenceBuilder);
             var guidPathReferenceLookup = BuildGuidPathReferenceLookup(savableList);
             referenceBuilder.InvokeAll(createdObjectsLookup, guidPathReferenceLookup);
             
             //destroy prefabs, that are not present in the save file
-            DestroyPrefabsOnLoad(dataBufferContainer, savableList, prefabPoolList);
+            DestroyPrefabsOnLoad(sceneDataContainer, savableList, prefabPoolList);
         }
 
         #region Universal
@@ -297,9 +294,9 @@ namespace SaveLoadSystem.Core.Component
 
         #region LoadMethods
 
-        private void InstantiatePrefabsOnLoad(SaveDataBufferContainer saveDataBufferContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
+        private void InstantiatePrefabsOnLoad(SceneDataContainer sceneDataContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
         {
-            var instantiatedSavables = saveDataBufferContainer.PrefabList.Except(currentPrefabList);
+            var instantiatedSavables = sceneDataContainer.PrefabList.Except(currentPrefabList);
             foreach (var (prefab, sceneGuid) in instantiatedSavables)
             {
                 if (prefabRegistry.TryGetSavable(prefab, out Savable savable))
@@ -311,9 +308,9 @@ namespace SaveLoadSystem.Core.Component
             }
         }
         
-        private void DestroyPrefabsOnLoad(SaveDataBufferContainer saveDataBufferContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
+        private void DestroyPrefabsOnLoad(SceneDataContainer sceneDataContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
         {
-            var destroyedSavables = currentPrefabList.Except(saveDataBufferContainer.PrefabList);
+            var destroyedSavables = currentPrefabList.Except(sceneDataContainer.PrefabList);
             foreach (var (prefab, sceneGuid) in destroyedSavables)
             {
                 foreach (var savable in savableList.Where(savable => savable.SceneGuid == sceneGuid))
@@ -343,11 +340,11 @@ namespace SaveLoadSystem.Core.Component
             return saveElementLookup;
         }
         
-        private Dictionary<GuidPath, object> PrepareSaveElementInstances(SaveDataBufferContainer saveDataBufferContainer, List<Savable> savableList, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        private Dictionary<GuidPath, object> PrepareSaveElementInstances(SceneDataContainer sceneDataContainer, List<Savable> savableList, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             var createdObjectsLookup = new Dictionary<GuidPath, object>();
             
-            foreach (var (guidPath, saveDataBuffer) in saveDataBufferContainer.SaveDataBuffers)
+            foreach (var (guidPath, saveDataBuffer) in sceneDataContainer.SaveDataBuffers)
             {
                 var type = Type.GetType(saveDataBuffer.savableType);
                 if (type == null)

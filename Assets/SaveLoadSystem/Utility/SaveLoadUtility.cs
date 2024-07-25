@@ -37,7 +37,8 @@ namespace SaveLoadSystem.Utility
             return File.Exists(path);
         }
         
-        public static async void WriteDataAsync<T>(SaveMetaData saveMetaData, T saveData, ISaveConfig saveConfig, string fileName) where T : class
+        public static async void WriteDataAsync<T>(SaveMetaData saveMetaData, T saveData, 
+            ISaveConfig saveConfig, string fileName, Action onComplete = null) where T : class
         {
             if (Directory.Exists(DirectoryPath(saveConfig)))
             {
@@ -51,7 +52,7 @@ namespace SaveLoadSystem.Utility
             var saveDataStream = new FileStream(saveDataPath, FileMode.Create);
             await Task.Run(() => formatter.Serialize(saveDataStream, saveData));
             
-            saveMetaData.checksum = HashingUtility.GenerateHash(saveDataStream);
+            saveMetaData.SetChecksum(HashingUtility.GenerateHash(saveDataStream));
             
             //write meta Data to disk
             var metaDataPath = MetaDataPath(saveConfig, fileName);
@@ -60,11 +61,12 @@ namespace SaveLoadSystem.Utility
         
             saveDataStream.Close();
             metaDataStream.Close();
-        
+            
+            onComplete?.Invoke();
             Debug.LogWarning("Save Successful");
         }
         
-        public static async void DeleteAsync(ISaveConfig saveConfig, string fileName)
+        public static async void DeleteAsync(ISaveConfig saveConfig, string fileName, Action onComplete = null)
         {
             var saveDataPath = SaveDataPath(saveConfig, fileName);
             var metaDataPath = MetaDataPath(saveConfig, fileName);
@@ -78,6 +80,8 @@ namespace SaveLoadSystem.Utility
             
             await Task.Run(() => File.Delete(saveDataPath));
             await Task.Run(() => File.Delete(metaDataPath));
+            
+            onComplete?.Invoke();
         }
 
         public static SaveMetaData ReadMetaData(ISaveConfig saveConfig, string fileName)
@@ -85,19 +89,35 @@ namespace SaveLoadSystem.Utility
             var metaDataPath = MetaDataPath(saveConfig, fileName);
             return ReadData<SaveMetaData>(metaDataPath);
         }
-        
-        public static T ReadSaveData<T>(ISaveConfig saveConfig, string fileName) where T : class
+
+        public static bool IsValidVersion(SaveMetaData metaData, SaveVersion currentVersion)
         {
-            var metaDataPath = SaveDataPath(saveConfig, fileName);
-            return ReadData<T>(metaDataPath);
+            if (metaData.SaveVersion < currentVersion)
+            {
+                Debug.LogWarning($"The version of the loaded save '{metaData.SaveVersion}' is older than the local version '{currentVersion}'");
+                return false;
+            }
+            if (metaData.SaveVersion > currentVersion)
+            {
+                Debug.LogWarning($"The version of the loaded save '{metaData.SaveVersion}' is newer than the local version '{currentVersion}'");
+                return false;
+            }
+
+            return true;
         }
         
-        public static T ReadSaveDataSecure<T>(ISaveConfig saveConfig, string fileName, string checksum) where T : class
+        public static SaveData ReadSaveDataSecure(ISaveConfig saveConfig, string fileName)
         {
+            var metaData = ReadMetaData(saveConfig, fileName);
+            if (metaData == null) return null;
+            
+            //check save version
+            if (!IsValidVersion(metaData, saveConfig.GetSaveVersion())) return null;
+            
             var saveDataPath = SaveDataPath(saveConfig, fileName);
-            return ReadData<T>(saveDataPath, stream =>
+            return ReadData<SaveData>(saveDataPath, stream =>
             {
-                if (checksum == HashingUtility.GenerateHash(stream))
+                if (metaData.GetChecksum() == HashingUtility.GenerateHash(stream))
                 {
                     Debug.LogWarning("Integrity Check Successful!");
                 }
@@ -117,7 +137,7 @@ namespace SaveLoadSystem.Utility
 
         private static string SaveDataPath(ISaveConfig saveConfig, string fileName) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath, $"{fileName}.{saveConfig.ExtensionName}");
 
-        
+        //TODO: async
         private static T ReadData<T>(string saveDataPath, Action<FileStream> onDeserializeSuccessful = null) where T : class
         {
             if (File.Exists(saveDataPath))

@@ -148,10 +148,8 @@ namespace SaveLoadSystem.Utility
             return false;
         }
         
-        public static bool IsSerializable(this object obj)
+        public static bool IsSerializable(this Type type)
         {
-            var type = obj.GetType();
-            
             // Check if the type is marked with the [Serializable] attribute
             if (type.IsSerializable)
             {

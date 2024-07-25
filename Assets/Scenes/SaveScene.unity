@@ -168,6 +168,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefabRegistry: {fileID: 11400000, guid: 82cff233dd3f22443bfddd548e0e7073, type: 2}
+  reloadSceneOnLoad: 0
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0

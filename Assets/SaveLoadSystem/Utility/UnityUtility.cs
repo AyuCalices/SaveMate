@@ -45,6 +45,23 @@ namespace SaveLoadSystem.Utility
             }
             return objectsInScene;
         }
+        
+        public static T FindObjectOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
+        {
+            if (!scene.isLoaded) return null;
+            
+            var rootObjects = scene.GetRootGameObjects();
+            foreach (GameObject go in rootObjects)
+            {
+                var component = go.GetComponentInChildren<T>(includeInactive);
+                if (component != null)
+                {
+                    return component;
+                }
+            }
+            
+            return null;
+        }
 
         public static List<T> FindObjectsOfTypeInAllScenes<T>(bool includeInactive) where T : Object
         {

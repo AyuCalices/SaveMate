@@ -1,13 +1,14 @@
 using System;
+using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
-using SaveLoadSystem.Plugins.UnitySingleton.Scripts;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core
 {
-    public class SaveLoadManager : PersistentMonoSingleton<SaveLoadManager>, ISaveConfig
+    [CreateAssetMenu]
+    public class SaveLoadManager : ScriptableObject, ISaveConfig
     {
         [Header("Version")] 
         [SerializeField] private int major;
@@ -20,7 +21,8 @@ namespace SaveLoadSystem.Core
         [SerializeField] private string extensionName;
         [SerializeField] private string metaDataExtensionName;
 
-        [Header("Slot Settings")]
+        [Header("Slot Settings")] 
+        [SerializeField] private bool autoSaveOnSaveFocusSwap;
         [SerializeField] private bool autoSaveOnApplicationPause;
         [SerializeField] private bool autoSaveOnApplicationFocus;
         [SerializeField] private bool autoSaveOnApplicationQuit;
@@ -32,92 +34,96 @@ namespace SaveLoadSystem.Core
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
+
+        public SaveVersion GetSaveVersion() => new(major, minor, patch);
+        public bool HasSaveFocus => SaveFocus != null;
+        public SaveFocus SaveFocus { get; private set; }
         
-        public bool HasCurrentSave => !string.IsNullOrEmpty(CurrentSave.Name);
-        public (string Name, SaveMetaData MetaData) CurrentSave { get; private set; }
-        public float Playtime => CurrentSave.MetaData.playtime;
-        
-        public event Action OnBeforeSlotChange;
-        public event Action OnAfterSlotChange;
+        public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
+        public event Action<SaveFocus, SaveFocus> OnAfterFocusChange;
         
         public event Action OnBeforeSnapshot;
         public event Action OnAfterSnapshot;
+        
+        public event Action OnBeforeDeleteFromDisk;
+        public event Action OnAfterDeleteFromDisk;
         
         public event Action OnBeforeWriteToDisk;
         public event Action OnAfterWriteToDisk;
         
         public event Action OnBeforeLoad;
         public event Action OnAfterLoad;
-        
-        
-        protected override void OnInitializing()
-        {
-            base.OnInitializing();
-        }
 
-        private void Update()
+        #region Simple Save
+
+        public void SaveActiveScenes(string fileName)
         {
-            if (HasCurrentSave)
+            var saveData = new SaveData();
+            SnapshotActiveScenes(saveData, UnityUtility.GetActiveScenes());
+
+            var saveMetaData = new SaveMetaData
             {
-                CurrentSave.MetaData.playtime += Time.deltaTime;
-            }
+                SaveVersion = GetSaveVersion(),
+                ModificationDate = DateTime.Now
+            };
+            
+            WriteToDisk(fileName, saveMetaData, saveData);
         }
 
-        public TimeSpan GetPlaytime()
+        public void LoadActiveScenes(string fileName)
         {
-            return TimeSpan.FromSeconds(Playtime);
+            var saveData = SaveLoadUtility.ReadSaveDataSecure(this, fileName);
+
+            LoadActiveScenes(saveData, UnityUtility.GetActiveScenes());
         }
 
-        public void Load(string fileName = null)
-        {
-            fileName ??= defaultFileName;
+        #endregion
 
-            if (!SaveLoadUtility.MetaDataExists(this, fileName) ||
-                !SaveLoadUtility.SaveDataExists(this, fileName)) return;
-            
-            var metaData = SaveLoadUtility.ReadMetaData(this, fileName);
-            CurrentSave = (fileName, metaData);
-            
-            var saveData = SaveLoadUtility.ReadSaveDataSecure<SaveDataBufferContainer>(this, fileName, metaData.checksum);
-            //TODO: implement scene support
-        }
+        #region Focus Save
 
-        public void Save(string fileName)
+        public void SetFocus(string fileName)
         {
-            fileName ??= defaultFileName;
-            
-            if (CurrentSave.Name == fileName)
+            if (SaveFocus != null)
             {
-                CurrentSave.MetaData.modificationDate = DateTime.Now;
-                CurrentSave.MetaData.SaveVersion = new SaveVersion(major, minor, patch);
-            }
-            else
-            {
-                SaveMetaData saveMetaData = new SaveMetaData()
+                //same to current save
+                if (SaveFocus.FileName == fileName) return;
+                
+                //other save, but still has pending data that can be saved
+                if (SaveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
                 {
-                    modificationDate = DateTime.Now,
-                    playtime = Playtime,
-                    SaveVersion = new SaveVersion(major, minor, patch)
-                };
-                CurrentSave = (fileName, saveMetaData);
+                    SaveFocus.WriteToDisk();
+                }
             }
             
-            //TODO: apply actual save data
-            SaveLoadUtility.WriteDataAsync(CurrentSave.MetaData, CurrentSave.MetaData, this, fileName);
+            SwapFocus(new SaveFocus(this, fileName));
         }
 
-        public void Delete(string fileName)
+        public void ReleaseFocus()
         {
-            fileName ??= defaultFileName;
-            
-            if (CurrentSave.Name == fileName)
+            //save pending data if allowed
+            if (SaveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
             {
-                CurrentSave = default;
+                SaveFocus.WriteToDisk();
             }
             
-            SaveLoadUtility.DeleteAsync(this, fileName);
+            SwapFocus(null);
         }
 
+        private void SwapFocus(SaveFocus newSaveFocus)
+        {
+            SaveFocus oldSaveFocus = SaveFocus;
+            
+            OnBeforeFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
+
+            SaveFocus = newSaveFocus;
+            
+            OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
+        }
+
+        #endregion
+        
+        #region Utility Methods
+        
         public void ReloadActiveScenes()
         {
             ReloadActiveScenes(UnityUtility.GetActiveScenes());
@@ -125,70 +131,71 @@ namespace SaveLoadSystem.Core
         
         public void ReloadActiveScenes(params Scene[] scenesToReload)
         {
-            
-        }
+            foreach (var scene in scenesToReload)
+            {
+                if (!scene.isLoaded) continue;
 
-        public void SnapshotActiveScenes()
-        {
-            SnapshotActiveScenes(UnityUtility.GetActiveScenes());
+                SceneManager.LoadSceneAsync(scene.path);
+            }
         }
-
-        public void SnapshotActiveScenes(params Scene[] scenesToSnapshot)
+        
+        public void SnapshotActiveScenes(SaveData saveData, params Scene[] scenesToSnapshot)
         {
             OnBeforeSnapshot?.Invoke();
+
+            foreach (var scene in scenesToSnapshot)
+            {
+                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, false);
+
+                if (saveData.ContainsSceneData(scene))
+                {
+                    saveData.SetSceneData(scene, saveSceneManager.CreateSnapshot());
+                }
+            }
             
             OnAfterSnapshot?.Invoke();
         }
 
-        public void WriteToDisk()
+        public void WriteToDisk(string fileName, SaveMetaData metaData, SaveData saveData)
         {
+            //TODO: what if currently something is doing this?
             OnBeforeWriteToDisk?.Invoke();
             
-            OnAfterWriteToDisk?.Invoke();
-        }
-
-        public void SaveActiveScenes()
-        {
-            SnapshotActiveScenes();
-            WriteToDisk();
-        }
-
-        public void SaveActiveScenes(params Scene[] scenesToSave)
-        {
-            SnapshotActiveScenes(scenesToSave);
-            WriteToDisk();
-        }
-
-        public void LoadActiveScenes()
-        {
-            LoadActiveScenes(UnityUtility.GetActiveScenes());
+            SaveLoadUtility.WriteDataAsync(metaData, saveData, this, fileName, () => OnAfterWriteToDisk?.Invoke());
         }
         
-        public void LoadActiveScenes(params Scene[] scenesToLoad)
+        public void DeleteFromDisk(string fileName)
+        {
+            //TODO: what if currently something is doing this?
+            
+            OnBeforeWriteToDisk?.Invoke();
+            
+            SaveLoadUtility.DeleteAsync(this, fileName, () => OnAfterWriteToDisk?.Invoke());
+        }
+        
+        public void LoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
         {
             OnBeforeLoad?.Invoke();
             
+            foreach (var scene in scenesToLoad)
+            {
+                if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
+                
+                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                saveSceneManager.LoadSnapshot(sceneDataContainer);
+            }
+            
             OnAfterLoad?.Invoke();
         }
-
-        public void WipeActiveSceneData()
-        {
-            WipeActiveSceneData(UnityUtility.GetActiveScenes());
-        }
         
-        public void WipeActiveSceneData(params Scene[] scenesToWipe)
+        public void WipeActiveSceneData(SaveData saveData, params Scene[] scenesToWipe)
         {
-            
+            foreach (var scene in scenesToWipe)
+            {
+                saveData.RemoveSceneData(scene);
+            }
         }
 
-        public void AddSaveData(object obj)
-        {
-            
-        }
-
-        public void AddMetaData(object obj) // -> example for add to playerprefs is track time
-        {
-            
-        }
+        #endregion
     }
 }
