@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -15,28 +18,47 @@ namespace SaveLoadSystem.Core
 
         private readonly SaveLoadManager _saveLoadManager;
         
-        private readonly Dictionary<string, object> _customMetaData;
+        private Dictionary<string, object> _customMetaData;
         private SaveMetaData _metaData;
         private SaveData _saveData;
+
+        private readonly AsyncOperationQueue _asyncQueue = new AsyncOperationQueue();
+        
+        public event Action OnBeforeSnapshot;
+        public event Action OnAfterSnapshot;
+        public event Action OnBeforeDeleteFromDisk;
+        public event Action OnAfterDeleteFromDisk;
+        public event Action OnBeforeWriteToDisk;
+        public event Action OnAfterWriteToDisk;
+        public event Action OnBeforeLoad;
+        public event Action OnAfterLoad;
 
         public SaveFocus(SaveLoadManager saveLoadManager, string fileName)
         {
             _saveLoadManager = saveLoadManager;
             FileName = fileName;
-            
-            if (SaveLoadUtility.MetaDataExists(_saveLoadManager, fileName))
-            {
-                _metaData = SaveLoadUtility.ReadMetaData(_saveLoadManager, fileName);
-                IsPersistent = true;
-                _customMetaData = _metaData.CustomData;
-            }
-            else
-            {
-                _customMetaData = new();
-            }
+
+            Initialize();
         }
 
-        public void SetSerializableMetaData(string identifier, object data)
+        private void Initialize()
+        {
+            _asyncQueue.Enqueue(async () =>
+            {
+                if (SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName))
+                {
+                    _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, FileName);
+                    IsPersistent = true;
+                    _customMetaData = _metaData.CustomData;
+                }
+                else
+                {
+                    _customMetaData = new();
+                }
+            });
+        }
+
+        public void SetCustomMetaData(string identifier, object data)
         {
             if (!data.GetType().IsSerializable())
             {
@@ -44,44 +66,53 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
-            _customMetaData[identifier] = data;
+            _asyncQueue.Enqueue(() =>
+            {
+                _customMetaData[identifier] = data;
+                return Task.CompletedTask;
+            });
         }
         
         public void SnapshotActiveScenes()
         {
-            SnapshotActiveScenes(UnityUtility.GetActiveScenes());
+            SnapshotScenes(UnityUtility.GetActiveScenes());
         }
 
-        public void SnapshotActiveScenes(params Scene[] scenesToSnapshot)
+        public void SnapshotScenes(params Scene[] scenesToSnapshot)
         {
-            _saveData ??= new SaveData();
-            HasPendingData = true;
-            _saveLoadManager.SnapshotActiveScenes(_saveData, scenesToSnapshot);
+            _asyncQueue.Enqueue(() =>
+            {
+                _saveData ??= new SaveData();
+                HasPendingData = true;
+                InternalSnapshotActiveScenes(_saveData, scenesToSnapshot);
+                return Task.CompletedTask;
+            });
         }
         
         public void WriteToDisk()
         {
-            if (!HasPendingData)
+            _asyncQueue.Enqueue(async () =>
             {
-                Debug.LogWarning("Aborted attempt to save without pending data!");
-                return;
-            }
+                if (!HasPendingData)
+                {
+                    Debug.LogWarning("Aborted attempt to save without pending data!");
+                    return;
+                }
+                
+                _metaData = new SaveMetaData()
+                {
+                    SaveVersion = _saveLoadManager.GetSaveVersion(),
+                    ModificationDate = DateTime.Now,
+                    CustomData = _customMetaData
+                };
 
-            _metaData = new SaveMetaData()
-            {
-                SaveVersion = _saveLoadManager.GetSaveVersion(),
-                ModificationDate = DateTime.Now,
-                CustomData = _customMetaData
-            };
-            
-            _saveLoadManager.WriteToDisk(FileName, _metaData, _saveData);
-            IsPersistent = true;
-            HasPendingData = false;
-        }
+                OnBeforeWriteToDisk?.Invoke();
+                await SaveLoadUtility.WriteDataAsync(_metaData, _saveData, _saveLoadManager, FileName);
 
-        public void DeleteFromDisk()
-        {
-            _saveLoadManager.DeleteFromDisk(FileName);
+                IsPersistent = true;
+                HasPendingData = false;
+                OnAfterWriteToDisk?.Invoke();
+            });
         }
         
         public void SaveActiveScenes()
@@ -90,36 +121,147 @@ namespace SaveLoadSystem.Core
             WriteToDisk();
         }
 
-        public void SaveActiveScenes(params Scene[] scenesToSave)
+        public void SaveScenes(params Scene[] scenesToSave)
         {
-            SnapshotActiveScenes(scenesToSave);
+            SnapshotScenes(scenesToSave);
             WriteToDisk();
         }
         
         public void LoadActiveScenes()
         {
-            LoadActiveScenes(UnityUtility.GetActiveScenes());
+            LoadScenes(UnityUtility.GetActiveScenes());
         }
         
-        public void LoadActiveScenes(params Scene[] scenesToLoad)
+        public void LoadScenes(params Scene[] scenesToLoad)
         {
-            if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
-                || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
-            
-            _saveData = SaveLoadUtility.ReadSaveDataSecure(_saveLoadManager, FileName);
-            _saveLoadManager.LoadActiveScenes(_saveData, scenesToLoad);
+            _asyncQueue.Enqueue(async () =>
+            {
+                if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
+                    || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
+
+                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, FileName);
+                InternalLoadActiveScenes(_saveData, scenesToLoad);
+            });
         }
         
         public void WipeActiveSceneData()
         {
-            WipeActiveSceneData(UnityUtility.GetActiveScenes());
+            WipeSceneData(UnityUtility.GetActiveScenes());
+        }
+
+        public void WipeSceneData(params Scene[] scenesToWipe)
+        {
+            _asyncQueue.Enqueue(() =>
+            {
+                if (_saveData == null) return Task.CompletedTask;
+
+                foreach (var scene in scenesToWipe)
+                {
+                    _saveData.RemoveSceneData(scene);
+                }
+                HasPendingData = true;
+
+                return Task.CompletedTask;
+            });
         }
         
-        public void WipeActiveSceneData(params Scene[] scenesToWipe)
+        public void DeleteFromDisk()
         {
-            if (_saveData == null) return;
-            
-            _saveLoadManager.WipeActiveSceneData(_saveData, scenesToWipe);
+            _asyncQueue.Enqueue(async () =>
+            {
+                OnBeforeDeleteFromDisk?.Invoke();
+
+                await SaveLoadUtility.DeleteAsync(_saveLoadManager, FileName);
+
+                IsPersistent = false;
+                OnAfterDeleteFromDisk?.Invoke();
+            });
+        }
+
+        public void DeleteSceneDataFromDisk(params Scene[] scenesToWipe)
+        {
+            foreach (var scene in scenesToWipe)
+            {
+                WipeSceneData(scene);
+            }
+
+            WriteToDisk();
+        }
+
+        #region Private Methods
+
+        private void InternalSnapshotActiveScenes(SaveData saveData, params Scene[] scenesToSnapshot)
+        {
+            OnBeforeSnapshot?.Invoke();
+
+            foreach (var scene in scenesToSnapshot)
+            {
+                if (!scene.isLoaded)
+                {
+                    Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
+                    continue;
+                }
+
+                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, false);
+                saveData.SetSceneData(scene, saveSceneManager.CreateSnapshot());
+            }
+
+            OnAfterSnapshot?.Invoke();
+        }
+
+        private void InternalLoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
+        {
+            OnBeforeLoad?.Invoke();
+
+            foreach (var scene in scenesToLoad)
+            {
+                if (!scene.isLoaded)
+                {
+                    Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
+                    continue;
+                }
+
+                if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
+
+                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                saveSceneManager.LoadSnapshot(sceneDataContainer);
+            }
+
+            OnAfterLoad?.Invoke();
+        }
+
+        #endregion
+    }
+
+    public class AsyncOperationQueue
+    {
+        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+        private readonly Queue<Func<Task>> _queue = new Queue<Func<Task>>();
+
+        // Enqueue a task to be executed
+        public void Enqueue(Func<Task> task)
+        {
+            _queue.Enqueue(task);
+            ProcessQueue();
+        }
+
+        // Process the queue
+        private async void ProcessQueue()
+        {
+            await _semaphore.WaitAsync();
+
+            try
+            {
+                while (_queue.Count > 0)
+                {
+                    var task = _queue.Dequeue();
+                    await task();
+                }
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
     }
 }

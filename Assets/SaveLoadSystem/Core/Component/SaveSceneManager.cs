@@ -8,33 +8,125 @@ using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.Serializable;
 using SaveLoadSystem.Utility;
 using UnityEngine;
+using UnityEngine.Events;
+using Debug = UnityEngine.Debug;
 
 namespace SaveLoadSystem.Core.Component
 {
+    public enum SaveSceneManagerDestroyType
+    {
+        None,
+        Snapshot,
+        Save
+    }
+    
     public class SaveSceneManager : MonoBehaviour
     {
         [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private PrefabRegistry prefabRegistry;
-        [SerializeField] private bool reloadSceneOnLoad;
+        
+        [Header("Event Options")]
         [SerializeField] private bool loadOnAwake;
-        [SerializeField] private bool saveOnDestroy;
-        
-        //scene support options: wipe scene data -> reset of data in scene
-        
-        //request to scene to reload -> should not trigger bool save/load
-        //request to scene to wipe data
-        
-        //OnSceneLoaded() -> loadOnSceneLoad bool (test loadOnAwake)
-        //OnSceneUnloaded() -> saveOnUnload bool (test saveOnDestroy)
-        
-        //TODO: unity events
-        //onBeforeSnapshot
-        //onAfterSnapshot
-        
-        //onBeforeLoad
-        //onAfterLoad
+        [SerializeField] private SaveSceneManagerDestroyType onDestroySaveHandling;
+        [SerializeField] private SceneManagerEvents sceneManagerEvents;
 
-        public SceneDataContainer CreateSnapshot()
+        private void Awake()
+        {
+            saveLoadManager.RegisterSaveSceneManager(this);
+
+            if (loadOnAwake)
+            {
+                LoadScene();
+            }
+        }
+        
+        private void OnEnable()
+        {
+            saveLoadManager.RegisterSaveSceneManager(this);
+        }
+
+        private void OnDisable()
+        {
+            saveLoadManager.UnregisterSaveSceneManager(this);
+        }
+
+        private void OnDestroy()
+        {
+            switch (onDestroySaveHandling)
+            {
+                case SaveSceneManagerDestroyType.Snapshot:
+                    SnapshotScene();
+                    break;
+                case SaveSceneManagerDestroyType.Save:
+                    SaveScene();
+                    break;
+            }
+            
+            saveLoadManager.UnregisterSaveSceneManager(this);
+        }
+
+        [ContextMenu("SnapshotScene")]
+        public void SnapshotScene()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.SnapshotScenes(gameObject.scene);
+        }
+
+        [ContextMenu("WriteToDisk")]
+        public void WriteToDisk()
+        {
+            saveLoadManager.SaveFocus.WriteToDisk();
+        }
+        
+        [ContextMenu("SaveScene")]
+        public void SaveScene()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.SaveScenes(gameObject.scene);
+        }
+        
+        [ContextMenu("LoadScene")]
+        public void LoadScene()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.LoadScenes(gameObject.scene);
+        }
+        
+        [ContextMenu("WipeSceneData")]
+        public void WipeSceneData()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.WipeSceneData(gameObject.scene);
+        }
+        
+        [ContextMenu("DeleteSceneData")]
+        public void DeleteSceneData()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.DeleteSceneDataFromDisk(gameObject.scene);
+        }
+
+        internal SceneDataContainer CreateSnapshot()
         {
             //prepare data
             Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer = new();
@@ -48,7 +140,7 @@ namespace SaveLoadSystem.Core.Component
             return saveDataBufferContainer;
         }
 
-        public void LoadSnapshot(SceneDataContainer sceneDataContainer)
+        internal void LoadSnapshot(SceneDataContainer sceneDataContainer)
         {
             var savableList = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
             var prefabPoolList = CreatePrefabPoolList(savableList);     //instantiating needed prefabs must happen before performing the core load methods
@@ -448,6 +540,75 @@ namespace SaveLoadSystem.Core.Component
             if (!TypeUtility.TryConvertTo(loadObject, out ISavable objectSavable)) return;
             
             objectSavable.OnLoad(new LoadDataHandler(saveDataBuffer, deserializeReferenceBuilder, createdObjectsLookup, guidPath));
+        }
+
+        #endregion
+
+        #region Events
+
+        public enum SceneManagerEventType
+        {
+            OnBeforeSnapshot,
+            OnAfterSnapshot,
+            OnBeforeLoad,
+            OnAfterLoad
+        }
+        
+        [Serializable]
+        private class SceneManagerEvents
+        {
+            public UnityEvent onBeforeSnapshot;
+            public UnityEvent onAfterSnapshot;
+            public UnityEvent onBeforeLoad;
+            public UnityEvent onAfterLoad;
+        }
+        
+        public void RegisterAction(UnityAction action, SceneManagerEventType firstEventType, params SceneManagerEventType[] additionalEventTypes)
+        {
+            foreach (var selectionViewEventType in additionalEventTypes.Append(firstEventType))
+            {
+                switch (selectionViewEventType)
+                {
+                    case SceneManagerEventType.OnBeforeSnapshot:
+                        sceneManagerEvents.onBeforeSnapshot.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterSnapshot:
+                        sceneManagerEvents.onAfterSnapshot.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnBeforeLoad:
+                        sceneManagerEvents.onBeforeLoad.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterLoad:
+                        sceneManagerEvents.onAfterLoad.AddListener(action);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+        }
+        
+        public void UnregisterAction(UnityAction action, SceneManagerEventType firstEventType, params SceneManagerEventType[] additionalEventTypes)
+        {
+            foreach (var selectionViewEventType in additionalEventTypes.Append(firstEventType))
+            {
+                switch (selectionViewEventType)
+                {
+                    case SceneManagerEventType.OnBeforeSnapshot:
+                        sceneManagerEvents.onBeforeSnapshot.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterSnapshot:
+                        sceneManagerEvents.onAfterSnapshot.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnBeforeLoad:
+                        sceneManagerEvents.onBeforeLoad.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterLoad:
+                        sceneManagerEvents.onAfterLoad.RemoveListener(action);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
         }
 
         #endregion

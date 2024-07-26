@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
 using SaveLoadSystem.Utility;
@@ -27,6 +28,7 @@ namespace SaveLoadSystem.Core
         [SerializeField] private bool autoSaveOnApplicationFocus;
         [SerializeField] private bool autoSaveOnApplicationQuit;
         
+        //todo: use integrity check
         //storage type: json, binary, xml
         //max slot count
         //encription
@@ -38,51 +40,45 @@ namespace SaveLoadSystem.Core
         public SaveVersion GetSaveVersion() => new(major, minor, patch);
         public bool HasSaveFocus => SaveFocus != null;
         public SaveFocus SaveFocus { get; private set; }
+        public HashSet<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
         
         public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
         public event Action<SaveFocus, SaveFocus> OnAfterFocusChange;
-        
-        public event Action OnBeforeSnapshot;
-        public event Action OnAfterSnapshot;
-        
-        public event Action OnBeforeDeleteFromDisk;
-        public event Action OnAfterDeleteFromDisk;
-        
-        public event Action OnBeforeWriteToDisk;
-        public event Action OnAfterWriteToDisk;
-        
-        public event Action OnBeforeLoad;
-        public event Action OnAfterLoad;
 
         #region Simple Save
 
-        public void SaveActiveScenes(string fileName)
+        public void SimpleSaveActiveScenes(string fileName = null)
         {
-            var saveData = new SaveData();
-            SnapshotActiveScenes(saveData, UnityUtility.GetActiveScenes());
+            SetFocus(fileName);
 
-            var saveMetaData = new SaveMetaData
-            {
-                SaveVersion = GetSaveVersion(),
-                ModificationDate = DateTime.Now
-            };
-            
-            WriteToDisk(fileName, saveMetaData, saveData);
+            var activeScenes = UnityUtility.GetActiveScenes();
+            SaveFocus.SnapshotScenes(activeScenes);
+            SaveFocus.WriteToDisk();
         }
 
-        public void LoadActiveScenes(string fileName)
+        public void SimpleLoadActiveScenes(string fileName = null)
         {
-            var saveData = SaveLoadUtility.ReadSaveDataSecure(this, fileName);
+            SetFocus(fileName);
 
-            LoadActiveScenes(saveData, UnityUtility.GetActiveScenes());
+            if (SaveFocus.IsPersistent)
+            {
+                var activeScenes = UnityUtility.GetActiveScenes();
+                SaveFocus.LoadScenes(activeScenes);
+            }
         }
 
         #endregion
 
         #region Focus Save
 
-        public void SetFocus(string fileName)
+        public void SetFocus(string fileName = null)
         {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                fileName = defaultFileName;
+                Debug.LogWarning("Initialized the save system with the default file Name.");
+            }
+            
             if (SaveFocus != null)
             {
                 //same to current save
@@ -138,62 +134,19 @@ namespace SaveLoadSystem.Core
                 SceneManager.LoadSceneAsync(scene.path);
             }
         }
-        
-        public void SnapshotActiveScenes(SaveData saveData, params Scene[] scenesToSnapshot)
-        {
-            OnBeforeSnapshot?.Invoke();
 
-            foreach (var scene in scenesToSnapshot)
-            {
-                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, false);
+        #endregion
 
-                if (saveData.ContainsSceneData(scene))
-                {
-                    saveData.SetSceneData(scene, saveSceneManager.CreateSnapshot());
-                }
-            }
-            
-            OnAfterSnapshot?.Invoke();
-        }
+        #region Internal
 
-        public void WriteToDisk(string fileName, SaveMetaData metaData, SaveData saveData)
+        internal void RegisterSaveSceneManager(SaveSceneManager saveSceneManager)
         {
-            //TODO: what if currently something is doing this?
-            OnBeforeWriteToDisk?.Invoke();
-            
-            SaveLoadUtility.WriteDataAsync(metaData, saveData, this, fileName, () => OnAfterWriteToDisk?.Invoke());
+            TrackedSaveSceneManagers.Add(saveSceneManager);
         }
         
-        public void DeleteFromDisk(string fileName)
+        internal void UnregisterSaveSceneManager(SaveSceneManager saveSceneManager)
         {
-            //TODO: what if currently something is doing this?
-            
-            OnBeforeWriteToDisk?.Invoke();
-            
-            SaveLoadUtility.DeleteAsync(this, fileName, () => OnAfterWriteToDisk?.Invoke());
-        }
-        
-        public void LoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
-        {
-            OnBeforeLoad?.Invoke();
-            
-            foreach (var scene in scenesToLoad)
-            {
-                if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
-                
-                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
-                saveSceneManager.LoadSnapshot(sceneDataContainer);
-            }
-            
-            OnAfterLoad?.Invoke();
-        }
-        
-        public void WipeActiveSceneData(SaveData saveData, params Scene[] scenesToWipe)
-        {
-            foreach (var scene in scenesToWipe)
-            {
-                saveData.RemoveSceneData(scene);
-            }
+            TrackedSaveSceneManagers.Remove(saveSceneManager);
         }
 
         #endregion

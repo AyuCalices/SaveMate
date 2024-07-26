@@ -8,18 +8,7 @@ namespace SaveLoadSystem.Core.Serializable
     {
         public SaveVersion SaveVersion;
         public DateTime ModificationDate;
+        public string Checksum;
         public Dictionary<string, object> CustomData = new();
-        
-        private string _checksum;
-
-        public void SetChecksum(string newChecksum)
-        {
-            _checksum = newChecksum;
-        }
-
-        public string GetChecksum()
-        {
-            return _checksum;
-        }
     }
 }

@@ -167,8 +167,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31bfa4fc0a77e0649bdde51706910c6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  saveLoadManager: {fileID: 11400000, guid: 8bb456d414031ab4199f9a0c1b73ce00, type: 2}
   prefabRegistry: {fileID: 11400000, guid: 82cff233dd3f22443bfddd548e0e7073, type: 2}
-  reloadSceneOnLoad: 0
+  loadOnAwake: 0
+  onDestroySaveHandling: 0
+  sceneManagerEvents:
+    onBeforeSnapshot:
+      m_PersistentCalls:
+        m_Calls: []
+    onAfterSnapshot:
+      m_PersistentCalls:
+        m_Calls: []
+    onBeforeLoad:
+      m_PersistentCalls:
+        m_Calls: []
+    onAfterLoad:
+      m_PersistentCalls:
+        m_Calls: []
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -355,24 +370,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1297930270 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8505210702091788475, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+--- !u!114 &1297930283 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3636893589558315153, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
   m_PrefabInstance: {fileID: 1888534840}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1297930277
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1297930270}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e47f31345fd1e1d408c8f6253935cfd0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  test: []
 --- !u!1001 &1888534840
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -391,12 +399,20 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
       propertyPath: serializeFieldSavableList.Array.data[0].guid
-      value: 8dbb134d-35d8-4ac7-80a1-89fb98395937
+      value: e1a53009-2ccb-4eb4-9be0-7a177e1052b4
+      objectReference: {fileID: 0}
+    - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+      propertyPath: serializeFieldSavableList.Array.data[1].guid
+      value: e1a53009-2ccb-4eb4-9be0-7a177e1052b4
       objectReference: {fileID: 0}
     - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
       propertyPath: serializeFieldSavableList.Array.data[0].unityObject
       value: 
-      objectReference: {fileID: 1297930277}
+      objectReference: {fileID: 1297930283}
+    - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+      propertyPath: serializeFieldSavableList.Array.data[1].unityObject
+      value: 
+      objectReference: {fileID: 1297930283}
     - target: {fileID: 6744342313677690568, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -441,14 +457,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Setup_ListReference
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 3636893589558315153, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8505210702091788475, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
-      insertIndex: 4
-      addedObject: {fileID: 1297930277}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
