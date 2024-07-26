@@ -8,6 +8,27 @@ using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core
 {
+    public enum StorageType
+    {
+        Binary,
+        Json,
+        XML
+    }
+
+    public enum EncryptionType
+    {
+        None,
+        AES
+    }
+
+    public enum IntegrityCheckType
+    {
+        None,
+        Hashing,
+        CRC32,
+        Adler32
+    }
+    
     [CreateAssetMenu]
     public class SaveLoadManager : ScriptableObject, ISaveConfig
     {
@@ -21,29 +42,29 @@ namespace SaveLoadSystem.Core
         [SerializeField] private string savePath;
         [SerializeField] private string extensionName;
         [SerializeField] private string metaDataExtensionName;
-
+        [SerializeField] private StorageType storageType;
+        [SerializeField] private EncryptionType encryptionType;
+        [SerializeField] private IntegrityCheckType integrityCheckType;
+        
         [Header("Slot Settings")] 
         [SerializeField] private bool autoSaveOnSaveFocusSwap;
         [SerializeField] private bool autoSaveOnApplicationPause;
         [SerializeField] private bool autoSaveOnApplicationFocus;
         [SerializeField] private bool autoSaveOnApplicationQuit;
         
-        //todo: use integrity check
-        //storage type: json, binary, xml
-        //max slot count
-        //encription
-
+        public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
+        public event Action<SaveFocus, SaveFocus> OnAfterFocusChange;
+        
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
-
         public SaveVersion GetSaveVersion() => new(major, minor, patch);
         public bool HasSaveFocus => SaveFocus != null;
         public SaveFocus SaveFocus { get; private set; }
         public HashSet<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
         
-        public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
-        public event Action<SaveFocus, SaveFocus> OnAfterFocusChange;
+        
+        private HashSet<SaveSceneManager> _scenesToReload;
 
         #region Simple Save
 
@@ -114,25 +135,6 @@ namespace SaveLoadSystem.Core
             SaveFocus = newSaveFocus;
             
             OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
-        }
-
-        #endregion
-        
-        #region Utility Methods
-        
-        public void ReloadActiveScenes()
-        {
-            ReloadActiveScenes(UnityUtility.GetActiveScenes());
-        }
-        
-        public void ReloadActiveScenes(params Scene[] scenesToReload)
-        {
-            foreach (var scene in scenesToReload)
-            {
-                if (!scene.isLoaded) continue;
-
-                SceneManager.LoadSceneAsync(scene.path);
-            }
         }
 
         #endregion

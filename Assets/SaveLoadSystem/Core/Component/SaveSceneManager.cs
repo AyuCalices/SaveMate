@@ -126,6 +126,17 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.SaveFocus.DeleteSceneDataFromDisk(gameObject.scene);
         }
 
+        [ContextMenu("ReloadThenLoadScene")]
+        public void ReloadThenLoadScene()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.ReloadThenLoadScenes(gameObject.scene);
+        }
+
         internal SceneDataContainer CreateSnapshot()
         {
             //prepare data

@@ -9,6 +9,8 @@ public class SimpleUsageTest : MonoBehaviour
 
     private void Awake()
     {
+        PrintList();
+        
         var addCount = Random.Range(3, 6);
         test = new ListSerializable[addCount];
         

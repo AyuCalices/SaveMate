@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -144,6 +144,49 @@ namespace SaveLoadSystem.Core
             });
         }
         
+        public void ReloadThenLoadActiveScenes()
+        {
+            ReloadThenLoadScenes(UnityUtility.GetActiveScenes());
+        }
+        
+        /// <summary>
+        /// data will be applied after awake
+        /// </summary>
+        /// <param name="scenesToLoad"></param>
+        public void ReloadThenLoadScenes(params Scene[] scenesToLoad)
+        {
+            _asyncQueue.Enqueue(async () =>
+            {
+                if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
+                    || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
+                
+                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, FileName);
+
+                //buffer save paths, because they will be null later on the scene array
+                var savePaths = new string[scenesToLoad.Length];
+                for (var index = 0; index < scenesToLoad.Length; index++)
+                {
+                    savePaths[index] = scenesToLoad[index].path;
+                }
+
+                //async reload scene and continue, when all are loaded
+                var loadTasks = scenesToLoad.Select(scene => LoadSceneAsync(scene.path)).ToList();
+                await Task.WhenAll(loadTasks);
+
+                //remap save paths to the reloaded scenes
+                List<Scene> matchingGuids = new();
+                foreach (var scene in UnityUtility.GetActiveScenes())
+                {
+                    if (savePaths.Contains(scene.path))
+                    {
+                        matchingGuids.Add(scene);
+                    }
+                }
+                
+                InternalLoadActiveScenes(_saveData, matchingGuids.ToArray());
+            });
+        }
+        
         public void WipeActiveSceneData()
         {
             WipeSceneData(UnityUtility.GetActiveScenes());
@@ -201,9 +244,12 @@ namespace SaveLoadSystem.Core
                     Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
                     continue;
                 }
-
-                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, false);
-                saveData.SetSceneData(scene, saveSceneManager.CreateSnapshot());
+                
+                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
+                             Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                {
+                    saveData.SetSceneData(scene, trackedSaveSceneManager.CreateSnapshot());
+                }
             }
 
             OnAfterSnapshot?.Invoke();
@@ -217,17 +263,42 @@ namespace SaveLoadSystem.Core
             {
                 if (!scene.isLoaded)
                 {
-                    Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
+                    Debug.LogWarning($"Tried to load a save into the unloaded scene {scene.name}!");
                     continue;
                 }
 
                 if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
-
-                var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
-                saveSceneManager.LoadSnapshot(sceneDataContainer);
+                
+                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
+                             Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                {
+                    trackedSaveSceneManager.LoadSnapshot(sceneDataContainer);
+                }
             }
 
             OnAfterLoad?.Invoke();
+        }
+        
+        private Task<AsyncOperation> LoadSceneAsync(string scenePath)
+        {
+            AsyncOperation asyncOperation = SceneManager.LoadSceneAsync(scenePath);
+            TaskCompletionSource<AsyncOperation> tcs = new TaskCompletionSource<AsyncOperation>();
+
+            if (asyncOperation != null)
+            {
+                asyncOperation.allowSceneActivation = true;
+                asyncOperation.completed += operation =>
+                {
+                    tcs.SetResult(operation);
+                };
+            }
+            else
+            {
+                tcs.SetResult(null);
+            }
+            
+            // Return the task
+            return tcs.Task;
         }
 
         #endregion
