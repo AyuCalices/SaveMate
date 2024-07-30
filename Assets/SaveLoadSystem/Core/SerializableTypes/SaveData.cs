@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
-namespace SaveLoadSystem.Core.Serializable
+namespace SaveLoadSystem.Core.SerializableTypes
 {
     [Serializable]
     public class SaveData

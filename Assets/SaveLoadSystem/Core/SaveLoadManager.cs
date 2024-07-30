@@ -2,39 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using SaveLoadSystem.Core.Component;
-using SaveLoadSystem.Core.Serializable;
+using SaveLoadSystem.Core.Integrity;
+using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.SerializeStrategy;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
-    public enum StorageType
-    {
-        Binary,
-        Json,
-        XML
-    }
-
-    public enum EncryptionType
-    {
-        None,
-        Aes
-    }
-    
-    public enum CompressionType
-    {
-        None,
-        Gzip
-    }
-
-    public enum IntegrityCheckType
-    {
-        None,
-        Hashing,
-        CRC32,
-        Adler32
-    }
-    
     [CreateAssetMenu]
     public class SaveLoadManager : ScriptableObject, ISaveConfig
     {
@@ -50,10 +25,10 @@ namespace SaveLoadSystem.Core
         [SerializeField] private string metaDataExtensionName;
         
         [Header("Storage")]
-        [SerializeField] private IntegrityCheckType integrityCheckType;
-        [SerializeField] private StorageType storageType;
-        [SerializeField] private CompressionType compressionType;
-        [SerializeField] private EncryptionType encryptionType;
+        [SerializeField] private SaveIntegrityType integrityCheckType;
+        [SerializeField] private SaveStorageType storageType;
+        [SerializeField] private SaveCompressionType compressionType;
+        [SerializeField] private SaveEncryptionType encryptionType;
         [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
         [SerializeField] private string defaultEncryptionIv = "abcdef9876543210";
         
@@ -170,10 +145,10 @@ namespace SaveLoadSystem.Core
         {
             return integrityCheckType switch
             {
-                IntegrityCheckType.None => new EmptyIntegrityStrategy(),
-                IntegrityCheckType.Hashing => new HashingIntegrityStrategy(),
-                IntegrityCheckType.CRC32 => new CRC32IntegrityStrategy(),
-                IntegrityCheckType.Adler32 => new Adler32IntegrityStrategy(),
+                SaveIntegrityType.None => new EmptyIntegrityStrategy(),
+                SaveIntegrityType.Sha256Hashing => new Sha256HashingIntegrityStrategy(),
+                SaveIntegrityType.CRC32 => new CRC32IntegrityStrategy(),
+                SaveIntegrityType.Adler32 => new Adler32IntegrityStrategy(),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
@@ -221,9 +196,8 @@ namespace SaveLoadSystem.Core
         {
             return storageType switch
             {
-                StorageType.Binary => new BinarySerializeStrategy(),
-                StorageType.Json => new JsonSerializeStrategy(),
-                StorageType.XML => new XmlSerializeStrategy(),
+                SaveStorageType.Binary => new BinarySerializeStrategy(),
+                SaveStorageType.Json => new JsonSerializeStrategy(),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
@@ -232,8 +206,8 @@ namespace SaveLoadSystem.Core
         {
             return compressionType switch
             {
-                CompressionType.None => strategy,
-                CompressionType.Gzip => new GzipCompressionSerializationStrategy(strategy),
+                SaveCompressionType.None => strategy,
+                SaveCompressionType.Gzip => new GzipCompressionSerializationStrategy(strategy),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
@@ -242,10 +216,10 @@ namespace SaveLoadSystem.Core
         {
             switch (encryptionType)
             {
-                case EncryptionType.None:
+                case SaveEncryptionType.None:
                     return strategy;
                 
-                case EncryptionType.Aes:
+                case SaveEncryptionType.Aes:
                     if (_aesKey.Length == 0 || _aesIv.Length == 0)
                     {
                         return new AesEncryptSerializeStrategy(strategy, Encoding.UTF8.GetBytes(defaultEncryptionKey), Encoding.UTF8.GetBytes(defaultEncryptionIv));

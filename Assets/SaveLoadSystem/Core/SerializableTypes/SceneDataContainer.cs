@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SaveLoadSystem.Core.Serializable
+namespace SaveLoadSystem.Core.SerializableTypes
 {
     [Serializable]
     public class SceneDataContainer

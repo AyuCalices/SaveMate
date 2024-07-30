@@ -1,6 +1,6 @@
 using System;
 
-namespace SaveLoadSystem.Core.Serializable
+namespace SaveLoadSystem.Core.SerializableTypes
 {
     [Serializable]
     public readonly struct SaveVersion : IComparable<SaveVersion>

@@ -1,20 +1,18 @@
 using System;
 using System.Collections.Generic;
 
-namespace SaveLoadSystem.Core.Serializable
+namespace SaveLoadSystem.Core.SerializableTypes
 {
     [Serializable]
     public class GuidPath
     {
-        public readonly GuidPath Parent;
-        public readonly string Guid;
-        
-        public GuidPath() {}
+        public GuidPath parent;
+        public string guid;
 
         public GuidPath(GuidPath parent, string guid)
         {
-            Parent = parent;
-            Guid = guid;
+            this.parent = parent;
+            this.guid = guid;
         }
 
         public Stack<string> ToStack()
@@ -24,8 +22,8 @@ namespace SaveLoadSystem.Core.Serializable
             var currentPath = this;
             while (currentPath != null)
             {
-                stack.Push(currentPath.Guid);
-                currentPath = currentPath.Parent;
+                stack.Push(currentPath.guid);
+                currentPath = currentPath.parent;
             }
 
             return stack;
@@ -38,8 +36,8 @@ namespace SaveLoadSystem.Core.Serializable
             var currentPath = this;
             while (currentPath != null)
             {
-                pathString = currentPath.Guid + "/" + pathString;
-                currentPath = currentPath.Parent;
+                pathString = currentPath.guid + "/" + pathString;
+                currentPath = currentPath.parent;
             }
 
             return pathString;

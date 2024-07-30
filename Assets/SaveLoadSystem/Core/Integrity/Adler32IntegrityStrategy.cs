@@ -1,0 +1,45 @@
+using System;
+using System.IO;
+
+namespace SaveLoadSystem.Core.Integrity
+{
+    /// <summary>
+    /// Adler-32
+    /// 
+    /// Advantages:
+    /// - Speed: Adler-32 is faster to compute than CRC-32 and cryptographic hashes, making it suitable for applications where performance is critical.
+    /// - Simplicity: The algorithm is simpler to implement compared to CRC-32 and cryptographic hashes.
+    ///
+    /// Disadvantages:
+    /// - Error Detection: Adler-32 is less reliable in detecting errors compared to CRC-32 and cryptographic hashes, especially for small data sets or simple error patterns.
+    /// - Security: It is not suitable for cryptographic purposes as it does not provide resistance against intentional data tampering.
+    /// </summary>
+    public class Adler32IntegrityStrategy : IIntegrityStrategy
+    {
+        private const uint ModAdler = 65521;
+        
+        public string ComputeChecksum(Stream stream)
+        {
+            if (stream == null)
+                throw new ArgumentNullException(nameof(stream));
+
+            uint a = 1, b = 0;
+
+            int bufferLength = 1024;
+            byte[] buffer = new byte[bufferLength];
+            int bytesRead;
+
+            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (int i = 0; i < bytesRead; i++)
+                {
+                    a = (a + buffer[i]) % ModAdler;
+                    b = (b + a) % ModAdler;
+                }
+            }
+
+            uint checksum = (b << 16) | a;
+            return checksum.ToString("X8");
+        }
+    }
+}

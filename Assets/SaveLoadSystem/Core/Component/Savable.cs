@@ -26,7 +26,7 @@ namespace SaveLoadSystem.Core.Component
 
         public string SceneGuid => serializeFieldSceneGuid;
         public string PrefabGuid => prefabPath;
-        public bool CustomSpawning => customSpawning;   //TODO: implement
+        public bool CustomSpawning => customSpawning;
         public List<ComponentsContainer> SavableList => serializeFieldSavableList;
         public List<ComponentsContainer> ReferenceList => serializeFieldSavableReferenceList;
         

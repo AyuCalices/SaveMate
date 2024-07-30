@@ -5,7 +5,7 @@ using System.Reflection;
 using SaveLoadSystem.Core.Attributes;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
-using SaveLoadSystem.Core.Serializable;
+using SaveLoadSystem.Core.SerializableTypes;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.Events;
@@ -13,13 +13,6 @@ using Debug = UnityEngine.Debug;
 
 namespace SaveLoadSystem.Core.Component
 {
-    public enum SaveSceneManagerDestroyType
-    {
-        None,
-        SnapshotScene,
-        SaveScene
-    }
-    
     public class SaveSceneManager : MonoBehaviour
     {
         [SerializeField] private SaveLoadManager saveLoadManager;
@@ -554,14 +547,6 @@ namespace SaveLoadSystem.Core.Component
         #endregion
 
         #region Events
-
-        public enum SceneManagerEventType
-        {
-            OnBeforeSnapshot,
-            OnAfterSnapshot,
-            OnBeforeLoad,
-            OnAfterLoad
-        }
         
         [Serializable]
         private class SceneManagerEvents
