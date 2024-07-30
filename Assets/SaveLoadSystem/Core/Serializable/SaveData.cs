@@ -7,31 +7,31 @@ namespace SaveLoadSystem.Core.Serializable
     [Serializable]
     public class SaveData
     {
-        private readonly Dictionary<string, SceneDataContainer> _sceneDataLookup = new();
+        public readonly Dictionary<string, SceneDataContainer> SceneDataLookup = new();
 
         public void SetSceneData(Scene scene, SceneDataContainer sceneDataContainer)
         {
-            _sceneDataLookup[scene.path] = sceneDataContainer;
+            SceneDataLookup[scene.path] = sceneDataContainer;
         }
 
         public bool ContainsSceneData(Scene scene)
         {
-            return _sceneDataLookup.ContainsKey(scene.path);
+            return SceneDataLookup.ContainsKey(scene.path);
         }
 
         public SceneDataContainer GetSceneData(Scene scene)
         {
-            return _sceneDataLookup[scene.path];
+            return SceneDataLookup[scene.path];
         }
 
         public bool TryGetSceneData(Scene scene, out SceneDataContainer sceneDataContainer)
         {
-            return _sceneDataLookup.TryGetValue(scene.path, out sceneDataContainer);
+            return SceneDataLookup.TryGetValue(scene.path, out sceneDataContainer);
         }
 
         public void RemoveSceneData(Scene scene)
         {
-            _sceneDataLookup.Remove(scene.path);
+            SceneDataLookup.Remove(scene.path);
         }
     }
 }

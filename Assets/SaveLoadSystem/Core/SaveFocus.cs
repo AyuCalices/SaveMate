@@ -101,13 +101,13 @@ namespace SaveLoadSystem.Core
                 
                 _metaData = new SaveMetaData()
                 {
-                    SaveVersion = _saveLoadManager.GetSaveVersion(),
+                    SaveVersion = _saveLoadManager.SaveVersion,
                     ModificationDate = DateTime.Now,
                     CustomData = _customMetaData
                 };
 
                 OnBeforeWriteToDisk?.Invoke();
-                await SaveLoadUtility.WriteDataAsync(_metaData, _saveData, _saveLoadManager, FileName);
+                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, FileName, _metaData, _saveData);
 
                 IsPersistent = true;
                 HasPendingData = false;
@@ -126,6 +126,22 @@ namespace SaveLoadSystem.Core
             SnapshotScenes(scenesToSave);
             WriteToDisk();
         }
+
+        public void ApplySnapshotToActiveScenes()
+        {
+            ApplySnapshotToScenes(UnityUtility.GetActiveScenes());
+        }
+
+        public void ApplySnapshotToScenes(params Scene[] scenesToApplySnapshot)
+        {
+            _asyncQueue.Enqueue(() =>
+            {
+                if (_saveData == null) return Task.CompletedTask;
+                
+                InternalLoadActiveScenes(_saveData, scenesToApplySnapshot);
+                return Task.CompletedTask;
+            });
+        }
         
         public void LoadActiveScenes()
         {
@@ -139,7 +155,7 @@ namespace SaveLoadSystem.Core
                 if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
 
-                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, FileName);
+                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 InternalLoadActiveScenes(_saveData, scenesToLoad);
             });
         }
@@ -160,7 +176,7 @@ namespace SaveLoadSystem.Core
                 if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
                 
-                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, FileName);
+                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
 
                 //buffer save paths, because they will be null later on the scene array
                 var savePaths = new string[scenesToLoad.Length];
@@ -208,6 +224,16 @@ namespace SaveLoadSystem.Core
             });
         }
         
+        public void DeleteSceneDataFromDisk(params Scene[] scenesToWipe)
+        {
+            foreach (var scene in scenesToWipe)
+            {
+                WipeSceneData(scene);
+            }
+
+            DeleteFromDisk();
+        }
+        
         public void DeleteFromDisk()
         {
             _asyncQueue.Enqueue(async () =>
@@ -219,16 +245,6 @@ namespace SaveLoadSystem.Core
                 IsPersistent = false;
                 OnAfterDeleteFromDisk?.Invoke();
             });
-        }
-
-        public void DeleteSceneDataFromDisk(params Scene[] scenesToWipe)
-        {
-            foreach (var scene in scenesToWipe)
-            {
-                WipeSceneData(scene);
-            }
-
-            WriteToDisk();
         }
 
         #region Private Methods

@@ -65,7 +65,7 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.UnregisterSaveSceneManager(this);
         }
 
-        [ContextMenu("SnapshotScene")]
+        [ContextMenu("Snapshot Scene")]
         public void SnapshotScene()
         {
             if (!saveLoadManager.HasSaveFocus)
@@ -76,13 +76,13 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.SaveFocus.SnapshotScenes(gameObject.scene);
         }
 
-        [ContextMenu("WriteToDisk")]
+        [ContextMenu("Write To Disk")]
         public void WriteToDisk()
         {
             saveLoadManager.SaveFocus.WriteToDisk();
         }
         
-        [ContextMenu("SaveScene")]
+        [ContextMenu("Save Scene")]
         public void SaveScene()
         {
             if (!saveLoadManager.HasSaveFocus)
@@ -92,8 +92,19 @@ namespace SaveLoadSystem.Core.Component
             
             saveLoadManager.SaveFocus.SaveScenes(gameObject.scene);
         }
+
+        [ContextMenu("Apply Snapshot")]
+        public void ApplySnapshot()
+        {
+            if (!saveLoadManager.HasSaveFocus)
+            {
+                saveLoadManager.SetFocus();
+            }
+            
+            saveLoadManager.SaveFocus.ApplySnapshotToScenes(gameObject.scene);
+        }
         
-        [ContextMenu("LoadScene")]
+        [ContextMenu("Load Scene")]
         public void LoadScene()
         {
             if (!saveLoadManager.HasSaveFocus)
@@ -104,7 +115,7 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.SaveFocus.LoadScenes(gameObject.scene);
         }
         
-        [ContextMenu("WipeSceneData")]
+        [ContextMenu("Wipe Scene Data")]
         public void WipeSceneData()
         {
             if (!saveLoadManager.HasSaveFocus)
@@ -115,7 +126,7 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.SaveFocus.WipeSceneData(gameObject.scene);
         }
         
-        [ContextMenu("DeleteSceneData")]
+        [ContextMenu("Delete Scene Data")]
         public void DeleteSceneData()
         {
             if (!saveLoadManager.HasSaveFocus)
@@ -126,7 +137,7 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.SaveFocus.DeleteSceneDataFromDisk(gameObject.scene);
         }
 
-        [ContextMenu("ReloadThenLoadScene")]
+        [ContextMenu("Reload Then Load Scene")]
         public void ReloadThenLoadScene()
         {
             if (!saveLoadManager.HasSaveFocus)

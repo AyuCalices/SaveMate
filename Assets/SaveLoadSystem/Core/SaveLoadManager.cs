@@ -4,7 +4,6 @@ using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
 using SaveLoadSystem.Utility;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core
 {
@@ -18,7 +17,13 @@ namespace SaveLoadSystem.Core
     public enum EncryptionType
     {
         None,
-        AES
+        Aes
+    }
+    
+    public enum CompressionType
+    {
+        None,
+        Gzip
     }
 
     public enum IntegrityCheckType
@@ -44,6 +49,7 @@ namespace SaveLoadSystem.Core
         [SerializeField] private string metaDataExtensionName;
         [SerializeField] private StorageType storageType;
         [SerializeField] private EncryptionType encryptionType;
+        [SerializeField] private CompressionType compressionType;
         [SerializeField] private IntegrityCheckType integrityCheckType;
         
         [Header("Slot Settings")] 
@@ -58,16 +64,33 @@ namespace SaveLoadSystem.Core
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
-        public SaveVersion GetSaveVersion() => new(major, minor, patch);
-        public bool HasSaveFocus => SaveFocus != null;
-        public SaveFocus SaveFocus { get; private set; }
+        public ISerializeStrategy SerializeStrategy => GetEncryptSerializeStrategy();
+        public SaveVersion SaveVersion => new(major, minor, patch);
         public HashSet<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
-        
-        
+        public bool HasSaveFocus => _saveFocus != null;
+        public SaveFocus SaveFocus
+        {
+            get
+            {
+                if (!HasSaveFocus)
+                {
+                    SetFocus();
+                }
+
+                return _saveFocus;
+            }
+        }
+
+        private SaveFocus _saveFocus;
         private HashSet<SaveSceneManager> _scenesToReload;
 
         #region Simple Save
 
+        public string[] GetAllSaveFiles()
+        {
+            return SaveLoadUtility.FindAllSaveFiles(this);
+        }
+        
         public void SimpleSaveActiveScenes(string fileName = null)
         {
             SetFocus(fileName);
@@ -86,6 +109,10 @@ namespace SaveLoadSystem.Core
                 var activeScenes = UnityUtility.GetActiveScenes();
                 SaveFocus.LoadScenes(activeScenes);
             }
+            else
+            {
+                Debug.LogWarning($"Couldn't load, because there is no save file with name '{fileName}.{ExtensionName}' at path '{SavePath}'");
+            }
         }
 
         #endregion
@@ -100,15 +127,15 @@ namespace SaveLoadSystem.Core
                 Debug.LogWarning("Initialized the save system with the default file Name.");
             }
             
-            if (SaveFocus != null)
+            if (HasSaveFocus)
             {
                 //same to current save
-                if (SaveFocus.FileName == fileName) return;
+                if (_saveFocus.FileName == fileName) return;
                 
                 //other save, but still has pending data that can be saved
-                if (SaveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
+                if (_saveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
                 {
-                    SaveFocus.WriteToDisk();
+                    _saveFocus.WriteToDisk();
                 }
             }
             
@@ -118,23 +145,12 @@ namespace SaveLoadSystem.Core
         public void ReleaseFocus()
         {
             //save pending data if allowed
-            if (SaveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
+            if (HasSaveFocus && _saveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
             {
-                SaveFocus.WriteToDisk();
+                _saveFocus.WriteToDisk();
             }
             
             SwapFocus(null);
-        }
-
-        private void SwapFocus(SaveFocus newSaveFocus)
-        {
-            SaveFocus oldSaveFocus = SaveFocus;
-            
-            OnBeforeFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
-
-            SaveFocus = newSaveFocus;
-            
-            OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
         }
 
         #endregion
@@ -150,6 +166,54 @@ namespace SaveLoadSystem.Core
         {
             TrackedSaveSceneManagers.Remove(saveSceneManager);
         }
+
+        #endregion
+
+        #region Private
+
+        private void SwapFocus(SaveFocus newSaveFocus)
+        {
+            SaveFocus oldSaveFocus = _saveFocus;
+            
+            OnBeforeFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
+
+            _saveFocus = newSaveFocus;
+            
+            OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
+        }
+        
+        private INestedSerializeStrategy GetEncryptSerializeStrategy()
+        {
+            var serializationStrategy = GetCompressionSerializeStrategy();
+            return encryptionType switch
+            {
+                EncryptionType.None => new FallThroughSerializeStrategy(serializationStrategy),
+                EncryptionType.Aes => new AesEncryptSerializeStrategy(serializationStrategy),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+        
+        private INestedSerializeStrategy GetCompressionSerializeStrategy()
+        {
+            var serializationStrategy = GetSerializeStrategy();
+            return compressionType switch
+            {
+                CompressionType.None => new FallThroughSerializeStrategy(serializationStrategy),
+                CompressionType.Gzip => new GzipCompressionSerializationStrategy(serializationStrategy),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+        
+        private ISerializeStrategy GetSerializeStrategy()
+        {
+            return storageType switch
+            {
+                StorageType.Binary => new BinarySerializeStrategy(),
+                StorageType.Json => new JsonSerializeStrategy(),
+                StorageType.XML => new XmlSerializeStrategy(),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }        
 
         #endregion
     }

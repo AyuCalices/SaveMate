@@ -5,9 +5,9 @@ namespace SaveLoadSystem.Core.Serializable
     [Serializable]
     public readonly struct SaveVersion : IComparable<SaveVersion>
     {
-        private int Major { get; }
-        private int Minor { get; }
-        private int Patch { get; }
+        public int Major { get; }
+        public int Minor { get; }
+        public int Patch { get; }
 
         public SaveVersion(int major, int minor, int patch)
         {
