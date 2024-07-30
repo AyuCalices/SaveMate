@@ -6,7 +6,6 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.Integrity;
 using SaveLoadSystem.Core.Serializable;
 using Unity.Plastic.Newtonsoft.Json;
 using UnityEngine;
@@ -55,7 +54,7 @@ namespace SaveLoadSystem.Utility
             var saveDataPath = SaveDataPath(saveConfig, fileName);
             await using (var saveDataStream = new FileStream(saveDataPath, FileMode.Create))
             {
-                saveMetaData.Checksum = HashingUtility.GenerateHash(saveDataStream);
+                saveMetaData.Checksum = saveConfig.GetIntegrityStrategy().ComputeChecksum(saveDataStream);
                 await serializationStrategy.SerializeAsync(saveDataStream, saveData);
             }
     
@@ -65,8 +64,6 @@ namespace SaveLoadSystem.Utility
             {
                 await serializationStrategy.SerializeAsync(metaDataStream, saveMetaData);
             }
-    
-            Debug.LogWarning("Save Successful");
         }
         
         public static async Task DeleteAsync(ISaveConfig saveConfig, string fileName)
@@ -104,7 +101,7 @@ namespace SaveLoadSystem.Utility
             {
                 if (string.IsNullOrEmpty(metaData.Checksum)) return;
                 
-                if (metaData.Checksum == HashingUtility.GenerateHash(stream))
+                if (metaData.Checksum == saveConfig.GetIntegrityStrategy().ComputeChecksum(stream))
                 {
                     Debug.LogWarning("Integrity Check Successful!");
                     return;
@@ -311,6 +308,144 @@ namespace SaveLoadSystem.Utility
             await gzipStream.CopyToAsync(resultStream);
             resultStream.Position = 0;
             return await SerializeStrategy.DeserializeAsync<T>(resultStream);
+        }
+    }
+
+    public interface IIntegrityStrategy
+    {
+        string ComputeChecksum(Stream stream);
+    }
+    
+    public class EmptyIntegrityStrategy : IIntegrityStrategy
+    {
+        public string ComputeChecksum(Stream stream)
+        {
+            return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Hashing (SHA-256)
+    /// 
+    /// Advantages:
+    /// - Security: Cryptographic hashes like SHA-256 are designed to be secure against intentional data tampering, providing strong guarantees of data integrity and authenticity.
+    /// - Collision Resistance: Cryptographic hashes are designed to minimize the likelihood of two different inputs producing the same hash output (collisions).
+    /// - Versatility: They are widely used in various security applications, including digital signatures, data integrity checks, and password hashing.
+    ///
+    /// Disadvantages:
+    /// - Performance: Cryptographic hashes are computationally more intensive than Adler-32 and CRC-32, which can be a disadvantage in performance-critical applications.
+    /// - Complexity: Implementing cryptographic hash functions correctly can be more complex due to the need for understanding security properties and ensuring resistance against various attack vectors.
+    /// </summary>
+    public class HashingIntegrityStrategy : IIntegrityStrategy
+    {
+        public string ComputeChecksum(Stream stream)
+        {
+            using var sha256 = SHA256.Create();
+            var hashBytes = sha256.ComputeHash(stream);
+            return Convert.ToBase64String(hashBytes);
+        }
+    }
+    
+    /// <summary>
+    /// Adler-32
+    /// 
+    /// Advantages:
+    /// - Speed: Adler-32 is faster to compute than CRC-32 and cryptographic hashes, making it suitable for applications where performance is critical.
+    /// - Simplicity: The algorithm is simpler to implement compared to CRC-32 and cryptographic hashes.
+    ///
+    /// Disadvantages:
+    /// - Error Detection: Adler-32 is less reliable in detecting errors compared to CRC-32 and cryptographic hashes, especially for small data sets or simple error patterns.
+    /// - Security: It is not suitable for cryptographic purposes as it does not provide resistance against intentional data tampering.
+    /// </summary>
+    public class Adler32IntegrityStrategy : IIntegrityStrategy
+    {
+        private const uint ModAdler = 65521;
+        
+        public string ComputeChecksum(Stream stream)
+        {
+            if (stream == null)
+                throw new ArgumentNullException(nameof(stream));
+
+            uint a = 1, b = 0;
+
+            int bufferLength = 1024;
+            byte[] buffer = new byte[bufferLength];
+            int bytesRead;
+
+            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (int i = 0; i < bytesRead; i++)
+                {
+                    a = (a + buffer[i]) % ModAdler;
+                    b = (b + a) % ModAdler;
+                }
+            }
+
+            uint checksum = (b << 16) | a;
+            return checksum.ToString("X8");
+        }
+    }
+    
+    /// <summary>
+    /// CRC-32
+    /// 
+    /// Advantages:
+    /// - Error Detection: CRC-32 provides better error detection capabilities than Adler-32, making it more suitable for detecting accidental changes to raw data.
+    /// - Widely Used: It is a well-established standard used in many networking protocols and file formats.
+    ///
+    /// Disadvantages:
+    /// - Performance: CRC-32 is slower to compute than Adler-32.
+    /// - Security: Like Adler-32, CRC-32 is not suitable for cryptographic purposes as it does not protect against intentional data tampering.
+    /// </summary>
+    public class CRC32IntegrityStrategy : IIntegrityStrategy
+    {
+        private readonly uint[] Table;
+
+        public CRC32IntegrityStrategy()
+        {
+            uint polynomial = 0xedb88320;
+            Table = new uint[256];
+
+            for (uint i = 0; i < 256; i++)
+            {
+                uint crc = i;
+                for (uint j = 8; j > 0; j--)
+                {
+                    if ((crc & 1) == 1)
+                    {
+                        crc = (crc >> 1) ^ polynomial;
+                    }
+                    else
+                    {
+                        crc >>= 1;
+                    }
+                }
+                Table[i] = crc;
+            }
+        }
+        
+        public string ComputeChecksum(Stream stream)
+        {
+            if (stream == null)
+                throw new ArgumentNullException(nameof(stream));
+
+            uint crc = 0xffffffff;
+
+            int bufferLength = 1024;
+            byte[] buffer = new byte[bufferLength];
+            int bytesRead;
+
+            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (int i = 0; i < bytesRead; i++)
+                {
+                    byte index = (byte)(((crc) & 0xff) ^ buffer[i]);
+                    crc = (uint)((crc >> 8) ^ Table[index]);
+                }
+            }
+
+            crc ^= 0xffffffff;
+            return crc.ToString("X8");
         }
     }
 }

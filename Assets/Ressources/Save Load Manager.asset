@@ -19,11 +19,10 @@ MonoBehaviour:
   savePath: 
   extensionName: savegame
   metaDataExtensionName: metadata
+  integrityCheckType: 3
   storageType: 0
-  encryptionType: 1
   compressionType: 1
-  integrityCheckType: 0
+  encryptionType: 1
+  defaultEncryptionKey: 0123456789abcdef0123456789abcdef
+  defaultEncryptionIv: abcdef9876543210
   autoSaveOnSaveFocusSwap: 0
-  autoSaveOnApplicationPause: 0
-  autoSaveOnApplicationFocus: 0
-  autoSaveOnApplicationQuit: 0

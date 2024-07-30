@@ -17,12 +17,11 @@ namespace SaveLoadSystem.Core
         public bool IsPersistent { get; private set; }
 
         private readonly SaveLoadManager _saveLoadManager;
+        private readonly AsyncOperationQueue _asyncQueue;
         
         private Dictionary<string, object> _customMetaData;
         private SaveMetaData _metaData;
         private SaveData _saveData;
-
-        private readonly AsyncOperationQueue _asyncQueue = new AsyncOperationQueue();
         
         public event Action OnBeforeSnapshot;
         public event Action OnAfterSnapshot;
@@ -35,6 +34,7 @@ namespace SaveLoadSystem.Core
 
         public SaveFocus(SaveLoadManager saveLoadManager, string fileName)
         {
+            _asyncQueue = new AsyncOperationQueue();
             _saveLoadManager = saveLoadManager;
             FileName = fileName;
 
@@ -112,6 +112,8 @@ namespace SaveLoadSystem.Core
                 IsPersistent = true;
                 HasPendingData = false;
                 OnAfterWriteToDisk?.Invoke();
+                
+                Debug.LogWarning("Save Completed!");
             });
         }
         
@@ -253,6 +255,8 @@ namespace SaveLoadSystem.Core
 
                 IsPersistent = false;
                 OnAfterDeleteFromDisk?.Invoke();
+                
+                Debug.LogWarning("Delete Completed!");
             });
         }
 
@@ -278,6 +282,8 @@ namespace SaveLoadSystem.Core
             }
 
             OnAfterSnapshot?.Invoke();
+            
+            Debug.LogWarning("Snapshot Completed!");
         }
 
         private void InternalLoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
@@ -302,6 +308,8 @@ namespace SaveLoadSystem.Core
             }
 
             OnAfterLoad?.Invoke();
+            
+            Debug.LogWarning("Loading Completed!");
         }
         
         private Task<AsyncOperation> LoadSceneAsync(string scenePath)

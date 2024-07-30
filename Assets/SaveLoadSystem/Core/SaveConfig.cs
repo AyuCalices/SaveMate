@@ -8,5 +8,6 @@ namespace SaveLoadSystem.Core
         string ExtensionName { get; }
         string MetaDataExtensionName { get; }
         ISerializeStrategy GetSerializeStrategy();
+        IIntegrityStrategy GetIntegrityStrategy();
     }
 }

@@ -50,10 +50,12 @@ namespace SaveLoadSystem.Core
         [SerializeField] private string metaDataExtensionName;
         
         [Header("Storage")]
-        [SerializeField] private StorageType storageType;
-        [SerializeField] private EncryptionType encryptionType;
-        [SerializeField] private CompressionType compressionType;
         [SerializeField] private IntegrityCheckType integrityCheckType;
+        [SerializeField] private StorageType storageType;
+        [SerializeField] private CompressionType compressionType;
+        [SerializeField] private EncryptionType encryptionType;
+        [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
+        [SerializeField] private string defaultEncryptionIv = "abcdef9876543210";
         
         [Header("Slot Settings")] 
         [SerializeField] private bool autoSaveOnSaveFocusSwap;
@@ -82,11 +84,8 @@ namespace SaveLoadSystem.Core
 
         private SaveFocus _saveFocus;
         private HashSet<SaveSceneManager> _scenesToReload;
-        
-        private static readonly byte[] DefaultAesKey = Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef");
-        private byte[] _aesKey;
-        private static readonly byte[] DefaultIvKey = Encoding.UTF8.GetBytes("abcdef9876543210");
-        private byte[] _aesIv;
+        private byte[] _aesKey = Array.Empty<byte>();
+        private byte[] _aesIv = Array.Empty<byte>();
 
         #region Simple Save
 
@@ -166,7 +165,19 @@ namespace SaveLoadSystem.Core
             strategy = WrapWithEncryption(strategy);
             return strategy;
         }
-        
+
+        public IIntegrityStrategy GetIntegrityStrategy()
+        {
+            return integrityCheckType switch
+            {
+                IntegrityCheckType.None => new EmptyIntegrityStrategy(),
+                IntegrityCheckType.Hashing => new HashingIntegrityStrategy(),
+                IntegrityCheckType.CRC32 => new CRC32IntegrityStrategy(),
+                IntegrityCheckType.Adler32 => new Adler32IntegrityStrategy(),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+
         public void SetAesEncryption(byte[] aesKey, byte[] aesIv)
         {
             _aesKey = aesKey;
@@ -175,8 +186,8 @@ namespace SaveLoadSystem.Core
 
         public void ClearAesEncryption()
         {
-            _aesKey = null;
-            _aesIv = null;
+            _aesKey = Array.Empty<byte>();
+            _aesIv = Array.Empty<byte>();
         }
 
         #region Internal
@@ -235,9 +246,9 @@ namespace SaveLoadSystem.Core
                     return strategy;
                 
                 case EncryptionType.Aes:
-                    if (_aesKey == null || _aesIv == null)
+                    if (_aesKey.Length == 0 || _aesIv.Length == 0)
                     {
-                        return new AesEncryptSerializeStrategy(strategy, DefaultAesKey, DefaultIvKey);
+                        return new AesEncryptSerializeStrategy(strategy, Encoding.UTF8.GetBytes(defaultEncryptionKey), Encoding.UTF8.GetBytes(defaultEncryptionIv));
                     }
                     return new AesEncryptSerializeStrategy(strategy, _aesKey, _aesIv);
 

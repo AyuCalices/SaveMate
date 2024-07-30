@@ -169,8 +169,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: 8bb456d414031ab4199f9a0c1b73ce00, type: 2}
   prefabRegistry: {fileID: 11400000, guid: 82cff233dd3f22443bfddd548e0e7073, type: 2}
-  loadOnAwake: 0
-  onDestroySaveHandling: 0
+  loadSceneOnAwake: 0
+  saveSceneOnDestroy: 0
   sceneManagerEvents:
     onBeforeSnapshot:
       m_PersistentCalls:

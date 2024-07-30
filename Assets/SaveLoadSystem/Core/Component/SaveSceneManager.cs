@@ -25,18 +25,12 @@ namespace SaveLoadSystem.Core.Component
         [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private PrefabRegistry prefabRegistry;
         
-        [Header("Active Scene Events")]
-        [SerializeField] private bool autoSaveOnApplicationPause;
-        [SerializeField] private bool autoSaveOnApplicationFocus;
-        [SerializeField] private bool autoSaveOnApplicationQuit;
-        
         [Header("Current Scene Events")]
         [SerializeField] private bool loadSceneOnAwake;
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDestroy;
         [SerializeField] private SceneManagerEvents sceneManagerEvents;
 
-        private static bool _hasSavedThisFrame;
-        private static bool _hasSavedOnQuit;
+        private static bool _isQuitting;
 
         #region Unity Lifecycle
 
@@ -55,13 +49,6 @@ namespace SaveLoadSystem.Core.Component
             saveLoadManager.RegisterSaveSceneManager(this);
         }
         
-        private void Update()
-        {
-            if (!_hasSavedThisFrame) return;
-
-            _hasSavedThisFrame = false;
-        }
-        
         private void OnDisable()
         {
             saveLoadManager.UnregisterSaveSceneManager(this);
@@ -69,7 +56,7 @@ namespace SaveLoadSystem.Core.Component
 
         private void OnDestroy()
         {
-            if (!_hasSavedOnQuit)
+            if (!_isQuitting)
             {
                 switch (saveSceneOnDestroy)
                 {
@@ -88,33 +75,10 @@ namespace SaveLoadSystem.Core.Component
             
             saveLoadManager.UnregisterSaveSceneManager(this);
         }
-        
-        private void OnApplicationFocus(bool hasFocus)
-        {
-            if (hasFocus) return;
-            
-            if (_hasSavedThisFrame && !autoSaveOnApplicationQuit) return;
-
-            _hasSavedThisFrame = true;
-            saveLoadManager.SaveFocus.SaveActiveScenes();
-        }
-
-        private void OnApplicationPause(bool pauseStatus)
-        {
-            if (!pauseStatus) return;
-            
-            if (_hasSavedThisFrame && !autoSaveOnApplicationQuit) return;
-            
-            _hasSavedThisFrame = true;
-            saveLoadManager.SaveFocus.SaveActiveScenes();
-        }
 
         private void OnApplicationQuit()
         {
-            if (_hasSavedOnQuit && !autoSaveOnApplicationQuit) return;
-            
-            _hasSavedOnQuit = true;
-            saveLoadManager.SaveFocus.SaveActiveScenes();
+            _isQuitting = true;
         }
 
         #endregion
