@@ -16,8 +16,8 @@ namespace SaveLoadSystem.Core.Component
     public enum SaveSceneManagerDestroyType
     {
         None,
-        Snapshot,
-        Save
+        SnapshotScene,
+        SaveScene
     }
     
     public class SaveSceneManager : MonoBehaviour
@@ -25,16 +25,26 @@ namespace SaveLoadSystem.Core.Component
         [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private PrefabRegistry prefabRegistry;
         
-        [Header("Event Options")]
-        [SerializeField] private bool loadOnAwake;
-        [SerializeField] private SaveSceneManagerDestroyType onDestroySaveHandling;
+        [Header("Active Scene Events")]
+        [SerializeField] private bool autoSaveOnApplicationPause;
+        [SerializeField] private bool autoSaveOnApplicationFocus;
+        [SerializeField] private bool autoSaveOnApplicationQuit;
+        
+        [Header("Current Scene Events")]
+        [SerializeField] private bool loadSceneOnAwake;
+        [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDestroy;
         [SerializeField] private SceneManagerEvents sceneManagerEvents;
+
+        private static bool _hasSavedThisFrame;
+        private static bool _hasSavedOnQuit;
+
+        #region Unity Lifecycle
 
         private void Awake()
         {
             saveLoadManager.RegisterSaveSceneManager(this);
 
-            if (loadOnAwake)
+            if (loadSceneOnAwake)
             {
                 LoadScene();
             }
@@ -44,7 +54,14 @@ namespace SaveLoadSystem.Core.Component
         {
             saveLoadManager.RegisterSaveSceneManager(this);
         }
+        
+        private void Update()
+        {
+            if (!_hasSavedThisFrame) return;
 
+            _hasSavedThisFrame = false;
+        }
+        
         private void OnDisable()
         {
             saveLoadManager.UnregisterSaveSceneManager(this);
@@ -52,27 +69,61 @@ namespace SaveLoadSystem.Core.Component
 
         private void OnDestroy()
         {
-            switch (onDestroySaveHandling)
+            if (!_hasSavedOnQuit)
             {
-                case SaveSceneManagerDestroyType.Snapshot:
-                    SnapshotScene();
-                    break;
-                case SaveSceneManagerDestroyType.Save:
-                    SaveScene();
-                    break;
+                switch (saveSceneOnDestroy)
+                {
+                    case SaveSceneManagerDestroyType.SnapshotScene:
+                        SnapshotScene();
+                        break;
+                    case SaveSceneManagerDestroyType.SaveScene:
+                        SaveScene();
+                        break;
+                    case SaveSceneManagerDestroyType.None:
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
             }
             
             saveLoadManager.UnregisterSaveSceneManager(this);
         }
+        
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus) return;
+            
+            if (_hasSavedThisFrame && !autoSaveOnApplicationQuit) return;
+
+            _hasSavedThisFrame = true;
+            saveLoadManager.SaveFocus.SaveActiveScenes();
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (!pauseStatus) return;
+            
+            if (_hasSavedThisFrame && !autoSaveOnApplicationQuit) return;
+            
+            _hasSavedThisFrame = true;
+            saveLoadManager.SaveFocus.SaveActiveScenes();
+        }
+
+        private void OnApplicationQuit()
+        {
+            if (_hasSavedOnQuit && !autoSaveOnApplicationQuit) return;
+            
+            _hasSavedOnQuit = true;
+            saveLoadManager.SaveFocus.SaveActiveScenes();
+        }
+
+        #endregion
+
+        #region SaveLoad Methods
 
         [ContextMenu("Snapshot Scene")]
         public void SnapshotScene()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.SnapshotScenes(gameObject.scene);
         }
 
@@ -85,69 +136,43 @@ namespace SaveLoadSystem.Core.Component
         [ContextMenu("Save Scene")]
         public void SaveScene()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.SaveScenes(gameObject.scene);
         }
 
         [ContextMenu("Apply Snapshot")]
         public void ApplySnapshot()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.ApplySnapshotToScenes(gameObject.scene);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.LoadScenes(gameObject.scene);
         }
         
         [ContextMenu("Wipe Scene Data")]
         public void WipeSceneData()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.WipeSceneData(gameObject.scene);
         }
         
         [ContextMenu("Delete Scene Data")]
         public void DeleteSceneData()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.DeleteSceneDataFromDisk(gameObject.scene);
         }
 
         [ContextMenu("Reload Then Load Scene")]
         public void ReloadThenLoadScene()
         {
-            if (!saveLoadManager.HasSaveFocus)
-            {
-                saveLoadManager.SetFocus();
-            }
-            
             saveLoadManager.SaveFocus.ReloadThenLoadScenes(gameObject.scene);
         }
 
+        #endregion
+
+        #region Snapshot
+        
         internal SceneDataContainer CreateSnapshot()
         {
             //prepare data
@@ -177,8 +202,6 @@ namespace SaveLoadSystem.Core.Component
             //destroy prefabs, that are not present in the save file
             DestroyPrefabsOnLoad(sceneDataContainer, savableList, prefabPoolList);
         }
-
-        #region Universal
 
         private List<(string, string)> CreatePrefabPoolList(List<Savable> savableList)
         {

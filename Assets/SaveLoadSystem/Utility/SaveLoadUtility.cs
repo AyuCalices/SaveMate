@@ -3,7 +3,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using SaveLoadSystem.Core;
@@ -49,20 +48,22 @@ namespace SaveLoadSystem.Utility
             {
                 Directory.CreateDirectory(DirectoryPath(saveConfig));
             }
-    
+
+            var serializationStrategy = saveConfig.GetSerializeStrategy();
+            
             // Write save data to disk
             var saveDataPath = SaveDataPath(saveConfig, fileName);
-            using (var saveDataStream = new FileStream(saveDataPath, FileMode.Create))
+            await using (var saveDataStream = new FileStream(saveDataPath, FileMode.Create))
             {
                 saveMetaData.Checksum = HashingUtility.GenerateHash(saveDataStream);
-                await saveConfig.SerializeStrategy.SerializeAsync(saveDataStream, saveData);
+                await serializationStrategy.SerializeAsync(saveDataStream, saveData);
             }
     
             // Write meta data to disk
             var metaDataPath = MetaDataPath(saveConfig, fileName);
-            using (var metaDataStream = new FileStream(metaDataPath, FileMode.Create))
+            await using (var metaDataStream = new FileStream(metaDataPath, FileMode.Create))
             {
-                await saveConfig.SerializeStrategy.SerializeAsync(metaDataStream, saveMetaData);
+                await serializationStrategy.SerializeAsync(metaDataStream, saveMetaData);
             }
     
             Debug.LogWarning("Save Successful");
@@ -87,7 +88,7 @@ namespace SaveLoadSystem.Utility
         public static async Task<SaveMetaData> ReadMetaDataAsync(ISaveConfig saveConfig, string fileName)
         {
             var metaDataPath = MetaDataPath(saveConfig, fileName);
-            return await ReadDataAsync<SaveMetaData>(saveConfig.SerializeStrategy, metaDataPath);
+            return await ReadDataAsync<SaveMetaData>(saveConfig.GetSerializeStrategy(), metaDataPath);
         }
         
         public static async Task<SaveData> ReadSaveDataSecureAsync(SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
@@ -99,7 +100,7 @@ namespace SaveLoadSystem.Utility
             if (!IsValidVersion(metaData, saveVersion)) return null;
             
             var saveDataPath = SaveDataPath(saveConfig, fileName);
-            return await ReadDataAsync<SaveData>(saveConfig.SerializeStrategy, saveDataPath, stream =>
+            return await ReadDataAsync<SaveData>(saveConfig.GetSerializeStrategy(), saveDataPath, stream =>
             {
                 if (string.IsNullOrEmpty(metaData.Checksum)) return;
                 
@@ -139,8 +140,8 @@ namespace SaveLoadSystem.Utility
 
             return true;
         }
-        
-        public static async Task<T> ReadDataAsync<T>(ISerializeStrategy serializationStrategy, string saveDataPath, Action<FileStream> onDeserializeSuccessful = null) where T : class
+
+        private static async Task<T> ReadDataAsync<T>(ISerializeStrategy serializationStrategy, string saveDataPath, Action<FileStream> onDeserializeSuccessful = null) where T : class
         {
             if (!File.Exists(saveDataPath))
             {
@@ -150,18 +151,15 @@ namespace SaveLoadSystem.Utility
     
             try
             {
-                using (var saveDataStream = new FileStream(saveDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true))
+                await using var saveDataStream = new FileStream(saveDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
+                var saveData = await serializationStrategy.DeserializeAsync<T>(saveDataStream);
+                if (saveData != null)
                 {
-                    var saveData = await serializationStrategy.DeserializeAsync<T>(saveDataStream);
-                    if (saveData != null)
-                    {
-                        onDeserializeSuccessful?.Invoke(saveDataStream);
-                        return saveData;
-                    }
-            
-                    Debug.LogError("An error occurred while deserialization of the save data!");
-                    return null;
+                    onDeserializeSuccessful?.Invoke(saveDataStream);
+                    return saveData;
                 }
+                Debug.LogError("An error occurred while deserialization of the save data!");
+                return null;
             }
             catch (Exception ex)
             {
@@ -177,11 +175,6 @@ namespace SaveLoadSystem.Utility
     {
         Task SerializeAsync<T>(Stream stream, T data);
         Task<T> DeserializeAsync<T>(Stream stream) where T : class;
-    }
-    
-    public interface INestedSerializeStrategy : ISerializeStrategy
-    {
-        ISerializeStrategy SerializeStrategy { get; set; }
     }
 
     public class BinarySerializeStrategy : ISerializeStrategy
@@ -218,79 +211,79 @@ namespace SaveLoadSystem.Utility
     {
         public async Task SerializeAsync<T>(Stream stream, T data)
         {
-            using (var writer = new StreamWriter(stream))
-            {
-                var json = JsonConvert.SerializeObject(data);
-                await writer.WriteAsync(json);
-            }
+            await using var writer = new StreamWriter(stream);
+            var json = JsonConvert.SerializeObject(data);
+            await writer.WriteAsync(json);
         }
 
         public async Task<T> DeserializeAsync<T>(Stream stream) where T : class
         {
-            using (var reader = new StreamReader(stream))
-            {
-                var json = await reader.ReadToEndAsync();
-                return JsonConvert.DeserializeObject<T>(json);
-            }
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            return JsonConvert.DeserializeObject<T>(json);
         }
     }
     
-    public class FallThroughSerializeStrategy : INestedSerializeStrategy
+    public class AesEncryptSerializeStrategy : ISerializeStrategy
     {
         public ISerializeStrategy SerializeStrategy { get; set; }
+        
+        private readonly byte[] _key;
+        private readonly byte[] _iv;
 
-        public FallThroughSerializeStrategy(ISerializeStrategy serializeStrategy)
+        public AesEncryptSerializeStrategy(ISerializeStrategy serializeStrategy, byte[] key, byte[] iv)
         {
             SerializeStrategy = serializeStrategy;
+            
+            _key = key;
+            _iv = iv;
         }
 
         public async Task SerializeAsync<T>(Stream stream, T data)
         {
-            await SerializeStrategy.SerializeAsync(stream, data);
+            using var ms = new MemoryStream();
+            await SerializeStrategy.SerializeAsync(ms, data);
+            var encryptedData = Encrypt(ms.ToArray());
+            await stream.WriteAsync(encryptedData, 0, encryptedData.Length);
         }
 
         public async Task<T> DeserializeAsync<T>(Stream stream) where T : class
         {
-            return await SerializeStrategy.DeserializeAsync<T>(stream);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var decryptedData = Decrypt(ms.ToArray());
+            using var decryptedStream = new MemoryStream(decryptedData);
+            return await SerializeStrategy.DeserializeAsync<T>(decryptedStream);
+        }
+
+        private byte[] Encrypt(byte[] data)
+        {
+            using var aes = Aes.Create();
+            aes.Key = _key;
+            aes.IV = _iv;
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            using var ms = new MemoryStream();
+            using var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write);
+            cs.Write(data, 0, data.Length);
+            cs.FlushFinalBlock();
+            return ms.ToArray();
+        }
+
+        private byte[] Decrypt(byte[] data)
+        {
+            using var aes = Aes.Create();
+            aes.Key = _key;
+            aes.IV = _iv;
+            using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+            using var ms = new MemoryStream(data);
+            using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+            using var resultStream = new MemoryStream();
+            cs.CopyTo(resultStream);
+            return resultStream.ToArray();
         }
     }
     
-    public class AesEncryptSerializeStrategy : INestedSerializeStrategy
-    {
-        public ISerializeStrategy SerializeStrategy { get; set; }
-
-        public AesEncryptSerializeStrategy(ISerializeStrategy serializeStrategy)
-        {
-            SerializeStrategy = serializeStrategy;
-        }
-
-        public async Task SerializeAsync<T>(Stream stream, T data)
-        {
-            using (var ms = new MemoryStream())
-            {
-                await SerializeStrategy.SerializeAsync(ms, data);
-                
-                var encryptedData = AesEncryptionUtility.Encrypt(ms.ToArray());
-                await stream.WriteAsync(encryptedData, 0, encryptedData.Length);
-            }
-        }
-
-        public async Task<T> DeserializeAsync<T>(Stream stream) where T : class
-        {
-            using (var ms = new MemoryStream())
-            {
-                await stream.CopyToAsync(ms);
-                
-                var decryptedData = AesEncryptionUtility.Decrypt(ms.ToArray());
-                using (var decryptedStream = new MemoryStream(decryptedData))
-                {
-                    return await SerializeStrategy.DeserializeAsync<T>(decryptedStream);
-                }
-            }
-        }
-    }
-    
-    public class GzipCompressionSerializationStrategy : INestedSerializeStrategy
+    public class GzipCompressionSerializationStrategy : ISerializeStrategy
     {
         public ISerializeStrategy SerializeStrategy { get; set; }
 
@@ -301,94 +294,23 @@ namespace SaveLoadSystem.Utility
 
         public async Task SerializeAsync<T>(Stream stream, T data)
         {
-            using (var ms = new MemoryStream())
-            {
-                await SerializeStrategy.SerializeAsync(ms, data);
-                
-                var compressedData = GzipCompressionUtility.Compress(ms.ToArray());
-                await stream.WriteAsync(compressedData, 0, compressedData.Length);
-            }
+            using var memoryStream = new MemoryStream();
+            await SerializeStrategy.SerializeAsync(memoryStream, data);
+            await using var gzipStream = new GZipStream(stream, CompressionMode.Compress);
+            memoryStream.Position = 0;
+            await memoryStream.CopyToAsync(gzipStream);
         }
 
         public async Task<T> DeserializeAsync<T>(Stream stream) where T : class
         {
-            using (var ms = new MemoryStream())
-            {
-                await stream.CopyToAsync(ms);
-                var decompressedData = GzipCompressionUtility.Decompress(ms.ToArray());
-                
-                using (var decompressedStream = new MemoryStream(decompressedData))
-                {
-                    return await SerializeStrategy.DeserializeAsync<T>(decompressedStream);
-                }
-            }
-        }
-    }
-    
-    public static class AesEncryptionUtility
-    {
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef"); // Replace with your key
-        private static readonly byte[] IV = Encoding.UTF8.GetBytes("abcdef9876543210"); // Replace with your IV
-
-        public static byte[] Encrypt(byte[] data)
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = Key;
-                aes.IV = IV;
-
-                using (var encryptor = aes.CreateEncryptor(aes.Key, aes.IV))
-                using (var ms = new MemoryStream())
-                using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-                {
-                    cs.Write(data, 0, data.Length);
-                    cs.FlushFinalBlock();
-                    return ms.ToArray();
-                }
-            }
-        }
-
-        public static byte[] Decrypt(byte[] data)
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = Key;
-                aes.IV = IV;
-
-                using (var decryptor = aes.CreateDecryptor(aes.Key, aes.IV))
-                using (var ms = new MemoryStream(data))
-                using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read))
-                using (var resultStream = new MemoryStream())
-                {
-                    cs.CopyTo(resultStream);
-                    return resultStream.ToArray();
-                }
-            }
-        }
-    }
-    
-    public static class GzipCompressionUtility
-    {
-        public static byte[] Compress(byte[] data)
-        {
-            using (var compressedStream = new MemoryStream())
-            using (var gzipStream = new GZipStream(compressedStream, CompressionMode.Compress))
-            {
-                gzipStream.Write(data, 0, data.Length);
-                gzipStream.Close();
-                return compressedStream.ToArray();
-            }
-        }
-
-        public static byte[] Decompress(byte[] data)
-        {
-            using (var compressedStream = new MemoryStream(data))
-            using (var gzipStream = new GZipStream(compressedStream, CompressionMode.Decompress))
-            using (var resultStream = new MemoryStream())
-            {
-                gzipStream.CopyTo(resultStream);
-                return resultStream.ToArray();
-            }
+            using var decompressedStream = new MemoryStream();
+            await stream.CopyToAsync(decompressedStream);
+            decompressedStream.Position = 0;
+            await using var gzipStream = new GZipStream(decompressedStream, CompressionMode.Decompress);
+            var resultStream = new MemoryStream();
+            await gzipStream.CopyToAsync(resultStream);
+            resultStream.Position = 0;
+            return await SerializeStrategy.DeserializeAsync<T>(resultStream);
         }
     }
 }

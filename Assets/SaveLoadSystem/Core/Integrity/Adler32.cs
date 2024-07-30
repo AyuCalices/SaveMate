@@ -21,7 +21,7 @@ namespace SaveLoadSystem.Core.Integrity
     {
         private const uint ModAdler = 65521;
 
-        public static uint ComputeChecksum(byte[] data)
+        private static uint ComputeChecksum(byte[] data)
         {
             uint a = 1, b = 0;
             foreach (var t in data)

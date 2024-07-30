@@ -20,7 +20,7 @@ MonoBehaviour:
   extensionName: savegame
   metaDataExtensionName: metadata
   storageType: 0
-  encryptionType: 0
+  encryptionType: 1
   compressionType: 1
   integrityCheckType: 0
   autoSaveOnSaveFocusSwap: 0

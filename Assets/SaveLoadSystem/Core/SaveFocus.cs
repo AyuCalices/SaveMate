@@ -45,7 +45,7 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(async () =>
             {
-                if (SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName))
+                if (SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName) && SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName))
                 {
                     _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, FileName);
                     IsPersistent = true;
@@ -154,8 +154,13 @@ namespace SaveLoadSystem.Core
             {
                 if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
-
-                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                
+                //only load saveData, if it is persistent and not initialized
+                if (IsPersistent && _saveData == null)
+                {
+                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                }
+                
                 InternalLoadActiveScenes(_saveData, scenesToLoad);
             });
         }
@@ -176,7 +181,11 @@ namespace SaveLoadSystem.Core
                 if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
                 
-                _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                //only load saveData, if it is persistent and not initialized
+                if (IsPersistent && _saveData == null)
+                {
+                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                }
 
                 //buffer save paths, because they will be null later on the scene array
                 var savePaths = new string[scenesToLoad.Length];

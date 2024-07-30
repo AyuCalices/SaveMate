@@ -7,6 +7,6 @@ namespace SaveLoadSystem.Core
         string SavePath { get; }
         string ExtensionName { get; }
         string MetaDataExtensionName { get; }
-        ISerializeStrategy SerializeStrategy { get; }
+        ISerializeStrategy GetSerializeStrategy();
     }
 }

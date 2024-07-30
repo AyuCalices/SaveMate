@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Serializable;
 using SaveLoadSystem.Utility;
@@ -42,11 +43,13 @@ namespace SaveLoadSystem.Core
         [SerializeField] private int minor;
         [SerializeField] private int patch;
         
-        [Header("File Settings")]
+        [Header("File Name")]
         [SerializeField] private string defaultFileName;
         [SerializeField] private string savePath;
         [SerializeField] private string extensionName;
         [SerializeField] private string metaDataExtensionName;
+        
+        [Header("Storage")]
         [SerializeField] private StorageType storageType;
         [SerializeField] private EncryptionType encryptionType;
         [SerializeField] private CompressionType compressionType;
@@ -54,9 +57,6 @@ namespace SaveLoadSystem.Core
         
         [Header("Slot Settings")] 
         [SerializeField] private bool autoSaveOnSaveFocusSwap;
-        [SerializeField] private bool autoSaveOnApplicationPause;
-        [SerializeField] private bool autoSaveOnApplicationFocus;
-        [SerializeField] private bool autoSaveOnApplicationQuit;
         
         public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
         public event Action<SaveFocus, SaveFocus> OnAfterFocusChange;
@@ -64,7 +64,6 @@ namespace SaveLoadSystem.Core
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
-        public ISerializeStrategy SerializeStrategy => GetEncryptSerializeStrategy();
         public SaveVersion SaveVersion => new(major, minor, patch);
         public HashSet<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
         public bool HasSaveFocus => _saveFocus != null;
@@ -83,6 +82,11 @@ namespace SaveLoadSystem.Core
 
         private SaveFocus _saveFocus;
         private HashSet<SaveSceneManager> _scenesToReload;
+        
+        private static readonly byte[] DefaultAesKey = Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef");
+        private byte[] _aesKey;
+        private static readonly byte[] DefaultIvKey = Encoding.UTF8.GetBytes("abcdef9876543210");
+        private byte[] _aesIv;
 
         #region Simple Save
 
@@ -155,6 +159,26 @@ namespace SaveLoadSystem.Core
 
         #endregion
 
+        public ISerializeStrategy GetSerializeStrategy()
+        {
+            ISerializeStrategy strategy = GetSerializationStrategy();
+            strategy = WrapWithCompression(strategy);
+            strategy = WrapWithEncryption(strategy);
+            return strategy;
+        }
+        
+        public void SetAesEncryption(byte[] aesKey, byte[] aesIv)
+        {
+            _aesKey = aesKey;
+            _aesIv = aesIv;
+        }
+
+        public void ClearAesEncryption()
+        {
+            _aesKey = null;
+            _aesIv = null;
+        }
+
         #region Internal
 
         internal void RegisterSaveSceneManager(SaveSceneManager saveSceneManager)
@@ -182,29 +206,7 @@ namespace SaveLoadSystem.Core
             OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
         }
         
-        private INestedSerializeStrategy GetEncryptSerializeStrategy()
-        {
-            var serializationStrategy = GetCompressionSerializeStrategy();
-            return encryptionType switch
-            {
-                EncryptionType.None => new FallThroughSerializeStrategy(serializationStrategy),
-                EncryptionType.Aes => new AesEncryptSerializeStrategy(serializationStrategy),
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
-        
-        private INestedSerializeStrategy GetCompressionSerializeStrategy()
-        {
-            var serializationStrategy = GetSerializeStrategy();
-            return compressionType switch
-            {
-                CompressionType.None => new FallThroughSerializeStrategy(serializationStrategy),
-                CompressionType.Gzip => new GzipCompressionSerializationStrategy(serializationStrategy),
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
-        
-        private ISerializeStrategy GetSerializeStrategy()
+        private ISerializeStrategy GetSerializationStrategy()
         {
             return storageType switch
             {
@@ -213,7 +215,36 @@ namespace SaveLoadSystem.Core
                 StorageType.XML => new XmlSerializeStrategy(),
                 _ => throw new ArgumentOutOfRangeException()
             };
-        }        
+        }
+        
+        private ISerializeStrategy WrapWithCompression(ISerializeStrategy strategy)
+        {
+            return compressionType switch
+            {
+                CompressionType.None => strategy,
+                CompressionType.Gzip => new GzipCompressionSerializationStrategy(strategy),
+                _ => throw new ArgumentOutOfRangeException()
+            };
+        }
+
+        private ISerializeStrategy WrapWithEncryption(ISerializeStrategy strategy)
+        {
+            switch (encryptionType)
+            {
+                case EncryptionType.None:
+                    return strategy;
+                
+                case EncryptionType.Aes:
+                    if (_aesKey == null || _aesIv == null)
+                    {
+                        return new AesEncryptSerializeStrategy(strategy, DefaultAesKey, DefaultIvKey);
+                    }
+                    return new AesEncryptSerializeStrategy(strategy, _aesKey, _aesIv);
+
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
 
         #endregion
     }

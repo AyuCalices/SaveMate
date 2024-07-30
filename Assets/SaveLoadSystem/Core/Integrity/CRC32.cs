@@ -43,17 +43,6 @@ namespace SaveLoadSystem.Core.Integrity
             }
         }
 
-        public static uint Compute(byte[] bytes)
-        {
-            uint crc = 0xffffffff;
-            foreach (byte b in bytes)
-            {
-                byte tableIndex = (byte)(((crc) & 0xff) ^ b);
-                crc = (crc >> 8) ^ Table[tableIndex];
-            }
-            return ~crc;
-        }
-
         public static uint Compute(Stream stream)
         {
             uint crc = 0xffffffff;
