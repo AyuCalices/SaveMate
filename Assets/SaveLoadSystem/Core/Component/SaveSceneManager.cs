@@ -177,11 +177,11 @@ namespace SaveLoadSystem.Core.Component
             
             foreach (var savable in savableList)
             {
-                var savableGuidPath = new GuidPath(null, savable.SceneGuid);
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
                 
                 foreach (var componentContainer in savable.ReferenceList)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.fullPath, componentContainer.guid);
                     objectReferenceLookup.Add(componentContainer.unityObject, componentGuidPath);
                 }
             }
@@ -194,10 +194,10 @@ namespace SaveLoadSystem.Core.Component
             var saveElementLookup = new SavableElementLookup();
             foreach (var savable in savableList)
             {
-                var savableGuidPath = new GuidPath(null, savable.SceneGuid);
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
                 foreach (var componentContainer in savable.SavableList)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.fullPath, componentContainer.guid);
                     ProcessSavableElement(saveElementLookup, componentContainer.unityObject, componentGuidPath, saveElementLookup.Count());
                 }
             }
@@ -245,7 +245,7 @@ namespace SaveLoadSystem.Core.Component
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
                 if (reflectedField is UnityEngine.Object) continue;
                 
-                var path = new GuidPath(guidPath, fieldInfo.Name);
+                var path = new GuidPath(guidPath.fullPath, fieldInfo.Name);
                 ProcessSavableElement(savableElementLookup, reflectedField, path, insertIndex);
             }
             
@@ -257,7 +257,7 @@ namespace SaveLoadSystem.Core.Component
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
                 if (reflectedProperty is UnityEngine.Object) continue;
                 
-                var path = new GuidPath(guidPath, propertyInfo.Name);
+                var path = new GuidPath(guidPath.fullPath, propertyInfo.Name);
                 ProcessSavableElement(savableElementLookup, reflectedProperty, path, insertIndex);
             }
             
@@ -422,11 +422,11 @@ namespace SaveLoadSystem.Core.Component
             
             foreach (var savable in savableList)
             {
-                var savableGuidPath = new GuidPath(null, savable.SceneGuid);
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
                 
                 foreach (var componentContainer in savable.ReferenceList)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.fullPath, componentContainer.guid);
                     saveElementLookup.Add(componentGuidPath.ToString(), componentContainer.unityObject);
                 }
             }

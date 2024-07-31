@@ -38,7 +38,7 @@ namespace SaveLoadSystem.Core
                 return guidPath;
             }
             
-            guidPath = new GuidPath(_objectSaveDataBuffer.originGuidPath, uniqueIdentifier);
+            guidPath = new GuidPath(_objectSaveDataBuffer.originGuidPath.fullPath, uniqueIdentifier);
             if (!_savableElementLookup.ContainsElement(obj))
             {
                 SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);

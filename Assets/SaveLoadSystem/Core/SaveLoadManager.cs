@@ -26,7 +26,7 @@ namespace SaveLoadSystem.Core
         
         [Header("Storage")]
         [SerializeField] private SaveIntegrityType integrityCheckType;
-        [SerializeField] private SaveStorageType storageType;
+        //[SerializeField] private SaveStorageType storageType;
         [SerializeField] private SaveCompressionType compressionType;
         [SerializeField] private SaveEncryptionType encryptionType;
         [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
@@ -194,12 +194,15 @@ namespace SaveLoadSystem.Core
         
         private ISerializeStrategy GetSerializationStrategy()
         {
+            return new BinarySerializeStrategy();
+            
+            /*
             return storageType switch
             {
                 SaveStorageType.Binary => new BinarySerializeStrategy(),
                 SaveStorageType.Json => new JsonSerializeStrategy(),
                 _ => throw new ArgumentOutOfRangeException()
-            };
+            };*/
         }
         
         private ISerializeStrategy WrapWithCompression(ISerializeStrategy strategy)
