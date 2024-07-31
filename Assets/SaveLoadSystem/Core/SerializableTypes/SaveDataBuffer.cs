@@ -9,24 +9,21 @@ namespace SaveLoadSystem.Core.SerializableTypes
         public Component.SaveStrategy saveStrategy;
         public GuidPath originGuidPath;
         public string savableType;
-        public Dictionary<string, object> DefinedSaveData;
-        public Dictionary<string, object> CustomSaveData;
+        public Dictionary<string, GuidPath> GuidPathSaveData;
+        public Dictionary<string, object> SerializableSaveData;
+        
+        public Dictionary<string, GuidPath> CustomGuidPathSaveData;
+        public Dictionary<string, object> CustomSerializableSaveData;
 
         public SaveDataBuffer(Component.SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType)
         {
             this.saveStrategy = saveStrategy;
             originGuidPath = creatorGuidPath;
             this.savableType = savableType.AssemblyQualifiedName;
-        }
-
-        public void SetDefinedSaveData(Dictionary<string, object> definedSaveData)
-        {
-            DefinedSaveData = definedSaveData;
-        }
-
-        public void SetCustomSaveData(Dictionary<string, object> customSaveData)
-        {
-            CustomSaveData = customSaveData;
+            GuidPathSaveData = new();
+            SerializableSaveData = new();
+            CustomGuidPathSaveData = new();
+            CustomSerializableSaveData = new();
         }
     }
 }

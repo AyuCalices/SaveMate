@@ -19,19 +19,30 @@ namespace SaveLoadSystem.Core
             _guidPath = guidPath;
         }
         
+        public object GetSerializable(string identifier)
+        {
+            return _loadSaveDataBuffer.CustomSerializableSaveData[identifier];
+        }
+
         public T GetSerializable<T>(string identifier)
         {
-            return (T)_loadSaveDataBuffer.CustomSaveData[identifier];
+            return (T)_loadSaveDataBuffer.CustomSerializableSaveData[identifier];
         }
         
         public bool TryGetReferencable(string identifier, out object obj)
         {
-            return _loadSaveDataBuffer.CustomSaveData.TryGetValue(identifier, out obj);
-        }
+            if (_loadSaveDataBuffer.CustomSerializableSaveData.TryGetValue(identifier, out obj))
+            {
+                return true;
+            }
 
-        public object GetReferencable(string identifier)
-        {
-            return _loadSaveDataBuffer.CustomSaveData[identifier];
+            if (_loadSaveDataBuffer.CustomGuidPathSaveData.TryGetValue(identifier, out GuidPath guidPath))
+            {
+                obj = guidPath;
+                return true;
+            }
+
+            return false;
         }
 
         public void InitializeInstance(object obj)

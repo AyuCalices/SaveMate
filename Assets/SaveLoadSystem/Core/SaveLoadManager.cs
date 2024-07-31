@@ -111,9 +111,9 @@ namespace SaveLoadSystem.Core
                 if (_saveFocus.FileName == fileName) return;
                 
                 //other save, but still has pending data that can be saved
-                if (_saveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
+                if (autoSaveOnSaveFocusSwap)
                 {
-                    _saveFocus.WriteToDisk();
+                    _saveFocus.SaveScenes();
                 }
             }
             
@@ -123,9 +123,9 @@ namespace SaveLoadSystem.Core
         public void ReleaseFocus()
         {
             //save pending data if allowed
-            if (HasSaveFocus && _saveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
+            if (HasSaveFocus && autoSaveOnSaveFocusSwap)
             {
-                _saveFocus.WriteToDisk();
+                _saveFocus.SaveScenes();
             }
             
             SwapFocus(null);

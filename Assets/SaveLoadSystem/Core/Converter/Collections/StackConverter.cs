@@ -8,12 +8,13 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(Stack data, SaveDataHandler saveDataHandler)
         {
+            saveDataHandler.AddSerializable("count", data.Count);
+            
             var saveElements = data.ToArray();
             for (var index = 0; index < saveElements.Length; index++)
             {
-                saveElements[index] = saveDataHandler.ToReferencableObject(index.ToString(), saveElements[index]);
+                saveDataHandler.TryAddReferencable(index.ToString(), saveElements[index]);
             }
-            saveDataHandler.AddSerializable("elements", saveElements);
             
             var containedType = data.GetType().GetGenericArguments()[0];
             saveDataHandler.AddSerializable("type", containedType);
@@ -21,17 +22,25 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var loadElements = loadDataHandler.GetSerializable<List<object>>("elements");
-            var type = loadDataHandler.GetSerializable<Type>("type");
+            var count = loadDataHandler.GetSerializable<int>("count");
+            var loadElements = new List<object>();
+            for (var index = 0; index < count; index++)
+            {
+                if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
+                {
+                    loadElements.Add(obj);
+                }
+            }
             
+            var type = loadDataHandler.GetSerializable<Type>("type");
             var stackType = typeof(Stack<>).MakeGenericType(type);
             var stack = (Stack)Activator.CreateInstance(stackType);
             
             loadDataHandler.InitializeInstance(stack);
             
-            foreach (var saveElement in loadElements)
+            foreach (var loadElement in loadElements)
             {
-                loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => stack.Push(foundObject));
+                loadDataHandler.EnqueueReferenceBuilding(loadElement, foundObject => stack.Push(foundObject));
             }
         }
     }

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.SerializableTypes;
@@ -23,10 +22,25 @@ namespace SaveLoadSystem.Core
 
         public void AddSerializable(string uniqueIdentifier, object obj)
         {
-            _objectSaveDataBuffer.CustomSaveData.Add(uniqueIdentifier, obj);
+            _objectSaveDataBuffer.CustomSerializableSaveData.Add(uniqueIdentifier, obj);
         }
 
-        public object ToReferencableObject(string uniqueIdentifier, object obj)
+        public bool TryAddReferencable(string uniqueIdentifier, object obj)
+        {
+            var convertedObject = ToReferencableObject(uniqueIdentifier, obj);
+            if (convertedObject == null) return false;
+            
+            if (convertedObject is GuidPath guidPath)
+            {
+                _objectSaveDataBuffer.CustomGuidPathSaveData.Add(uniqueIdentifier, guidPath);
+                return true;
+            }
+
+            _objectSaveDataBuffer.CustomSerializableSaveData.Add(uniqueIdentifier, obj);
+            return true;
+        }
+
+        private object ToReferencableObject(string uniqueIdentifier, object obj)
         {
             if (obj == null)
             {
@@ -38,7 +52,7 @@ namespace SaveLoadSystem.Core
                 return guidPath;
             }
             
-            guidPath = new GuidPath(_objectSaveDataBuffer.originGuidPath, uniqueIdentifier);
+            guidPath = new GuidPath(_objectSaveDataBuffer.originGuidPath.fullPath, uniqueIdentifier);
             if (!_savableElementLookup.ContainsElement(obj))
             {
                 SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);
@@ -49,26 +63,9 @@ namespace SaveLoadSystem.Core
                 return saveElement.SaveStrategy == SaveStrategy.Serializable ? saveElement.Obj : saveElement.CreatorGuidPath;
             }
             
-            Debug.LogWarning("The object could not be processed or retrieved from the save element lookup.");
+            Debug.LogWarning("The object could not be processed or retrieved from the save element lookup. Creating a snapshot failed!");
 
             return null;
-        }
-        
-        public void AddReferencable(string uniqueIdentifier, object obj)
-        {
-            AddSerializable(uniqueIdentifier, ToReferencableObject(uniqueIdentifier, obj));
-        }
-
-        public bool TryAddReferencable(string uniqueIdentifier, object obj)
-        {
-            var referencable = ToReferencableObject(uniqueIdentifier, obj);
-            
-            if (referencable != null)
-            {
-                AddSerializable(uniqueIdentifier, referencable);
-            }
-
-            return referencable != null;
         }
     }
 }

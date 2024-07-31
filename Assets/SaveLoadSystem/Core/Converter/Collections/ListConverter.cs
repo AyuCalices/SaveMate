@@ -8,13 +8,12 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(IList data, SaveDataHandler saveDataHandler)
         {
-            var listElements = new List<object>();
+            saveDataHandler.AddSerializable("count", data.Count);
+            
             for (var index = 0; index < data.Count; index++)
             {
-                var savable = saveDataHandler.ToReferencableObject(index.ToString(), data[index]);
-                listElements.Add(savable);
+                saveDataHandler.TryAddReferencable(index.ToString(), data[index]);
             }
-            saveDataHandler.AddSerializable("elements", listElements);
             
             var containedType = data.GetType().GetGenericArguments()[0];
             saveDataHandler.AddSerializable("type", containedType);
@@ -22,15 +21,23 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var saveElements = loadDataHandler.GetSerializable<List<object>>("elements");
-            var type = loadDataHandler.GetSerializable<Type>("type");
+            var count = loadDataHandler.GetSerializable<int>("count");
+            var loadElements = new List<object>();
+            for (var index = 0; index < count; index++)
+            {
+                if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
+                {
+                    loadElements.Add(obj);
+                }
+            }
             
+            var type = loadDataHandler.GetSerializable<Type>("type");
             var listType = typeof(List<>).MakeGenericType(type);
             var list = (IList)Activator.CreateInstance(listType);
             
             loadDataHandler.InitializeInstance(list);
             
-            foreach (var saveElement in saveElements)
+            foreach (var saveElement in loadElements)
             {
                 loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => list.Add(foundObject));
             }

@@ -11,6 +11,23 @@ namespace SaveLoadSystem.Utility
     {
         private static BindingFlags InheritedBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
         private static BindingFlags DeclaredOnlyBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+
+        public static bool CanApplyTypeToMember(object memberOwner, string memberName, Type requestedType)
+        {
+            var fieldInfo = memberOwner.GetType().GetField(memberName, InheritedBindingFlags);
+            if (fieldInfo != null)
+            {
+                return fieldInfo.DeclaringType == requestedType;
+            }
+            
+            var propertyInfo = memberOwner.GetType().GetProperty(memberName, InheritedBindingFlags);
+            if (propertyInfo != null)
+            {
+                return propertyInfo.DeclaringType == requestedType;
+            }
+
+            return false;
+        }
         
         public static void TryApplyMemberValue(object memberOwner, string memberName, object data, bool debug = false)
         {
