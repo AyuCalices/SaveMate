@@ -17,59 +17,45 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        public void EnqueueReferenceBuilding(object obj, Action<object> onReferenceFound)
+        public void EnqueueReferenceBuilding(GuidPath path, Action<object> onReferenceFound)
         {
             _actionList.Enqueue((createdObjectsLookup, guidPathReferenceLookup) =>
             {
-                if (obj is GuidPath guidPath)
+                if (createdObjectsLookup.TryGetValue(path, out object value))
                 {
-                    if (createdObjectsLookup.TryGetValue(guidPath, out object value))
-                    {
-                        onReferenceFound.Invoke(value);
-                    }
-                    else if (guidPathReferenceLookup.TryGetValue(guidPath.ToString(), out value))
-                    {
-                        onReferenceFound.Invoke(value);
-                    }
-                    else
-                    {
-                        Debug.LogWarning("Wasn't able to find the created object!");
-                    }
+                    onReferenceFound.Invoke(value);
+                }
+                else if (guidPathReferenceLookup.TryGetValue(path.ToString(), out value))
+                {
+                    onReferenceFound.Invoke(value);
                 }
                 else
                 {
-                    onReferenceFound.Invoke(obj);
+                    Debug.LogWarning("Wasn't able to find the created object!");
                 }
             });
         }
         
-        public void EnqueueReferenceBuilding(object[] objectGroup, Action<object[]> onReferenceFound)
+        public void EnqueueReferenceBuilding(GuidPath[] pathGroup, Action<object[]> onReferenceFound)
         {
             _actionList.Enqueue((createdObjectsLookup, guidPathReferenceLookup) =>
             {
-                var convertedGroup = new object[objectGroup.Length];
+                var convertedGroup = new object[pathGroup.Length];
                 
-                for (var index = 0; index < objectGroup.Length; index++)
+                for (var index = 0; index < pathGroup.Length; index++)
                 {
-                    if (objectGroup[index] is GuidPath guidPath)
-                    {
-                        if (createdObjectsLookup.TryGetValue(guidPath, out object value))
-                        {
-                            convertedGroup[index] = value;
-                        }
-                        else if (guidPathReferenceLookup.TryGetValue(guidPath.ToString(), out value))
-                        {
-                            convertedGroup[index] = value;
-                        }
-                        else
-                        {
-                            Debug.LogWarning("Wasn't able to find the created object!");
-                        }
-                    }
-                    else
-                    {
-                        convertedGroup[index] = objectGroup[index];
-                    }
+                     if (createdObjectsLookup.TryGetValue(pathGroup[index], out object value)) 
+                     {
+                        convertedGroup[index] = value; 
+                     }
+                     else if (guidPathReferenceLookup.TryGetValue(pathGroup[index].ToString(), out value)) 
+                     { 
+                         convertedGroup[index] = value; 
+                     }
+                     else 
+                     { 
+                         Debug.LogWarning("Wasn't able to find the created object!"); 
+                     }
                 }
 
                 onReferenceFound.Invoke(convertedGroup);

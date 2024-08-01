@@ -182,7 +182,7 @@ namespace SaveLoadSystem.Core.Component
                 
                 foreach (var componentContainer in savable.ReferenceList)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.fullPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
                     objectReferenceLookup.Add(componentContainer.unityObject, componentGuidPath);
                 }
             }
@@ -198,7 +198,7 @@ namespace SaveLoadSystem.Core.Component
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
                 foreach (var componentContainer in savable.SavableList)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.fullPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
                     ProcessSavableElement(saveElementLookup, componentContainer.unityObject, componentGuidPath, saveElementLookup.Count());
                 }
             }
@@ -246,7 +246,7 @@ namespace SaveLoadSystem.Core.Component
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
                 if (reflectedField is UnityEngine.Object) continue;
                 
-                var path = new GuidPath(guidPath.fullPath, fieldInfo.Name);
+                var path = new GuidPath(guidPath.FullPath, fieldInfo.Name);
                 ProcessSavableElement(savableElementLookup, reflectedField, path, insertIndex);
             }
             
@@ -258,7 +258,7 @@ namespace SaveLoadSystem.Core.Component
                 //UnityEngine.Object always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
                 if (reflectedProperty is UnityEngine.Object) continue;
                 
-                var path = new GuidPath(guidPath.fullPath, propertyInfo.Name);
+                var path = new GuidPath(guidPath.FullPath, propertyInfo.Name);
                 ProcessSavableElement(savableElementLookup, reflectedProperty, path, insertIndex);
             }
             
@@ -358,7 +358,7 @@ namespace SaveLoadSystem.Core.Component
                     {
                         if (foundSaveElement.SaveStrategy == SaveStrategy.Serializable)
                         {
-                            objectSaveDataBuffer.SerializableSaveData.Add(objectName, foundSaveElement.Obj);
+                            objectSaveDataBuffer.SerializableSaveData.Add(objectName, JToken.FromObject(obj));
                         }
                         else
                         {
@@ -428,7 +428,7 @@ namespace SaveLoadSystem.Core.Component
                 
                 foreach (var componentContainer in savable.ReferenceList)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.fullPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
                     saveElementLookup.Add(componentGuidPath.ToString(), componentContainer.unityObject);
                 }
             }
@@ -440,7 +440,7 @@ namespace SaveLoadSystem.Core.Component
         {
             var createdObjectsLookup = new Dictionary<GuidPath, object>();
             
-            foreach (var (guidPath, saveDataBuffer) in sceneDataContainer.SaveDataBuffers)
+            foreach (var (guidPath, saveDataBuffer) in sceneDataContainer.SaveObjectLookup)
             {
                 var type = Type.GetType(saveDataBuffer.savableType);
                 if (type == null)
@@ -529,17 +529,17 @@ namespace SaveLoadSystem.Core.Component
             foreach (var (identifier, obj) in guidPathSavable)
             {
                 deserializeReferenceBuilder.EnqueueReferenceBuilding(obj, targetObject => 
-                    TypeUtility.TryApplyMemberValue(memberOwner, identifier, targetObject, true));
+                    TypeUtility.TryApplyObjectToMember(memberOwner, identifier, targetObject, true));
             }
         }
         
-        private void WriteSerializableSavableMember(object memberOwner, Dictionary<string, object> serializableSavable)
+        private void WriteSerializableSavableMember(object memberOwner, JObject serializableSavables)
         {
-            if (serializableSavable == null) return;
+            if (serializableSavables == null) return;
             
-            foreach (var (identifier, obj) in serializableSavable)
+            foreach (var (identifier, obj) in serializableSavables)
             {
-                TypeUtility.TryApplyMemberValue(memberOwner, identifier, obj);
+                TypeUtility.TryApplyJsonObjectToMember(memberOwner, identifier, obj);
             }
         }
         

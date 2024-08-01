@@ -22,12 +22,6 @@ namespace SaveLoadSystem.Utility
         CRC32,
         Adler32
     }
-    
-    public enum SaveStorageType
-    {
-        Binary,
-        Json
-    }
 
     public enum SaveEncryptionType
     {

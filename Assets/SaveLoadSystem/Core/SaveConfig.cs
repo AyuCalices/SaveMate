@@ -1,6 +1,5 @@
 using SaveLoadSystem.Core.Integrity;
 using SaveLoadSystem.Core.SerializeStrategy;
-using SaveLoadSystem.Utility;
 
 namespace SaveLoadSystem.Core
 {
@@ -9,7 +8,14 @@ namespace SaveLoadSystem.Core
         string SavePath { get; }
         string ExtensionName { get; }
         string MetaDataExtensionName { get; }
-        ISerializeStrategy GetSerializeStrategy();
+        
+    }
+
+    public interface ISaveStrategy
+    {
+        ISerializationStrategy GetSerializationStrategy();
+        ICompressionStrategy GetCompressionStrategy();
+        IEncryptionStrategy GetEncryptionStrategy();
         IIntegrityStrategy GetIntegrityStrategy();
     }
 }

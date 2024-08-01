@@ -10,20 +10,20 @@ namespace SaveLoadSystem.Core.SerializableTypes
     {
         public readonly List<(string, string)> PrefabList;
         
-        [JsonIgnore] public Dictionary<GuidPath, SaveDataBuffer> SaveDataBuffers;
-        [JsonProperty] private List<KeyValuePair<GuidPath, SaveDataBuffer>> SerializedLocations
+        [JsonIgnore] public Dictionary<GuidPath, SaveDataBuffer> SaveObjectLookup;
+        [JsonProperty] private List<KeyValuePair<GuidPath, SaveDataBuffer>> SaveObjectList
         {
-            get => SaveDataBuffers.ToList();
+            get => SaveObjectLookup.ToList();
             set
             {
-                SaveDataBuffers = value.ToDictionary(x => x.Key, x => x.Value);
+                SaveObjectLookup = value.ToDictionary(x => x.Key, x => x.Value);
             }
         }
         
-        public SceneDataContainer(Dictionary<GuidPath, SaveDataBuffer> saveDataBuffers, List<(string, string)> prefabList)
+        public SceneDataContainer(Dictionary<GuidPath, SaveDataBuffer> saveObjectLookup, List<(string, string)> prefabList)
         {
             PrefabList = prefabList;
-            SaveDataBuffers = saveDataBuffers;
+            SaveObjectLookup = saveObjectLookup;
         }
     }
 }

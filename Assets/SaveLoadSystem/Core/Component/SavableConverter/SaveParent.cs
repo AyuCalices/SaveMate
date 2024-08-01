@@ -1,3 +1,4 @@
+using SaveLoadSystem.Core.SerializableTypes;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core.Component.SavableConverter
@@ -17,7 +18,7 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            if (!loadDataHandler.TryGetReferencable("parent", out object parent)) return;
+            if (!loadDataHandler.TryGetReferencable("parent", out GuidPath parent)) return;
                 
             var siblingIndex = loadDataHandler.GetSerializable<int>("siblingIndex");
             

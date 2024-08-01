@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using SaveLoadSystem.Core.SerializableTypes;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -18,17 +19,17 @@ namespace SaveLoadSystem.Core.Converter.Collections
                 index++;
             }
             
-            var keyType = data.GetType().GetGenericArguments()[0];
-            saveDataHandler.AddSerializable("keyType", keyType);
+            var keyTypeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
+            saveDataHandler.AddSerializable("keyType", keyTypeString);
             
-            var valueType = data.GetType().GetGenericArguments()[1];
-            saveDataHandler.AddSerializable("valueType", valueType);
+            var valueTypeString = data.GetType().GetGenericArguments()[1].AssemblyQualifiedName;
+            saveDataHandler.AddSerializable("valueType", valueTypeString);
         }
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.GetSerializable<int>("count");
-            var loadElements = new List<(object, object)>();
+            var loadElements = new List<(GuidPath, GuidPath)>();
             for (var index = 0; index < count; index++)
             {
                 if (loadDataHandler.TryGetReferencable("key" + index, out var key)
@@ -38,9 +39,9 @@ namespace SaveLoadSystem.Core.Converter.Collections
                 }
             }
             
-            var keyType = loadDataHandler.GetSerializable<Type>("keyType");
-            var valueType = loadDataHandler.GetSerializable<Type>("valueType");
-            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
+            var keyTypeString = loadDataHandler.GetSerializable<string>("keyType");
+            var valueTypeString = loadDataHandler.GetSerializable<string>("valueType");
+            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(Type.GetType(keyTypeString), Type.GetType(valueTypeString));
             var dictionary = (IDictionary)Activator.CreateInstance(dictionaryType);
             
             loadDataHandler.InitializeInstance(dictionary);

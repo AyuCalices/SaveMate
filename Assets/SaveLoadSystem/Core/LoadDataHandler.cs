@@ -18,31 +18,20 @@ namespace SaveLoadSystem.Core
             _createdObjectsLookup = createdObjectsLookup;
             _guidPath = guidPath;
         }
-        
-        public object GetSerializable(string identifier)
-        {
-            return _loadSaveDataBuffer.CustomSerializableSaveData[identifier];
-        }
 
         public T GetSerializable<T>(string identifier)
         {
-            return (T)_loadSaveDataBuffer.CustomSerializableSaveData[identifier];
+            if (_loadSaveDataBuffer.CustomSerializableSaveData[identifier] == null)
+            {
+                return default;
+            }
+            
+            return _loadSaveDataBuffer.CustomSerializableSaveData[identifier].ToObject<T>();
         }
         
-        public bool TryGetReferencable(string identifier, out object obj)
+        public bool TryGetReferencable(string identifier, out GuidPath guidPath)
         {
-            if (_loadSaveDataBuffer.CustomSerializableSaveData.TryGetValue(identifier, out obj))
-            {
-                return true;
-            }
-
-            if (_loadSaveDataBuffer.CustomGuidPathSaveData.TryGetValue(identifier, out GuidPath guidPath))
-            {
-                obj = guidPath;
-                return true;
-            }
-
-            return false;
+            return _loadSaveDataBuffer.CustomGuidPathSaveData.TryGetValue(identifier, out guidPath);
         }
 
         public void InitializeInstance(object obj)
@@ -50,14 +39,14 @@ namespace SaveLoadSystem.Core
             _createdObjectsLookup.Add(_guidPath, obj);
         }
 
-        public void EnqueueReferenceBuilding(object obj, Action<object> onReferenceFound)
+        public void EnqueueReferenceBuilding(GuidPath path, Action<object> onReferenceFound)
         {
-            _deserializeReferenceBuilder.EnqueueReferenceBuilding(obj, onReferenceFound);
+            _deserializeReferenceBuilder.EnqueueReferenceBuilding(path, onReferenceFound);
         }
 
-        public void EnqueueReferenceBuilding(object[] objectGroup, Action<object[]> onReferenceFound)
+        public void EnqueueReferenceBuilding(GuidPath[] pathGroup, Action<object[]> onReferenceFound)
         {
-            _deserializeReferenceBuilder.EnqueueReferenceBuilding(objectGroup, onReferenceFound);
+            _deserializeReferenceBuilder.EnqueueReferenceBuilding(pathGroup, onReferenceFound);
         }
     }
 }

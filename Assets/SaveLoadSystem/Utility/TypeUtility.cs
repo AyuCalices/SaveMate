@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
+using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace SaveLoadSystem.Utility
@@ -11,25 +12,8 @@ namespace SaveLoadSystem.Utility
     {
         private static BindingFlags InheritedBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
         private static BindingFlags DeclaredOnlyBindingFlags => BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
-
-        public static bool CanApplyTypeToMember(object memberOwner, string memberName, Type requestedType)
-        {
-            var fieldInfo = memberOwner.GetType().GetField(memberName, InheritedBindingFlags);
-            if (fieldInfo != null)
-            {
-                return fieldInfo.DeclaringType == requestedType;
-            }
-            
-            var propertyInfo = memberOwner.GetType().GetProperty(memberName, InheritedBindingFlags);
-            if (propertyInfo != null)
-            {
-                return propertyInfo.DeclaringType == requestedType;
-            }
-
-            return false;
-        }
         
-        public static void TryApplyMemberValue(object memberOwner, string memberName, object data, bool debug = false)
+        public static void TryApplyObjectToMember(object memberOwner, string memberName, object data, bool debug = false)
         {
             var fieldInfo = memberOwner.GetType().GetField(memberName, InheritedBindingFlags);
             if (fieldInfo != null)
@@ -42,6 +26,28 @@ namespace SaveLoadSystem.Utility
             if (propertyInfo != null)
             {
                 propertyInfo.SetValue(memberOwner, data);
+                return;
+            }
+            
+            if (debug)
+            {
+                Debug.LogWarning($"The requested property with name '{memberName}' was not found on type '{memberOwner.GetType()}'!");
+            }
+        }
+        
+        public static void TryApplyJsonObjectToMember(object memberOwner, string memberName, JToken data, bool debug = false)
+        {
+            var fieldInfo = memberOwner.GetType().GetField(memberName, InheritedBindingFlags);
+            if (fieldInfo != null)
+            {
+                fieldInfo.SetValue(memberOwner, data.ToObject(fieldInfo.FieldType));
+                return;
+            }
+            
+            var propertyInfo = memberOwner.GetType().GetProperty(memberName, InheritedBindingFlags);
+            if (propertyInfo != null)
+            {
+                propertyInfo.SetValue(memberOwner, data.ToObject(propertyInfo.PropertyType));
                 return;
             }
             

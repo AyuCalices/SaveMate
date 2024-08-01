@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SaveLoadSystem.Core.SerializableTypes;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -27,14 +28,14 @@ namespace SaveLoadSystem.Core.Converter.Collections
                 index++;
             }
             
-            var containedType = data.GetType().GetElementType();
-            saveDataHandler.AddSerializable("type", containedType);
+            var typeString = data.GetType().GetElementType()?.AssemblyQualifiedName;
+            saveDataHandler.AddSerializable("type", typeString);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.GetSerializable<int>("count");
-            var loadElements = new List<object>();
+            var loadElements = new List<GuidPath>();
             for (int index = 0; index < count; index++)
             {
                 if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
@@ -43,8 +44,8 @@ namespace SaveLoadSystem.Core.Converter.Collections
                 }
             }
             
-            var type = loadDataHandler.GetSerializable<Type>("type");
-            var array = Array.CreateInstance(type, loadElements.Count);
+            var typeString = loadDataHandler.GetSerializable<string>("type");
+            var array = Array.CreateInstance(Type.GetType(typeString), loadElements.Count);
             
             loadDataHandler.InitializeInstance(array);
 

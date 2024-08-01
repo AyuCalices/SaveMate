@@ -1,31 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Plastic.Newtonsoft.Json;
 
 namespace SaveLoadSystem.Core.SerializableTypes
 {
     [Serializable]
     public class GuidPath : IEquatable<GuidPath>
     {
-        public string[] fullPath;
+        [JsonProperty] public readonly string[] FullPath;
         
         public GuidPath() {}
         
         public GuidPath(string guid)
         {
-            fullPath = new[] {guid};
+            FullPath = new[] {guid};
         }
         
         public GuidPath(string[] parentPath, string guid)
         {
-            fullPath = new string[parentPath.Length + 1];
-            Array.Copy(parentPath, fullPath, parentPath.Length);
-            fullPath[^1] = guid;
+            FullPath = new string[parentPath.Length + 1];
+            Array.Copy(parentPath, FullPath, parentPath.Length);
+            FullPath[^1] = guid;
         }
         
         public Stack<string> ToStack()
         {
-            var stack = new Stack<string>(fullPath.Reverse());
+            var stack = new Stack<string>(FullPath.Reverse());
             return stack;
         }
 
@@ -33,7 +34,7 @@ namespace SaveLoadSystem.Core.SerializableTypes
         {
             var pathString = "";
             
-            foreach (var path in fullPath)
+            foreach (var path in FullPath)
             {
                 pathString += path + "/";
             }
@@ -58,12 +59,21 @@ namespace SaveLoadSystem.Core.SerializableTypes
 
         public override int GetHashCode()
         {
-            return (fullPath != null ? fullPath.GetHashCode() : 0);
+            if (FullPath == null)
+                return 0;
+
+            // Use a hash code aggregator
+            int hash = 17;
+            foreach (var path in FullPath)
+            {
+                hash = hash * 31 + (path != null ? path.GetHashCode() : 0);
+            }
+            return hash;
         }
 
         private bool InternalEquals(GuidPath other)
         {
-            return fullPath.SequenceEqual(other.fullPath);
+            return FullPath.SequenceEqual(other.FullPath);
         }
     }
 }

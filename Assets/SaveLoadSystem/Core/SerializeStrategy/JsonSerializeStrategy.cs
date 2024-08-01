@@ -1,23 +1,37 @@
+using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Unity.Plastic.Newtonsoft.Json;
 
 namespace SaveLoadSystem.Core.SerializeStrategy
 {
-    public class JsonSerializeStrategy : ISerializeStrategy
+    public class JsonSerializeStrategy : ISerializationStrategy
     {
-        public async Task SerializeAsync<T>(Stream stream, T data)
+        public async Task<byte[]> SerializeAsync(object data)
         {
-            await using var writer = new StreamWriter(stream);
-            var json = JsonConvert.SerializeObject(data);
-            await writer.WriteAsync(json);
+            string jsonString = JsonConvert.SerializeObject(data);
+
+            // Using a memory stream to write bytes asynchronously
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
+                await memoryStream.WriteAsync(jsonBytes, 0, jsonBytes.Length);
+                return memoryStream.ToArray();
+            }
         }
 
-        public async Task<T> DeserializeAsync<T>(Stream stream) where T : class
+        public async Task<object> DeserializeAsync(byte[] data, Type type)
         {
-            using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync();
-            return JsonConvert.DeserializeObject<T>(json);
+            using (MemoryStream memoryStream = new MemoryStream(data))
+            {
+                // Reading data asynchronously
+                using (StreamReader reader = new StreamReader(memoryStream, Encoding.UTF8))
+                {
+                    string jsonString = await reader.ReadToEndAsync();
+                    return JsonConvert.DeserializeObject(jsonString, type);
+                }
+            }
         }
     }
 }

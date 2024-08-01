@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using SaveLoadSystem.Core.SerializableTypes;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -16,14 +17,14 @@ namespace SaveLoadSystem.Core.Converter.Collections
                 saveDataHandler.TryAddReferencable(index.ToString(), saveElements[index]);
             }
             
-            var containedType = data.GetType().GetGenericArguments()[0];
-            saveDataHandler.AddSerializable("type", containedType);
+            var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
+            saveDataHandler.AddSerializable("type", typeString);
         }
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.GetSerializable<int>("count");
-            var loadElements = new List<object>();
+            var loadElements = new List<GuidPath>();
             for (var index = 0; index < count; index++)
             {
                 if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
@@ -32,8 +33,8 @@ namespace SaveLoadSystem.Core.Converter.Collections
                 }
             }
             
-            var type = loadDataHandler.GetSerializable<Type>("type");
-            var queueType = typeof(Queue<>).MakeGenericType(type);
+            var typeString = loadDataHandler.GetSerializable<string>("type");
+            var queueType = typeof(Queue<>).MakeGenericType(Type.GetType(typeString));
             var queue = (Queue)Activator.CreateInstance(queueType);
             
             loadDataHandler.InitializeInstance(queue);

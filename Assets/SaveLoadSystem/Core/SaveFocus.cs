@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SaveLoadSystem.Core.SerializableTypes;
 using SaveLoadSystem.Utility;
+using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -19,7 +20,7 @@ namespace SaveLoadSystem.Core
         private readonly SaveLoadManager _saveLoadManager;
         private readonly AsyncOperationQueue _asyncQueue;
         
-        private Dictionary<string, object> _customMetaData;
+        private JObject _customMetaData;
         private SaveMetaData _metaData;
         private SaveData _saveData;
         
@@ -47,7 +48,7 @@ namespace SaveLoadSystem.Core
             {
                 if (SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName) && SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName))
                 {
-                    _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, FileName);
+                    _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, _saveLoadManager, FileName);
                     IsPersistent = true;
                     _customMetaData = _metaData.CustomData;
                 }
@@ -68,9 +69,19 @@ namespace SaveLoadSystem.Core
             
             _asyncQueue.Enqueue(() =>
             {
-                _customMetaData[identifier] = data;
+                _customMetaData.Add(identifier, JToken.FromObject(data));
                 return Task.CompletedTask;
             });
+        }
+
+        public T GetCustomMetaData<T>(string identifier)
+        {
+            if (_customMetaData?[identifier] == null)
+            {
+                return default;
+            }
+            
+            return _customMetaData[identifier].ToObject<T>();
         }
         
         public void SnapshotActiveScenes()
@@ -107,7 +118,7 @@ namespace SaveLoadSystem.Core
                 };
 
                 OnBeforeWriteToDisk?.Invoke();
-                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, FileName, _metaData, _saveData);
+                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, _saveData);
 
                 IsPersistent = true;
                 HasPendingData = false;
@@ -160,7 +171,7 @@ namespace SaveLoadSystem.Core
                 //only load saveData, if it is persistent and not initialized
                 if (IsPersistent && _saveData == null)
                 {
-                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
                 
                 InternalLoadActiveScenes(_saveData, scenesToLoad);
@@ -186,7 +197,7 @@ namespace SaveLoadSystem.Core
                 //only load saveData, if it is persistent and not initialized
                 if (IsPersistent && _saveData == null)
                 {
-                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
 
                 //buffer save paths, because they will be null later on the scene array

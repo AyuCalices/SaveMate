@@ -3,7 +3,6 @@ using System.IO;
 using System.Threading.Tasks;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.SerializableTypes;
-using SaveLoadSystem.Core.SerializeStrategy;
 using UnityEngine;
 
 namespace SaveLoadSystem.Utility
@@ -36,29 +35,35 @@ namespace SaveLoadSystem.Utility
             return File.Exists(path);
         }
         
-        public static async Task WriteDataAsync<T>(ISaveConfig saveConfig, string fileName, 
+        public static async Task WriteDataAsync<T>(ISaveConfig saveConfig, ISaveStrategy saveStrategy, string fileName, 
             SaveMetaData saveMetaData, T saveData) where T : class
         {
             if (!Directory.Exists(DirectoryPath(saveConfig)))
             {
                 Directory.CreateDirectory(DirectoryPath(saveConfig));
             }
-
-            var serializationStrategy = saveConfig.GetSerializeStrategy();
             
             // Write save data to disk
             var saveDataPath = SaveDataPath(saveConfig, fileName);
             await using (var saveDataStream = new FileStream(saveDataPath, FileMode.Create))
             {
-                saveMetaData.Checksum = saveConfig.GetIntegrityStrategy().ComputeChecksum(saveDataStream);
-                await serializationStrategy.SerializeAsync(saveDataStream, saveData);
+                var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveData);
+                var compressedData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedData);
+                var encryptedData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedData);
+                
+                await saveDataStream.WriteAsync(encryptedData, 0, encryptedData.Length);
+                saveMetaData.Checksum = saveStrategy.GetIntegrityStrategy().ComputeChecksum(saveDataStream);
             }
     
             // Write meta data to disk
             var metaDataPath = MetaDataPath(saveConfig, fileName);
             await using (var metaDataStream = new FileStream(metaDataPath, FileMode.Create))
             {
-                await serializationStrategy.SerializeAsync(metaDataStream, saveMetaData);
+                var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveMetaData);
+                var compressedData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedData);
+                var encryptedData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedData);
+                
+                await metaDataStream.WriteAsync(encryptedData, 0, encryptedData.Length);
             }
         }
         
@@ -78,33 +83,22 @@ namespace SaveLoadSystem.Utility
             await Task.Run(() => File.Delete(metaDataPath));
         }
 
-        public static async Task<SaveMetaData> ReadMetaDataAsync(ISaveConfig saveConfig, string fileName)
+        public static async Task<SaveMetaData> ReadMetaDataAsync(ISaveStrategy saveStrategy, ISaveConfig saveConfig, string fileName)
         {
             var metaDataPath = MetaDataPath(saveConfig, fileName);
-            return await ReadDataAsync<SaveMetaData>(saveConfig.GetSerializeStrategy(), metaDataPath);
+            return await ReadDataAsync<SaveMetaData>(saveStrategy, metaDataPath);
         }
         
-        public static async Task<SaveData> ReadSaveDataSecureAsync(SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
+        public static async Task<SaveData> ReadSaveDataSecureAsync(ISaveStrategy saveStrategy, SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
         {
-            var metaData = await ReadMetaDataAsync(saveConfig, fileName);
+            var metaData = await ReadMetaDataAsync(saveStrategy, saveConfig, fileName);
             if (metaData == null) return null;
             
             //check save version
             if (!IsValidVersion(metaData, saveVersion)) return null;
             
             var saveDataPath = SaveDataPath(saveConfig, fileName);
-            return await ReadDataAsync<SaveData>(saveConfig.GetSerializeStrategy(), saveDataPath, stream =>
-            {
-                if (string.IsNullOrEmpty(metaData.Checksum)) return;
-                
-                if (metaData.Checksum == saveConfig.GetIntegrityStrategy().ComputeChecksum(stream))
-                {
-                    Debug.LogWarning("Integrity Check Successful!");
-                    return;
-                }
-                
-                Debug.LogError("The save data didn't pass the data integrity check!");
-            });
+            return await ReadDataAsync<SaveData>(saveStrategy, saveDataPath, metaData.Checksum);
         }
 
         #endregion
@@ -134,7 +128,7 @@ namespace SaveLoadSystem.Utility
             return true;
         }
 
-        private static async Task<T> ReadDataAsync<T>(ISerializeStrategy serializationStrategy, string saveDataPath, Action<FileStream> onDeserializeSuccessful = null) where T : class
+        private static async Task<T> ReadDataAsync<T>(ISaveStrategy saveStrategy, string saveDataPath, string checksum = null) where T : class
         {
             if (!File.Exists(saveDataPath))
             {
@@ -144,15 +138,30 @@ namespace SaveLoadSystem.Utility
     
             try
             {
-                await using var saveDataStream = new FileStream(saveDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, true);
-                var saveData = await serializationStrategy.DeserializeAsync<T>(saveDataStream);
-                if (saveData != null)
+                byte[] encryptedData;
+                
+                await using (FileStream fileStream = new FileStream(saveDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, useAsync: true))
                 {
-                    onDeserializeSuccessful?.Invoke(saveDataStream);
-                    return saveData;
+                    encryptedData = new byte[fileStream.Length];
+                    var readAsync = await fileStream.ReadAsync(encryptedData, 0, encryptedData.Length);
+
+                    if (checksum != null)
+                    {
+                        if (checksum == saveStrategy.GetIntegrityStrategy().ComputeChecksum(fileStream))
+                        {
+                            Debug.LogWarning("Integrity Check Successful!");
+                        }
+                        else
+                        {
+                            Debug.LogError("The save data didn't pass the data integrity check!");
+                            return null;
+                        }
+                    }
                 }
-                Debug.LogError("An error occurred while deserialization of the save data!");
-                return null;
+                
+                var decryptedData = await saveStrategy.GetEncryptionStrategy().DecryptAsync(encryptedData);
+                var serializedData = await saveStrategy.GetCompressionStrategy().DecompressAsync(decryptedData);
+                return (T)await saveStrategy.GetSerializationStrategy().DeserializeAsync(serializedData, typeof(T));
             }
             catch (Exception ex)
             {

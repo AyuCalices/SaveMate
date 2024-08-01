@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using Unity.Plastic.Newtonsoft.Json.Linq;
 
 namespace SaveLoadSystem.Core.SerializableTypes
 {
@@ -9,6 +9,6 @@ namespace SaveLoadSystem.Core.SerializableTypes
         public SaveVersion SaveVersion;
         public DateTime ModificationDate;
         public string Checksum;
-        public Dictionary<string, object> CustomData = new();
+        public JObject CustomData = new();
     }
 }
