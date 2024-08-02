@@ -11,7 +11,8 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
         private readonly GuidPath _guidPath;
 
-        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder, Dictionary<GuidPath, object> createdObjectsLookup, GuidPath guidPath)
+        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, GuidPath guidPath, Dictionary<GuidPath, object> createdObjectsLookup, 
+            DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             _loadSaveDataBuffer = loadSaveDataBuffer;
             _deserializeReferenceBuilder = deserializeReferenceBuilder;

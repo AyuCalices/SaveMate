@@ -8,14 +8,17 @@ namespace SaveLoadSystem.Core
     public class SaveDataHandler
     {
         private readonly SaveDataBuffer _objectSaveDataBuffer;
+        private readonly GuidPath _originGuidPath;
         private readonly Dictionary<GuidPath, SaveDataBuffer> _saveDataBuffer;
         private readonly SavableElementLookup _savableElementLookup;
         private readonly Dictionary<object, GuidPath> _objectReferenceLookup;
         private readonly int _currentIndex;
 
-        public SaveDataHandler(SaveDataBuffer objectSaveDataBuffer, Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int currentIndex)
+        public SaveDataHandler(Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SaveDataBuffer objectSaveDataBuffer, GuidPath originGuidPath, 
+            SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int currentIndex)
         {
             _objectSaveDataBuffer = objectSaveDataBuffer;
+            _originGuidPath = originGuidPath;
             _saveDataBuffer = saveDataBuffer;
             _savableElementLookup = savableElementLookup;
             _objectReferenceLookup = objectReferenceLookup;
@@ -51,7 +54,7 @@ namespace SaveLoadSystem.Core
             
             if (!_savableElementLookup.ContainsElement(obj))
             {
-                guidPath = new GuidPath(_objectSaveDataBuffer.OriginGuidPath.FullPath, uniqueIdentifier);
+                guidPath = new GuidPath(_originGuidPath.FullPath, uniqueIdentifier);
                 SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);
             }
                 
@@ -59,7 +62,7 @@ namespace SaveLoadSystem.Core
             {
                 if (saveElement.SaveStrategy is SaveStrategy.Serializable)
                 {
-                    var componentDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveElement.CreatorGuidPath, saveElement.Obj.GetType());
+                    var componentDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveElement.Obj.GetType());
                     componentDataBuffer.CustomSerializableSaveData.Add("Serializable", JToken.FromObject(obj));
                     _saveDataBuffer.Add(saveElement.CreatorGuidPath, componentDataBuffer);
                 }

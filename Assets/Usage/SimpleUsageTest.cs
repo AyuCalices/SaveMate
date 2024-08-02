@@ -5,19 +5,18 @@ using Random = UnityEngine.Random;
 
 public class SimpleUsageTest : MonoBehaviour
 {
-    [Savable] public object[] test;
+    [Savable] public ListSerializable[] test;
 
     private void Awake()
     {
-        //PrintList();
+        PrintList();
         
         var addCount = Random.Range(3, 6);
-        test = new object[addCount];
+        test = new ListSerializable[addCount];
         
         for (int index = 0; index < addCount; index++)
         {
-            test[index] = Random.Range(0f, 1f);
-            //test[index] = new ListSerializable() { numeric = Random.Range(0f, 1f)};
+            test[index] = new ListSerializable() { numeric = Random.Range(0f, 1f)};
         }
     }
 

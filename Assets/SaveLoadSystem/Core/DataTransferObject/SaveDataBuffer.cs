@@ -8,7 +8,6 @@ namespace SaveLoadSystem.Core.DataTransferObject
     public class SaveDataBuffer
     {
         [JsonProperty] public readonly Component.SaveStrategy SaveStrategy;
-        [JsonProperty] public readonly GuidPath OriginGuidPath;
         [JsonProperty] public readonly string SavableType;
 
         //save data should only be initialized, when needed
@@ -56,10 +55,9 @@ namespace SaveLoadSystem.Core.DataTransferObject
             set => _customSerializableSaveData = value;
         }
 
-        public SaveDataBuffer(Component.SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType)
+        public SaveDataBuffer(Component.SaveStrategy saveStrategy, Type savableType)
         {
             SaveStrategy = saveStrategy;
-            OriginGuidPath = creatorGuidPath;
             SavableType = savableType.AssemblyQualifiedName;
         }
     }
