@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core

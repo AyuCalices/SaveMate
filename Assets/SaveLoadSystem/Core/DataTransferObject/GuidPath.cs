@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Plastic.Newtonsoft.Json;
 
-namespace SaveLoadSystem.Core.SerializableTypes
+namespace SaveLoadSystem.Core.DataTransferObject
 {
-    [Serializable]
     public class GuidPath : IEquatable<GuidPath>
     {
         [JsonProperty] public readonly string[] FullPath;

@@ -1,4 +1,4 @@
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core.Component.SavableConverter

@@ -1,14 +1,12 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Plastic.Newtonsoft.Json;
 
-namespace SaveLoadSystem.Core.SerializableTypes
+namespace SaveLoadSystem.Core.DataTransferObject
 {
-    [Serializable]
     public class SceneDataContainer
     {
-        public readonly List<(string, string)> PrefabList;
+        [JsonProperty] public readonly List<(string, string)> PrefabList;
         
         [JsonIgnore] public Dictionary<GuidPath, SaveDataBuffer> SaveObjectLookup;
         [JsonProperty] private List<KeyValuePair<GuidPath, SaveDataBuffer>> SaveObjectList

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using SaveLoadSystem.Core.Component;
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core
 {

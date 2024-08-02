@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 using UnityEngine;
 
 namespace SaveLoadSystem.Utility

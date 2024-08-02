@@ -1,13 +1,12 @@
-using System;
 using System.Collections.Generic;
+using Unity.Plastic.Newtonsoft.Json;
 using UnityEngine.SceneManagement;
 
-namespace SaveLoadSystem.Core.SerializableTypes
+namespace SaveLoadSystem.Core.DataTransferObject
 {
-    [Serializable]
     public class SaveData
     {
-        public readonly Dictionary<string, SceneDataContainer> SceneDataLookup = new();
+        [JsonProperty] public readonly Dictionary<string, SceneDataContainer> SceneDataLookup = new();
 
         public void SetSceneData(Scene scene, SceneDataContainer sceneDataContainer)
         {

@@ -5,7 +5,7 @@ using System.Reflection;
 using SaveLoadSystem.Core.Attributes;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Utility;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -442,17 +442,17 @@ namespace SaveLoadSystem.Core.Component
             
             foreach (var (guidPath, saveDataBuffer) in sceneDataContainer.SaveObjectLookup)
             {
-                var type = Type.GetType(saveDataBuffer.savableType);
+                var type = Type.GetType(saveDataBuffer.SavableType);
                 if (type == null)
                 {
                     Debug.LogWarning("Couldn't convert the contained type!");
                     continue;
                 }
                 
-                switch (saveDataBuffer.saveStrategy)
+                switch (saveDataBuffer.SaveStrategy)
                 {
                     case SaveStrategy.NotSupported:
-                        Debug.LogWarning($"The object of type {saveDataBuffer.savableType} is not supported!");
+                        Debug.LogWarning($"The object of type {saveDataBuffer.SavableType} is not supported!");
                         break;
                     
                     case SaveStrategy.UnityObject:

@@ -1,13 +1,13 @@
 using System;
+using Unity.Plastic.Newtonsoft.Json;
 
-namespace SaveLoadSystem.Core.SerializableTypes
+namespace SaveLoadSystem.Core.DataTransferObject
 {
-    [Serializable]
     public readonly struct SaveVersion : IComparable<SaveVersion>
     {
-        public int Major { get; }
-        public int Minor { get; }
-        public int Patch { get; }
+        [JsonProperty] public readonly int Major;
+        [JsonProperty] public readonly int Minor;
+        [JsonProperty] public readonly int Patch;
 
         public SaveVersion(int major, int minor, int patch)
         {

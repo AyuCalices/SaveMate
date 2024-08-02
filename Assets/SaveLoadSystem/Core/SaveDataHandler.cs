@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using SaveLoadSystem.Core.Component;
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 
 namespace SaveLoadSystem.Core
@@ -47,7 +47,7 @@ namespace SaveLoadSystem.Core
             
             if (_objectReferenceLookup.TryGetValue(obj, out guidPath)) return true;
             
-            guidPath = new GuidPath(_objectSaveDataBuffer.originGuidPath.FullPath, uniqueIdentifier);
+            guidPath = new GuidPath(_objectSaveDataBuffer.OriginGuidPath.FullPath, uniqueIdentifier);
             if (!_savableElementLookup.ContainsElement(obj))
             {
                 SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);

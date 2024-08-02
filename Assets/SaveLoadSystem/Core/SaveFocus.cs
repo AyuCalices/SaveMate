@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SaveLoadSystem.Core.SerializableTypes;
+using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Utility;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityEngine;

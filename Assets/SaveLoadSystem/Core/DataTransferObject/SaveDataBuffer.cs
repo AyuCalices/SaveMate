@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
+using Unity.Plastic.Newtonsoft.Json;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 
-namespace SaveLoadSystem.Core.SerializableTypes
+namespace SaveLoadSystem.Core.DataTransferObject
 {
-    [Serializable]
     public class SaveDataBuffer
     {
-        public Component.SaveStrategy saveStrategy;
-        public GuidPath originGuidPath;
-        public string savableType;
+        [JsonProperty] public readonly Component.SaveStrategy SaveStrategy;
+        [JsonProperty] public readonly GuidPath OriginGuidPath;
+        [JsonProperty] public readonly string SavableType;
 
         //save data should only be initialized, when needed
         private Dictionary<string, GuidPath> _guidPathSaveData;
@@ -58,9 +58,9 @@ namespace SaveLoadSystem.Core.SerializableTypes
 
         public SaveDataBuffer(Component.SaveStrategy saveStrategy, GuidPath creatorGuidPath, Type savableType)
         {
-            this.saveStrategy = saveStrategy;
-            originGuidPath = creatorGuidPath;
-            this.savableType = savableType.AssemblyQualifiedName;
+            SaveStrategy = saveStrategy;
+            OriginGuidPath = creatorGuidPath;
+            SavableType = savableType.AssemblyQualifiedName;
         }
     }
 }
