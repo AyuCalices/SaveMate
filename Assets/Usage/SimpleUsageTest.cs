@@ -5,18 +5,19 @@ using Random = UnityEngine.Random;
 
 public class SimpleUsageTest : MonoBehaviour
 {
-    [Savable] public ListSerializable[] test;
+    [Savable] public object[] test;
 
     private void Awake()
     {
-        PrintList();
+        //PrintList();
         
         var addCount = Random.Range(3, 6);
-        test = new ListSerializable[addCount];
+        test = new object[addCount];
         
         for (int index = 0; index < addCount; index++)
         {
-            test[index] = new ListSerializable() { numeric = Random.Range(0f, 1f)};
+            test[index] = Random.Range(0f, 1f);
+            //test[index] = new ListSerializable() { numeric = Random.Range(0f, 1f)};
         }
     }
 
@@ -26,7 +27,7 @@ public class SimpleUsageTest : MonoBehaviour
         string combinedString = String.Empty;
         foreach (var value in test)
         {
-            combinedString += " | " + value.numeric;
+            //combinedString += " | " + value.numeric;
         }
         
         Debug.Log($"list is: {combinedString}");

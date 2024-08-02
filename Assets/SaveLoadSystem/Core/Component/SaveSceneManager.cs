@@ -302,7 +302,7 @@ namespace SaveLoadSystem.Core.Component
                         var componentDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, componentDataBuffer, savableElementLookup, objectReferenceLookup);
-                        HandleInterfaceOnSave(saveObject, componentDataBuffer, savableElementLookup, objectReferenceLookup, index);
+                        HandleInterfaceOnSave(saveObject, saveDataBuffer, componentDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
                         saveDataBuffer.Add(creatorGuidPath, componentDataBuffer);
                         break;
@@ -311,7 +311,7 @@ namespace SaveLoadSystem.Core.Component
                         var savableObjectDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup);
-                        HandleInterfaceOnSave(saveObject, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup, index);
+                        HandleInterfaceOnSave(saveObject, saveDataBuffer, savableObjectDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
                         saveDataBuffer.Add(creatorGuidPath, savableObjectDataBuffer);
                         break;
@@ -319,7 +319,7 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.CustomSavable:
                         var savableDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        HandleInterfaceOnSave(saveObject, savableDataBuffer, savableElementLookup, objectReferenceLookup, index);
+                        HandleInterfaceOnSave(saveObject, saveDataBuffer, savableDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         
                         saveDataBuffer.Add(creatorGuidPath, savableDataBuffer);
                         break;
@@ -327,7 +327,7 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.CustomConvertable:
                         var convertableDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, creatorGuidPath, saveObject.GetType());
                         
-                        var saveDataHandler = new SaveDataHandler(convertableDataBuffer, savableElementLookup, objectReferenceLookup, index);
+                        var saveDataHandler = new SaveDataHandler(convertableDataBuffer, saveDataBuffer, savableElementLookup, objectReferenceLookup, index);
                         ConverterRegistry.GetConverter(saveObject.GetType()).OnSave(saveObject, saveDataHandler);
                         
                         saveDataBuffer.Add(creatorGuidPath, convertableDataBuffer);
@@ -379,11 +379,11 @@ namespace SaveLoadSystem.Core.Component
             }
         }
 
-        private void HandleInterfaceOnSave(object saveObject, SaveDataBuffer objectSaveDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int index)
+        private void HandleInterfaceOnSave(object saveObject, Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SaveDataBuffer objectSaveDataBuffer, SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int index)
         {
             if (!TypeUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
             
-            objectSavable.OnSave(new SaveDataHandler(objectSaveDataBuffer, savableElementLookup, objectReferenceLookup, index));
+            objectSavable.OnSave(new SaveDataHandler(objectSaveDataBuffer, saveDataBuffer, savableElementLookup, objectReferenceLookup, index));
         }
 
         #endregion
@@ -407,7 +407,7 @@ namespace SaveLoadSystem.Core.Component
         private void DestroyPrefabsOnLoad(SceneDataContainer sceneDataContainer, List<Savable> savableList, List<(string, string)> currentPrefabList)
         {
             var destroyedSavables = currentPrefabList.Except(sceneDataContainer.PrefabList);
-            foreach (var (prefab, sceneGuid) in destroyedSavables)
+            foreach (var (_, sceneGuid) in destroyedSavables)
             {
                 foreach (var savable in savableList.Where(savable => savable.SceneGuid == sceneGuid))
                 {
@@ -486,6 +486,8 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.Serializable:
+                        var serializableInstance = saveDataBuffer.CustomSerializableSaveData["Serializable"]?.ToObject(type);
+                        createdObjectsLookup.Add(guidPath, serializableInstance);
                         break;
                     
                     default:
