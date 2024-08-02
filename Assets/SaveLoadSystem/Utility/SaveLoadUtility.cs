@@ -43,27 +43,30 @@ namespace SaveLoadSystem.Utility
                 Directory.CreateDirectory(DirectoryPath(saveConfig));
             }
             
-            // Write save data to disk
-            var saveDataPath = SaveDataPath(saveConfig, fileName);
-            await using (var saveDataStream = new FileStream(saveDataPath, FileMode.Create))
+            try
             {
-                var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveData);
-                var compressedData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedData);
-                var encryptedData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedData);
+                // Prepare save data
+                var saveDataPath = SaveDataPath(saveConfig, fileName);
+                await using var saveDataStream = new FileStream(saveDataPath, FileMode.Create);
+                var serializedSaveData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveData);
+                var compressedSaveData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedSaveData);
+                var encryptedSaveData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedSaveData);
+                saveMetaData.Checksum = saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedSaveData);
                 
-                await saveDataStream.WriteAsync(encryptedData, 0, encryptedData.Length);
-                saveMetaData.Checksum = saveStrategy.GetIntegrityStrategy().ComputeChecksum(saveDataStream);
-            }
-    
-            // Write meta data to disk
-            var metaDataPath = MetaDataPath(saveConfig, fileName);
-            await using (var metaDataStream = new FileStream(metaDataPath, FileMode.Create))
-            {
+                // Prepare meta data
+                var metaDataPath = MetaDataPath(saveConfig, fileName);
+                await using var metaDataStream = new FileStream(metaDataPath, FileMode.Create);
                 var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveMetaData);
                 var compressedData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedData);
                 var encryptedData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedData);
                 
+                // Write to disk
                 await metaDataStream.WriteAsync(encryptedData, 0, encryptedData.Length);
+                await saveDataStream.WriteAsync(encryptedSaveData, 0, encryptedSaveData.Length);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
             }
         }
         
@@ -147,7 +150,7 @@ namespace SaveLoadSystem.Utility
 
                     if (checksum != null)
                     {
-                        if (checksum == saveStrategy.GetIntegrityStrategy().ComputeChecksum(fileStream))
+                        if (checksum == saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedData))
                         {
                             Debug.LogWarning("Integrity Check Successful!");
                         }

@@ -4,6 +4,6 @@ namespace SaveLoadSystem.Core.Integrity
 {
     public interface IIntegrityStrategy
     {
-        string ComputeChecksum(Stream stream);
+        string ComputeChecksum(byte[] data);
     }
 }
