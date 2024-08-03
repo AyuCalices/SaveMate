@@ -12,4 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fb0c271a67f8dd346aebe1db2160905f, type: 3}
   m_Name: DefaultPrefabObjects
   m_EditorClassIdentifier: 
-  savables: []
+  savables:
+  - savablePrefab: {fileID: 5913912366079696527, guid: 333e4cc5396b5d847ab6b36d3f11db91, type: 3}
+    guid: 
+  - savablePrefab: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+    guid: Assets/SaveLoadSystem/Setup_ListReference.prefab
+  - savablePrefab: {fileID: 4874643443123014876, guid: d665720d730c2d8428aa420b60b6652a, type: 3}
+    guid: Assets/SaveLoadSystem/Setup_TransformReference.prefab
+  - savablePrefab: {fileID: 4842596630838707299, guid: 88848dc6b9ce477449800dfcfd375a19, type: 3}
+    guid: Assets/SaveLoadSystem/PlainSavable.prefab
+  - savablePrefab: {fileID: 2623331241516787126, guid: 0b4686d9dbf719f46971202da9479a69, type: 3}
+    guid: Assets/SaveLoadSystem/Setup_CircleReference.prefab
+  - savablePrefab: {fileID: 992641326338897387, guid: 3c54c1e0fecb325488e3ffaddd467d45, type: 3}
+    guid: Assets/SaveLoadSystem/Setup_ObjectReference.prefab
+  - savablePrefab: {fileID: 6611265144647135651, guid: ceddcd4c9c4e1404f81bb2c070acdc90, type: 3}
+    guid: Assets/SaveLoadSystem/Setup_GameObjectReference.prefab

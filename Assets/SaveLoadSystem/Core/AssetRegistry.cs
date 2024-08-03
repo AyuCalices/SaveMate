@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using SaveLoadSystem.Core.Component;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
@@ -6,18 +8,14 @@ namespace SaveLoadSystem.Core
     [CreateAssetMenu]
     public class AssetRegistry : ScriptableObject
     {
-        [SerializeField] private List<ComponentsContainer> serializeFieldSavableReferenceList = new();
-        
-        // Start is called before the first frame update
-        void Start()
-        {
-        
-        }
+        [SerializeField] private PrefabRegistry prefabLookup;
+        [SerializeField] private List<ComponentsContainer> unityObjectList = new();
 
-        // Update is called once per frame
-        void Update()
+        public PrefabRegistry PrefabLookup => prefabLookup;
+
+        public IEnumerable<ComponentsContainer> GetCombinedEnumerable()
         {
-        
+            return unityObjectList.Concat(prefabLookup.Savables);
         }
     }
 }

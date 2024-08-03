@@ -1,3 +1,4 @@
+using System;
 using SaveLoadSystem.Core.Component;
 using UnityEditor;
 using UnityEngine;
@@ -16,25 +17,39 @@ namespace SaveLoadSystem.Editor
 
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.LabelField("Savable Prefabs", EditorStyles.boldLabel);
+            GUI.enabled = false;
             
+            SavableReferenceListPropertyLayout(_savablesProperty);
+            
+            serializedObject.ApplyModifiedProperties();
+        }
+        
+        private void SavableReferenceListPropertyLayout(SerializedProperty serializedProperty)
+        {
             EditorGUI.indentLevel++;
-            
+
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-            for (var i = 0; i < _savablesProperty.arraySize; i++)
+
+            // Headers
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Savable Prefab", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Guid", EditorStyles.boldLabel);
+            EditorGUILayout.EndHorizontal();
+
+            for (var i = 0; i < serializedProperty.arraySize; i++)
             {
-                var elementProperty = _savablesProperty.GetArrayElementAtIndex(i);
-                var savablePrefabProperty = elementProperty.FindPropertyRelative("savablePrefab");
+                var elementProperty = serializedProperty.GetArrayElementAtIndex(i);
+                var componentProperty = elementProperty.FindPropertyRelative("unityObject");
+                var pathProperty = elementProperty.FindPropertyRelative("guid");
 
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.PropertyField(savablePrefabProperty, GUIContent.none);
+                EditorGUILayout.PropertyField(componentProperty, GUIContent.none);
+                EditorGUILayout.PropertyField(pathProperty, GUIContent.none);
+
                 EditorGUILayout.EndHorizontal();
             }
-                
+
             EditorGUILayout.EndVertical();
-                
-            EditorGUI.indentLevel--;
         }
     }
 }

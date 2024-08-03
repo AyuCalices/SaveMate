@@ -7,5 +7,11 @@ namespace SaveLoadSystem.Core
     {
         public string guid;
         public UnityEngine.Object unityObject;
+
+        public ComponentsContainer(string guid, UnityEngine.Object unityObject)
+        {
+            this.guid = guid;
+            this.unityObject = unityObject;
+        }
     }
 }

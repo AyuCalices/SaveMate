@@ -168,7 +168,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: 8bb456d414031ab4199f9a0c1b73ce00, type: 2}
-  prefabRegistry: {fileID: 11400000, guid: 82cff233dd3f22443bfddd548e0e7073, type: 2}
+  assetRegistry: {fileID: 11400000, guid: bee5a9fc5ec6e4542a59208cda532d19, type: 2}
   loadSceneOnAwake: 0
   saveSceneOnDestroy: 0
   sceneManagerEvents:
@@ -406,6 +406,10 @@ PrefabInstance:
       value: e1a53009-2ccb-4eb4-9be0-7a177e1052b4
       objectReference: {fileID: 0}
     - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
       propertyPath: serializeFieldSavableList.Array.data[0].unityObject
       value: 
       objectReference: {fileID: 1297930283}
@@ -413,6 +417,14 @@ PrefabInstance:
       propertyPath: serializeFieldSavableList.Array.data[1].unityObject
       value: 
       objectReference: {fileID: 1297930283}
+    - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[2].guid
+      value: f40d5818-5787-476f-a0dc-adbdd44c0c57
+      objectReference: {fileID: 0}
+    - target: {fileID: 2648122898610346383, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
+      propertyPath: serializeFieldSavableReferenceList.Array.data[2].unityObject
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 6744342313677690568, guid: 26326d6e0b9c9014890ebb7db17eeebc, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

@@ -228,11 +228,7 @@ namespace SaveLoadSystem.Core.Component
             {
                 var guid = Guid.NewGuid().ToString();
                 
-                AddToSavableGroup(new ComponentsContainer
-                {
-                    guid = guid,
-                    unityObject = foundElement
-                });
+                AddToSavableGroup(new ComponentsContainer(guid, foundElement));
             }
         }
 
@@ -240,12 +236,12 @@ namespace SaveLoadSystem.Core.Component
         {
             if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == transform))
             {
-                serializeFieldSavableReferenceList.Add(new ComponentsContainer{unityObject = transform, guid = Guid.NewGuid().ToString()});
+                serializeFieldSavableReferenceList.Add(new ComponentsContainer(Guid.NewGuid().ToString(), transform));
             }
             
             if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == gameObject))
             {
-                serializeFieldSavableReferenceList.Add(new ComponentsContainer{unityObject = gameObject, guid = Guid.NewGuid().ToString()});
+                serializeFieldSavableReferenceList.Add(new ComponentsContainer(Guid.NewGuid().ToString(), gameObject));
             }
         }
         

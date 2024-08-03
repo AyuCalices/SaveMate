@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace SaveLoadSystem.Core
 {
-    public class SavableElementLookup
+    public class SavableObjectsLookup
     {
         private readonly Dictionary<object, SavableElement> _objectLookup = new();
         private readonly List<SavableElement> _saveElementList = new();

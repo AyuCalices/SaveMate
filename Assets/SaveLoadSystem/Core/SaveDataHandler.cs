@@ -10,17 +10,17 @@ namespace SaveLoadSystem.Core
         private readonly SaveDataBuffer _objectSaveDataBuffer;
         private readonly GuidPath _originGuidPath;
         private readonly Dictionary<GuidPath, SaveDataBuffer> _saveDataBuffer;
-        private readonly SavableElementLookup _savableElementLookup;
+        private readonly SavableObjectsLookup _savableObjectsLookup;
         private readonly Dictionary<object, GuidPath> _objectReferenceLookup;
         private readonly int _currentIndex;
 
         public SaveDataHandler(Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SaveDataBuffer objectSaveDataBuffer, GuidPath originGuidPath, 
-            SavableElementLookup savableElementLookup, Dictionary<object, GuidPath> objectReferenceLookup, int currentIndex)
+            SavableObjectsLookup savableObjectsLookup, Dictionary<object, GuidPath> objectReferenceLookup, int currentIndex)
         {
             _objectSaveDataBuffer = objectSaveDataBuffer;
             _originGuidPath = originGuidPath;
             _saveDataBuffer = saveDataBuffer;
-            _savableElementLookup = savableElementLookup;
+            _savableObjectsLookup = savableObjectsLookup;
             _objectReferenceLookup = objectReferenceLookup;
             _currentIndex = currentIndex;
         }
@@ -52,13 +52,13 @@ namespace SaveLoadSystem.Core
             
             if (_objectReferenceLookup.TryGetValue(obj, out guidPath)) return true;
             
-            if (!_savableElementLookup.ContainsElement(obj))
+            if (!_savableObjectsLookup.ContainsElement(obj))
             {
                 guidPath = new GuidPath(_originGuidPath.FullPath, uniqueIdentifier);
-                SaveSceneManager.ProcessSavableElement(_savableElementLookup, obj, guidPath, _currentIndex + 1);
+                SaveSceneManager.ProcessSavableElement(_savableObjectsLookup, obj, guidPath, _currentIndex + 1);
             }
                 
-            if (_savableElementLookup.TryGetValue(obj, out SavableElement saveElement))
+            if (_savableObjectsLookup.TryGetValue(obj, out SavableElement saveElement))
             {
                 if (saveElement.SaveStrategy is SaveStrategy.Serializable)
                 {
