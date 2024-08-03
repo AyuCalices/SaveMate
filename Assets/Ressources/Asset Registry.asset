@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20506696f801a304baa1d0db2a9a745e, type: 3}
   m_Name: Asset Registry
   m_EditorClassIdentifier: 
-  prefabLookup: {fileID: 0}
+  prefabLookup: {fileID: 11400000, guid: 82cff233dd3f22443bfddd548e0e7073, type: 2}
   unityObjectList: []
