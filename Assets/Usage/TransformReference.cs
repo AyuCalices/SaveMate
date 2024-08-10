@@ -1,63 +1,35 @@
 using SaveLoadSystem.Core.Attributes;
+using SaveLoadSystem.Core.Component;
 using UnityEngine;
 
 namespace SaveLoadCore
 {
     public class TransformReference : MonoBehaviour
     {
-        public Texture2D sprite;
+        [Savable] public Texture2D sprite;
+        [Savable] public GameObject prefab;
         
         [Savable] public Transform TransformTest { get; set; }
         [Savable] public GameObject GameObjectTest { get; set; }
-        [Savable] public Texture2D SpriteTest { get; set; }
 
         private void Awake()
         {
-            Transform newTransformTest;
-            if (TransformTest == null)
+            if (sprite != null)
             {
-                newTransformTest = transform;
-            }
-            else
-            {
-                return;
-            }
-            
-            foreach (TransformReference savableTest in GetComponents<TransformReference>())
-            {
-                savableTest.TransformTest = newTransformTest;
+                foreach (TransformReference savableTest in GetComponents<TransformReference>())
+                {
+                    Debug.Log("o/");
+                    //savableTest.sprite = sprite;
+                }
             }
             
-            
-            GameObject newGameObjectTest;
-            if (GameObjectTest == null)
+            if (prefab != null)
             {
-                newGameObjectTest = gameObject;
-            }
-            else
-            {
-                return;
-            }
-            
-            foreach (TransformReference savableTest in GetComponents<TransformReference>())
-            {
-                savableTest.GameObjectTest = newGameObjectTest;
-            }
-            
-            
-            Texture2D newSpriteTest;
-            if (SpriteTest == null)
-            {
-                newSpriteTest = sprite;
-            }
-            else
-            {
-                return;
-            }
-            
-            foreach (TransformReference savableTest in GetComponents<TransformReference>())
-            {
-                savableTest.SpriteTest = newSpriteTest;
+                foreach (TransformReference savableTest in GetComponents<TransformReference>())
+                {
+                    Debug.Log("o/");
+                    savableTest.prefab = prefab;
+                }
             }
         }
 

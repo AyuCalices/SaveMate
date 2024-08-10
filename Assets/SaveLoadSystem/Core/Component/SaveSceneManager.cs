@@ -216,7 +216,7 @@ namespace SaveLoadSystem.Core.Component
         public static void ProcessSavableElement(SavableObjectsLookup savableObjectsLookup, object targetObject, GuidPath guidPath, int insertIndex)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
-            if (targetObject == null || savableObjectsLookup.ContainsElement(targetObject)) return;
+            if (targetObject.IsUnityNull() || savableObjectsLookup.ContainsElement(targetObject)) return;
 
             var memberList = new Dictionary<string, object>();
             var saveElement = new SavableElement()
@@ -355,11 +355,11 @@ namespace SaveLoadSystem.Core.Component
         {
             if (savableElement.MemberInfoList.Count == 0) return;
             
-            foreach (var (objectName, obj) in savableElement.MemberInfoList)
+            foreach (var (memberName, obj) in savableElement.MemberInfoList)
             {
-                if (obj == null)
+                if (obj.IsUnityNull())
                 {
-                    objectSaveDataBuffer.SerializableSaveData.Add(objectName, null);
+                    objectSaveDataBuffer.SerializableSaveData.Add(memberName, null);
                 }
                 else
                 {
@@ -367,22 +367,23 @@ namespace SaveLoadSystem.Core.Component
                     {
                         if (foundSaveElement.SaveStrategy == SaveStrategy.Serializable)
                         {
-                            objectSaveDataBuffer.SerializableSaveData.Add(objectName, JToken.FromObject(obj));
+                            objectSaveDataBuffer.SerializableSaveData.Add(memberName, JToken.FromObject(obj));
                         }
                         else
                         {
-                            objectSaveDataBuffer.GuidPathSaveData.Add(objectName, foundSaveElement.CreatorGuidPath);
+                            objectSaveDataBuffer.GuidPathSaveData.Add(memberName, foundSaveElement.CreatorGuidPath);
                         }
                     }
                     else if (objectReferenceLookup.TryGetValue(obj, out GuidPath path))
                     {
-                        objectSaveDataBuffer.GuidPathSaveData.Add(objectName, path);
+                        objectSaveDataBuffer.GuidPathSaveData.Add(memberName, path);
                     }
                     else
                     {
-                        Debug.LogWarning(
-                            $"You need to add a savable component to the origin GameObject of the '{obj.GetType()}' component. Then you need to apply an " +
-                            $"ID by adding it into the ReferenceList. This will enable support for component referencing!");
+                        Debug.LogWarning($"Wasn't able to prepare a reference for saving an object at path '{savableElement.CreatorGuidPath}/{memberName}'! Possible Problems: " +
+                                         $"1. In order to support references for runtime objects, a savable component is needed including a identifier for the component. " +
+                                         $"2. Maybe you forgot to add your object to the Asset Registry! " +
+                                         $"3. The object of the savable doesn't match the object stored inside the Asset Registry (Prefabs are stored as Savable and not as GameObject or Transform).");
                     }
                 }
             }

@@ -12,5 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20506696f801a304baa1d0db2a9a745e, type: 3}
   m_Name: Asset Registry
   m_EditorClassIdentifier: 
-  prefabLookup: {fileID: 11400000, guid: 82cff233dd3f22443bfddd548e0e7073, type: 2}
-  unityObjectList: []
+  prefabLookup: {fileID: 11400000, guid: 5082f34c40251934d890f54a0bdc7ece, type: 2}
+  unityObjectList:
+  - guid: a66b3e95-b883-4def-9188-beffb5847b2b
+    unityObject: {fileID: 10300, guid: 0000000000000000f000000000000000, type: 0}

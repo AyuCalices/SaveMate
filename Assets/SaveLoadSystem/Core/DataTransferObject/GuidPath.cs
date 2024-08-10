@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Unity.Plastic.Newtonsoft.Json;
 
@@ -31,14 +32,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public override string ToString()
         {
-            var pathString = "";
-            
-            foreach (var path in FullPath)
-            {
-                pathString += path + "/";
-            }
-
-            return pathString;
+            return string.Join(Path.DirectorySeparatorChar.ToString(), FullPath);
         }
         
         public bool Equals(GuidPath other)
