@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Utility;
 using Unity.Plastic.Newtonsoft.Json.Linq;
@@ -284,11 +285,21 @@ namespace SaveLoadSystem.Core
                     Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
                     continue;
                 }
-                
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
-                             Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+
+                if (Application.isPlaying)
                 {
-                    saveData.SetSceneData(scene, trackedSaveSceneManager.CreateSnapshot());
+                    //SaveSceneManagers will register themself during runtime
+                    foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
+                                 Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                    {
+                        saveData.SetSceneData(scene, trackedSaveSceneManager.CreateSnapshot());
+                    }
+                }
+                else
+                {
+                    //If editor mode, SaveSceneManagers must be searched
+                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                    saveData.SetSceneData(scene, saveSceneManager.CreateSnapshot());
                 }
             }
 
@@ -311,10 +322,20 @@ namespace SaveLoadSystem.Core
 
                 if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
                 
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
-                             Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                if (Application.isPlaying)
                 {
-                    trackedSaveSceneManager.LoadSnapshot(sceneDataContainer);
+                    //SaveSceneManagers will register themself during runtime
+                    foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.Where(
+                                 trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                    {
+                        trackedSaveSceneManager.LoadSnapshot(sceneDataContainer);
+                    }
+                }
+                else
+                {
+                    //If editor mode, SaveSceneManagers must be searched
+                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                    saveSceneManager.LoadSnapshot(sceneDataContainer);
                 }
             }
 

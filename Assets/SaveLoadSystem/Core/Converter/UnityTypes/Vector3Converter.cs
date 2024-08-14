@@ -6,16 +6,16 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     {
         protected override void OnSave(Vector3 data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("x", data.x);
-            saveDataHandler.AddSerializable("y", data.y);
-            saveDataHandler.AddSerializable("z", data.z);
+            saveDataHandler.SaveAsValue("x", data.x);
+            saveDataHandler.SaveAsValue("y", data.y);
+            saveDataHandler.SaveAsValue("z", data.z);
         }
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var x = loadDataHandler.GetSerializable<float>("x");
-            var y = loadDataHandler.GetSerializable<float>("y");
-            var z = loadDataHandler.GetSerializable<float>("z");
+            var x = loadDataHandler.LoadValue<float>("x");
+            var y = loadDataHandler.LoadValue<float>("y");
+            var z = loadDataHandler.LoadValue<float>("z");
             
             loadDataHandler.InitializeInstance(new Vector3(x, y, z));
         }

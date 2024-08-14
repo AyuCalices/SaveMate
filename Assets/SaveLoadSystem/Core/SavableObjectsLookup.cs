@@ -12,10 +12,10 @@ namespace SaveLoadSystem.Core
             return _objectLookup.ContainsKey(saveObject);
         }
         
-        public void InsertElement(int index, SavableElement savableElement)
+        public void AddElement(SavableElement savableElement)
         {
             _objectLookup.Add(savableElement.Obj, savableElement);
-            _saveElementList.Insert(index, savableElement);
+            _saveElementList.Add(savableElement);
         }
 
         public bool TryGetValue(object saveObject, out SavableElement savableElement)

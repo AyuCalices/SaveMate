@@ -2,16 +2,16 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core.Component.SavableConverter
 {
-    public class SaveEnabled : MonoBehaviour, ISavable
+    public class SaveVisibility : MonoBehaviour, ISavable
     {
         public void OnSave(SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("activeSelf", gameObject.activeSelf);
+            saveDataHandler.SaveAsValue("activeSelf", gameObject.activeSelf);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            gameObject.SetActive(loadDataHandler.GetSerializable<bool>("activeSelf"));
+            gameObject.SetActive(loadDataHandler.LoadValue<bool>("activeSelf"));
         }
     }
 }

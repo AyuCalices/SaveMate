@@ -7,12 +7,12 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
     {
         public void OnSave(SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.TryAddReferencable("position", transform.position);
+            saveDataHandler.TrySaveAsReferencable("position", transform.position);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            if (loadDataHandler.TryGetReferencable("position", out GuidPath path))
+            if (loadDataHandler.TryLoadReferencable("position", out GuidPath path))
             {
                 loadDataHandler.EnqueueReferenceBuilding(path, foundObject =>
                 {

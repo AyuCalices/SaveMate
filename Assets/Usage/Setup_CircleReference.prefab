@@ -158,8 +158,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializeFieldSceneGuid: 
-  prefabPath: Assets/SaveLoadSystem/Setup_CircleReference.prefab
-  customSpawning: 0
+  prefabPath: Assets/Usage/Setup_CircleReference.prefab
+  dynamicPrefabSpawningDisabled: 0
   serializeFieldSavableList:
   - guid: 3992e9ed-bad6-4255-8814-22cd970739fa
     unityObject: {fileID: 9197182588449154441}

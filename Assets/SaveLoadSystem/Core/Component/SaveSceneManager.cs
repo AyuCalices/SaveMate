@@ -142,6 +142,7 @@ namespace SaveLoadSystem.Core.Component
             //core saving
             var sceneObjectsLookup = BuildSavableObjectsLookup(savableList);
             BuildDataBufferContainer(saveDataBuffer, sceneObjectsLookup, objectReferenceLookup);
+            Debug.Log("o/");
             return saveDataBufferContainer;
         }
 
@@ -164,7 +165,7 @@ namespace SaveLoadSystem.Core.Component
         private List<(string, string)> CreatePrefabPoolList(List<Savable> savableList)
         {
             return (from savable in savableList 
-                where !savable.CustomSpawning && assetRegistry.PrefabLookup.ContainsPrefabGuid(savable.PrefabGuid) 
+                where !savable.DynamicPrefabSpawningDisabled && assetRegistry.PrefabLookup.ContainsPrefabGuid(savable.PrefabGuid) 
                 select (savable.PrefabGuid, savable.SceneGuid)).ToList();
         }
 
@@ -206,14 +207,14 @@ namespace SaveLoadSystem.Core.Component
                 foreach (var componentContainer in savable.SavableList)
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
-                    ProcessSavableElement(sceneObjectsLookup, componentContainer.unityObject, componentGuidPath, sceneObjectsLookup.Count());
+                    ProcessSavableElement(sceneObjectsLookup, componentContainer.unityObject, componentGuidPath);
                 }
             }
 
             return sceneObjectsLookup;
         }
 
-        public static void ProcessSavableElement(SavableObjectsLookup savableObjectsLookup, object targetObject, GuidPath guidPath, int insertIndex)
+        public static void ProcessSavableElement(SavableObjectsLookup savableObjectsLookup, object targetObject, GuidPath guidPath)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
             if (targetObject.IsUnityNull() || savableObjectsLookup.ContainsElement(targetObject)) return;
@@ -227,8 +228,7 @@ namespace SaveLoadSystem.Core.Component
                 MemberInfoList = memberList
             };
             
-            savableObjectsLookup.InsertElement(insertIndex, saveElement);
-            insertIndex++;
+            savableObjectsLookup.AddElement(saveElement);
 
             //initialize fields and properties
             IEnumerable<FieldInfo> fieldInfoList;
@@ -254,7 +254,7 @@ namespace SaveLoadSystem.Core.Component
                 if (reflectedField is UnityEngine.Object) continue;
                 
                 var path = new GuidPath(guidPath.FullPath, fieldInfo.Name);
-                ProcessSavableElement(savableObjectsLookup, reflectedField, path, insertIndex);
+                ProcessSavableElement(savableObjectsLookup, reflectedField, path);
             }
             
             foreach (var propertyInfo in propertyInfoList)
@@ -266,7 +266,7 @@ namespace SaveLoadSystem.Core.Component
                 if (reflectedProperty is UnityEngine.Object) continue;
                 
                 var path = new GuidPath(guidPath.FullPath, propertyInfo.Name);
-                ProcessSavableElement(savableObjectsLookup, reflectedProperty, path, insertIndex);
+                ProcessSavableElement(savableObjectsLookup, reflectedProperty, path);
             }
             
             if (targetObject is UnityEngine.Object)
@@ -281,7 +281,7 @@ namespace SaveLoadSystem.Core.Component
             {
                 saveElement.SaveStrategy = SaveStrategy.CustomSavable;
             }
-            else if (ConverterRegistry.HasConverter(targetObject.GetType()))
+            else if (TypeConverterRegistry.HasConverter(targetObject.GetType()))
             {
                 saveElement.SaveStrategy = SaveStrategy.CustomConvertable;
             }
@@ -310,7 +310,7 @@ namespace SaveLoadSystem.Core.Component
                         var componentDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, componentDataBuffer, savableObjectsLookup, objectReferenceLookup);
-                        HandleInterfaceOnSave(creatorGuidPath, saveObject, saveDataBuffer, componentDataBuffer, savableObjectsLookup, objectReferenceLookup, index);
+                        HandleInterfaceOnSave(creatorGuidPath, saveObject, saveDataBuffer, componentDataBuffer, savableObjectsLookup, objectReferenceLookup);
                         
                         saveDataBuffer.Add(creatorGuidPath, componentDataBuffer);
                         break;
@@ -319,7 +319,7 @@ namespace SaveLoadSystem.Core.Component
                         var savableObjectDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveObject.GetType());
                         
                         HandleSavableMember(saveElement, savableObjectDataBuffer, savableObjectsLookup, objectReferenceLookup);
-                        HandleInterfaceOnSave(creatorGuidPath, saveObject, saveDataBuffer, savableObjectDataBuffer, savableObjectsLookup, objectReferenceLookup, index);
+                        HandleInterfaceOnSave(creatorGuidPath, saveObject, saveDataBuffer, savableObjectDataBuffer, savableObjectsLookup, objectReferenceLookup);
                         
                         saveDataBuffer.Add(creatorGuidPath, savableObjectDataBuffer);
                         break;
@@ -327,7 +327,7 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.CustomSavable:
                         var savableDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveObject.GetType());
                         
-                        HandleInterfaceOnSave(creatorGuidPath, saveObject, saveDataBuffer, savableDataBuffer, savableObjectsLookup, objectReferenceLookup, index);
+                        HandleInterfaceOnSave(creatorGuidPath, saveObject, saveDataBuffer, savableDataBuffer, savableObjectsLookup, objectReferenceLookup);
                         
                         saveDataBuffer.Add(creatorGuidPath, savableDataBuffer);
                         break;
@@ -335,8 +335,8 @@ namespace SaveLoadSystem.Core.Component
                     case SaveStrategy.CustomConvertable:
                         var convertableDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveObject.GetType());
                         
-                        var saveDataHandler = new SaveDataHandler(saveDataBuffer, convertableDataBuffer, creatorGuidPath, savableObjectsLookup, objectReferenceLookup, index);
-                        ConverterRegistry.GetConverter(saveObject.GetType()).OnSave(saveObject, saveDataHandler);
+                        var saveDataHandler = new SaveDataHandler(saveDataBuffer, convertableDataBuffer, creatorGuidPath, savableObjectsLookup, objectReferenceLookup);
+                        TypeConverterRegistry.GetConverter(saveObject.GetType()).OnSave(saveObject, saveDataHandler);
                         
                         saveDataBuffer.Add(creatorGuidPath, convertableDataBuffer);
                         break;
@@ -390,11 +390,11 @@ namespace SaveLoadSystem.Core.Component
         }
 
         private void HandleInterfaceOnSave(GuidPath creatorGuidPath, object saveObject, Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, 
-            SaveDataBuffer objectSaveDataBuffer, SavableObjectsLookup savableObjectsLookup, Dictionary<object, GuidPath> objectReferenceLookup, int index)
+            SaveDataBuffer objectSaveDataBuffer, SavableObjectsLookup savableObjectsLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             if (!TypeUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
             
-            objectSavable.OnSave(new SaveDataHandler(saveDataBuffer, objectSaveDataBuffer, creatorGuidPath, savableObjectsLookup, objectReferenceLookup, index));
+            objectSavable.OnSave(new SaveDataHandler(saveDataBuffer, objectSaveDataBuffer, creatorGuidPath, savableObjectsLookup, objectReferenceLookup));
         }
 
         #endregion
@@ -495,7 +495,7 @@ namespace SaveLoadSystem.Core.Component
                         break;
 
                     case SaveStrategy.CustomConvertable:
-                        if (ConverterRegistry.TryGetConverter(type, out IConvertable convertable))
+                        if (TypeConverterRegistry.TryGetConverter(type, out IConvertable convertable))
                         {
                             var loadDataHandler = new LoadDataHandler(saveDataBuffer, guidPath, createdObjectsLookup, deserializeReferenceBuilder);
                             convertable.OnLoad(loadDataHandler);

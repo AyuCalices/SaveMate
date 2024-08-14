@@ -9,31 +9,31 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(Queue data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("count", data.Count);
+            saveDataHandler.SaveAsValue("count", data.Count);
             
             var saveElements = data.ToArray();
             for (var index = 0; index < saveElements.Length; index++)
             {
-                saveDataHandler.TryAddReferencable(index.ToString(), saveElements[index]);
+                saveDataHandler.TrySaveAsReferencable(index.ToString(), saveElements[index]);
             }
             
             var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
-            saveDataHandler.AddSerializable("type", typeString);
+            saveDataHandler.SaveAsValue("type", typeString);
         }
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.GetSerializable<int>("count");
+            var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
+                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
                 {
                     loadElements.Add(obj);
                 }
             }
             
-            var typeString = loadDataHandler.GetSerializable<string>("type");
+            var typeString = loadDataHandler.LoadValue<string>("type");
             var queueType = typeof(Queue<>).MakeGenericType(Type.GetType(typeString));
             var queue = (Queue)Activator.CreateInstance(queueType);
             

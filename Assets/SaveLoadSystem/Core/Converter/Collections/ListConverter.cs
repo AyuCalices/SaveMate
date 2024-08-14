@@ -9,30 +9,30 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(IList data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("count", data.Count);
+            saveDataHandler.SaveAsValue("count", data.Count);
             
             for (var index = 0; index < data.Count; index++)
             {
-                saveDataHandler.TryAddReferencable(index.ToString(), data[index]);
+                saveDataHandler.TrySaveAsReferencable(index.ToString(), data[index]);
             }
             
             var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
-            saveDataHandler.AddSerializable("type", typeString);
+            saveDataHandler.SaveAsValue("type", typeString);
         }
 
         public override void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.GetSerializable<int>("count");
+            var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
+                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
                 {
                     loadElements.Add(obj);
                 }
             }
             
-            var typeString = loadDataHandler.GetSerializable<string>("type");
+            var typeString = loadDataHandler.LoadValue<string>("type");
             var listType = typeof(List<>).MakeGenericType(Type.GetType(typeString));
             var list = (IList)Activator.CreateInstance(listType);
             

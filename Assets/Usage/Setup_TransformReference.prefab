@@ -122,6 +122,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sprite: {fileID: 0}
+  prefab: {fileID: 0}
 --- !u!114 &7568845036812653991
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -135,6 +136,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sprite: {fileID: 0}
+  prefab: {fileID: 0}
 --- !u!114 &7349438982956710142
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -148,6 +150,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sprite: {fileID: 0}
+  prefab: {fileID: 0}
 --- !u!114 &4874643443123014876
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -161,8 +164,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializeFieldSceneGuid: 
-  prefabPath: Assets/SaveLoadSystem/Setup_TransformReference.prefab
-  customSpawning: 0
+  prefabPath: Assets/Usage/Setup_TransformReference.prefab
+  dynamicPrefabSpawningDisabled: 0
   serializeFieldSavableList:
   - guid: 6dc3bfea-8fe2-47e2-a927-3da3b279ee19
     unityObject: {fileID: 4111769595531981682}

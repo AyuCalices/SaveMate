@@ -22,7 +22,7 @@ namespace SaveLoadSystem.Editor
         {
             _sceneGuidProperty = serializedObject.FindProperty("serializeFieldSceneGuid");
             _prefabPathProperty = serializedObject.FindProperty("prefabPath");
-            _customSpawningProperty = serializedObject.FindProperty("customSpawning");
+            _customSpawningProperty = serializedObject.FindProperty("dynamicPrefabSpawningDisabled");
             _currentSavableListProperty = serializedObject.FindProperty("serializeFieldSavableList");
             _savableReferenceListProperty = serializedObject.FindProperty("serializeFieldSavableReferenceList");
         }

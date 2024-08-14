@@ -16,3 +16,7 @@ MonoBehaviour:
   unityObjectList:
   - guid: a66b3e95-b883-4def-9188-beffb5847b2b
     unityObject: {fileID: 10300, guid: 0000000000000000f000000000000000, type: 0}
+  - guid: 14726892-2fd4-4675-ae6d-e54e27d1bff5
+    unityObject: {fileID: 15303, guid: 0000000000000000f000000000000000, type: 0}
+  - guid: 6e0e2d09-5890-4689-9016-91287fd13188
+    unityObject: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}

@@ -6,7 +6,7 @@ namespace SaveLoadCore
 {
     public class GameObjectReference : MonoBehaviour
     {
-        [Savable] private GameObject Test { get; set; }
+        [Savable] public GameObject Test { get; private set; }
 
         private void Awake()
         {

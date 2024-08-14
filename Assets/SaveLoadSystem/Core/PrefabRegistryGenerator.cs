@@ -70,7 +70,7 @@ namespace SaveLoadSystem.Core
 
             if (_cachedPrefabRegistry == null)
             {
-                var defaultPrefabsPath = GetPlatformPath(Path.Combine("Assets", "DefaultPrefabObjects.asset"));
+                var defaultPrefabsPath = GetPlatformPath(Path.Combine("Assets", "Prefab Registry.asset"));
                 var fullPath = Path.GetFullPath(defaultPrefabsPath);
                 Debug.Log($"Creating a new DefaultPrefabsObject at {fullPath}.");
                 var directory = Path.GetDirectoryName(fullPath);

@@ -81,7 +81,7 @@ namespace SaveLoadSystem.Editor
             GUI.enabled = true;
 
             // Add button to add new element
-            if (GUILayout.Button("Add Component"))
+            if (GUILayout.Button("Add Object"))
             {
                 var newIndex = serializedProperty.arraySize;
                 serializedProperty.InsertArrayElementAtIndex(newIndex);

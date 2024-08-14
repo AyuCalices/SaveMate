@@ -6,11 +6,11 @@ using SaveLoadSystem.Core.Converter.UnityTypes;
 
 namespace SaveLoadSystem.Core.Converter
 {
-    public static class ConverterRegistry
+    public static class TypeConverterRegistry
     {
         private static readonly List<IConvertable> Factories = new();
 
-        static ConverterRegistry()
+        static TypeConverterRegistry()
         {
             //collections
             Factories.Add(new ArrayConverter());    //array must be processed before list, because an array inherits from IList but needs an own converter

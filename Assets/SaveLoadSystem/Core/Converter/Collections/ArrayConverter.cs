@@ -20,31 +20,31 @@ namespace SaveLoadSystem.Core.Converter.Collections
         
         public void OnSave(object data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("count", ((Array)data).Length);
+            saveDataHandler.SaveAsValue("count", ((Array)data).Length);
             var index = 0;
             foreach (var obj in (Array)data)
             {
-                saveDataHandler.TryAddReferencable(index.ToString(), obj);
+                saveDataHandler.TrySaveAsReferencable(index.ToString(), obj);
                 index++;
             }
             
             var typeString = data.GetType().GetElementType()?.AssemblyQualifiedName;
-            saveDataHandler.AddSerializable("type", typeString);
+            saveDataHandler.SaveAsValue("type", typeString);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.GetSerializable<int>("count");
+            var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
             for (int index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryGetReferencable(index.ToString(), out var obj))
+                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
                 {
                     loadElements.Add(obj);
                 }
             }
             
-            var typeString = loadDataHandler.GetSerializable<string>("type");
+            var typeString = loadDataHandler.LoadValue<string>("type");
             var array = Array.CreateInstance(Type.GetType(typeString), loadElements.Count);
             
             loadDataHandler.InitializeInstance(array);

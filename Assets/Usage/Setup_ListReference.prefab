@@ -133,8 +133,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializeFieldSceneGuid: 
-  prefabPath: Assets/SaveLoadSystem/Setup_ListReference.prefab
-  customSpawning: 0
+  prefabPath: Assets/Usage/Setup_ListReference.prefab
+  dynamicPrefabSpawningDisabled: 0
   serializeFieldSavableList:
   - guid: 8b2d3454-7421-4d56-9d8d-6e667e1b28f6
     unityObject: {fileID: 3636893589558315153}
