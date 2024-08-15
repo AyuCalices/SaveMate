@@ -21,7 +21,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
@@ -37,12 +37,12 @@ namespace SaveLoadSystem.Core.Converter.Collections
             var queueType = typeof(Queue<>).MakeGenericType(Type.GetType(typeString));
             var queue = (Queue)Activator.CreateInstance(queueType);
             
-            loadDataHandler.InitializeInstance(queue);
-            
             foreach (var saveElement in loadElements)
             {
                 loadDataHandler.EnqueueReferenceBuilding(saveElement, targetObject => queue.Enqueue(targetObject));
             }
+
+            return queue;
         }
     }
 }

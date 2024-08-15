@@ -13,7 +13,7 @@ namespace SaveLoadSystem.Core.Converter
         static TypeConverterRegistry()
         {
             //collections
-            Factories.Add(new ArrayConverter());    //array must be processed before list, because an array inherits from IList but needs an own converter
+            Factories.Add(new ArrayConverter());    //array must be processed before list, due to both inheriting from IList
             Factories.Add(new ListConverter());
             Factories.Add(new DictionaryConverter());
             Factories.Add(new StackConverter());
@@ -26,18 +26,20 @@ namespace SaveLoadSystem.Core.Converter
             Factories.Add(new Vector3Converter());
             Factories.Add(new Vector4Converter());
             Factories.Add(new QuaternionConverter());
+            
+            //add your own converter here
         }
 
         public static bool HasConverter(Type type)
         {
-            return Factories.Any(factory => factory.TryGetConverter(type, out _));
+            return Factories.Any(factory => factory.CanConvert(type, out _));
         }
 
         public static IConvertable GetConverter(Type type)
         {
             foreach (var factory in Factories)
             {
-                if (factory.TryGetConverter(type, out IConvertable convertable))
+                if (factory.CanConvert(type, out IConvertable convertable))
                 {
                     return convertable;
                 }
@@ -49,7 +51,7 @@ namespace SaveLoadSystem.Core.Converter
         {
             foreach (var factory in Factories)
             {
-                if (factory.TryGetConverter(type, out convertable))
+                if (factory.CanConvert(type, out convertable))
                 {
                     return true;
                 }

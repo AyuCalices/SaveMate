@@ -10,12 +10,12 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.SaveAsValue("y", data.y);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var x = loadDataHandler.LoadValue<float>("x");
             var y = loadDataHandler.LoadValue<float>("y");
-            
-            loadDataHandler.InitializeInstance(new Vector2(x, y));
+
+            return new Vector2(x, y);
         }
     }
 }

@@ -20,7 +20,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
@@ -36,12 +36,12 @@ namespace SaveLoadSystem.Core.Converter.Collections
             var listType = typeof(List<>).MakeGenericType(Type.GetType(typeString));
             var list = (IList)Activator.CreateInstance(listType);
             
-            loadDataHandler.InitializeInstance(list);
-            
             foreach (var saveElement in loadElements)
             {
                 loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => list.Add(foundObject));
             }
+
+            return list;
         }
     }
 }

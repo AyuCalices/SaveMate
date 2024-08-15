@@ -4,7 +4,7 @@ namespace SaveLoadSystem.Core.Converter
 {
     public abstract class BaseConverter<T> : IConvertable
     {
-        public virtual bool TryGetConverter(Type type, out IConvertable convertable)
+        public virtual bool CanConvert(Type type, out IConvertable convertable)
         {
             if (typeof(T).IsAssignableFrom(type) || type is T)
             {
@@ -23,6 +23,6 @@ namespace SaveLoadSystem.Core.Converter
 
         protected abstract void OnSave(T data, SaveDataHandler saveDataHandler);
 
-        public abstract void OnLoad(LoadDataHandler loadDataHandler);
+        public abstract object OnLoad(LoadDataHandler loadDataHandler);
     }
 }

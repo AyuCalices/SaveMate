@@ -21,7 +21,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
@@ -37,12 +37,12 @@ namespace SaveLoadSystem.Core.Converter.Collections
             var stackType = typeof(Stack<>).MakeGenericType(Type.GetType(typeString));
             var stack = (Stack)Activator.CreateInstance(stackType);
             
-            loadDataHandler.InitializeInstance(stack);
-            
             foreach (var loadElement in loadElements)
             {
                 loadDataHandler.EnqueueReferenceBuilding(loadElement, foundObject => stack.Push(foundObject));
             }
+
+            return stack;
         }
     }
 }

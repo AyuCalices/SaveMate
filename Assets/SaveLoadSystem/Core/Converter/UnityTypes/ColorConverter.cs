@@ -12,14 +12,14 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.SaveAsValue("a", data.a);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var r = loadDataHandler.LoadValue<float>("r");
             var g = loadDataHandler.LoadValue<float>("g");
             var b = loadDataHandler.LoadValue<float>("b");
             var a = loadDataHandler.LoadValue<float>("a");
 
-            loadDataHandler.InitializeInstance(new Color(r, g, b, a));
+            return new Color(r, g, b, a);
         }
     }
 }

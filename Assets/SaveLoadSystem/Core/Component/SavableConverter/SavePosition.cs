@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core.Component.SavableConverter
 {
-    public class SaveTransform : MonoBehaviour, ISavable
+    public class SavePosition : MonoBehaviour, ISavable
     {
         public void OnSave(SaveDataHandler saveDataHandler)
         {

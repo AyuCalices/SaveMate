@@ -12,14 +12,14 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.SaveAsValue("w", data.w);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var x = loadDataHandler.LoadValue<float>("x");
             var y = loadDataHandler.LoadValue<float>("y");
             var z = loadDataHandler.LoadValue<float>("z");
             var w = loadDataHandler.LoadValue<float>("w");
-            
-            loadDataHandler.InitializeInstance(new Quaternion(x, y, z, w));
+
+            return new Quaternion(x, y, z, w);
         }
     }
 }

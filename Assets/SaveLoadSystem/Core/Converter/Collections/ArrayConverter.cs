@@ -6,7 +6,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
 {
     public class ArrayConverter : IConvertable
     {
-        public bool TryGetConverter(Type type, out IConvertable convertable)
+        public bool CanConvert(Type type, out IConvertable convertable)
         {
             if (type.IsArray)
             {
@@ -32,7 +32,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public void OnLoad(LoadDataHandler loadDataHandler)
+        public object OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<GuidPath>();
@@ -46,14 +46,14 @@ namespace SaveLoadSystem.Core.Converter.Collections
             
             var typeString = loadDataHandler.LoadValue<string>("type");
             var array = Array.CreateInstance(Type.GetType(typeString), loadElements.Count);
-            
-            loadDataHandler.InitializeInstance(array);
 
             for (var index = 0; index < loadElements.Count; index++)
             {
                 var innerScopeIndex = index;
                 loadDataHandler.EnqueueReferenceBuilding(loadElements[index], targetObject => array.SetValue(targetObject, innerScopeIndex));
             }
+
+            return array;
         }
     }
 }

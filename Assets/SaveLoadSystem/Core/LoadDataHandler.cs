@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core
@@ -12,16 +11,11 @@ namespace SaveLoadSystem.Core
     {
         private readonly SaveDataBuffer _loadSaveDataBuffer;
         private readonly DeserializeReferenceBuilder _deserializeReferenceBuilder;
-        private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
-        private readonly GuidPath _guidPath;
 
-        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, GuidPath guidPath, Dictionary<GuidPath, object> createdObjectsLookup, 
-            DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
         {
             _loadSaveDataBuffer = loadSaveDataBuffer;
             _deserializeReferenceBuilder = deserializeReferenceBuilder;
-            _createdObjectsLookup = createdObjectsLookup;
-            _guidPath = guidPath;
         }
 
         /// <summary>
@@ -83,12 +77,6 @@ namespace SaveLoadSystem.Core
         public void EnqueueReferenceBuilding(GuidPath[] pathGroup, Action<object[]> onReferenceFound)
         {
             _deserializeReferenceBuilder.EnqueueReferenceBuilding(pathGroup, onReferenceFound);
-        }
-        
-        //TODO: test, how exactly this is needed and remove it if possible (might be needed for a simple C# class)
-        internal void InitializeInstance(object obj)
-        {
-            _createdObjectsLookup.Add(_guidPath, obj);
         }
     }
 }

@@ -80,7 +80,7 @@ namespace SaveLoadSystem.Core
             if (!_savableObjectsLookup.ContainsElement(obj))
             {
                 guidPath = new GuidPath(_originGuidPath.FullPath, uniqueIdentifier);
-                SaveSceneManager.ProcessSavableElement(_savableObjectsLookup, obj, guidPath);
+                SaveSceneManager.ProcessSavableElement(_savableObjectsLookup, obj, guidPath, _objectReferenceLookup);
             }
                 
             if (_savableObjectsLookup.TryGetValue(obj, out SavableElement saveElement))

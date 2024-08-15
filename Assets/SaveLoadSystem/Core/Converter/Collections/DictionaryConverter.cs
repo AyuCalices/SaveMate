@@ -26,7 +26,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             saveDataHandler.SaveAsValue("valueType", valueTypeString);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
             var count = loadDataHandler.LoadValue<int>("count");
             var loadElements = new List<(GuidPath, GuidPath)>();
@@ -43,8 +43,6 @@ namespace SaveLoadSystem.Core.Converter.Collections
             var valueTypeString = loadDataHandler.LoadValue<string>("valueType");
             var dictionaryType = typeof(Dictionary<,>).MakeGenericType(Type.GetType(keyTypeString), Type.GetType(valueTypeString));
             var dictionary = (IDictionary)Activator.CreateInstance(dictionaryType);
-            
-            loadDataHandler.InitializeInstance(dictionary);
 
             foreach (var (key, value) in loadElements)
             {
@@ -54,6 +52,8 @@ namespace SaveLoadSystem.Core.Converter.Collections
                     dictionary.Add(foundObject[0], foundObject[1]);
                 });
             }
+
+            return dictionary;
         }
     }
 }
