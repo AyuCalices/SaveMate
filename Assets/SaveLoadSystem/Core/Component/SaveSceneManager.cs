@@ -250,6 +250,9 @@ namespace SaveLoadSystem.Core.Component
                 var reflectedField = fieldInfo.GetValue(targetObject);
                 memberList.Add(fieldInfo.Name, reflectedField);
                 
+                //UnityEngine.Object's can only be saved as a reference, with two exceptions: MonoBehaviours and Scriptable Objects.
+                //Both those Objects may have objects, that are marked to be saved. All MonoBehaviours are tracked by the Savable component without nested objects needed.
+                //ScriptableObjects must be handled independently, since their reference path is inside the AssetRegistry.
                 if (reflectedField is UnityEngine.ScriptableObject)
                 {
                     if (objectReferenceLookup.TryGetValue(reflectedField, out guidPath))
@@ -258,11 +261,11 @@ namespace SaveLoadSystem.Core.Component
                     }
                     else
                     {
+                        Debug.LogWarning($"Tried to save a {typeof(ScriptableObject)}, that was not added to the Asset Registry! Please add it!");
                         continue;
                     }
                 }
-                //UnityEngine.Component always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
-                else if (reflectedField is UnityEngine.Component) continue;
+                else if (reflectedField is UnityEngine.Object) continue;
                 
                 var path = new GuidPath(guidPath.FullPath, fieldInfo.Name);
                 ProcessSavableElement(savableObjectsLookup, reflectedField, path, objectReferenceLookup);
@@ -273,6 +276,9 @@ namespace SaveLoadSystem.Core.Component
                 var reflectedProperty = propertyInfo.GetValue(targetObject);
                 memberList.Add(propertyInfo.Name, reflectedProperty);
 
+                //UnityEngine.Object's can only be saved as a reference, with two exceptions: MonoBehaviours and Scriptable Objects.
+                //Both those Objects may have objects, that are marked to be saved. All MonoBehaviours are tracked by the Savable component without nested objects needed.
+                //ScriptableObjects must be handled independently, since their reference path is inside the AssetRegistry.
                 if (reflectedProperty is UnityEngine.ScriptableObject)
                 {
                     if (objectReferenceLookup.TryGetValue(reflectedProperty, out guidPath))
@@ -281,11 +287,11 @@ namespace SaveLoadSystem.Core.Component
                     }
                     else
                     {
+                        Debug.LogWarning($"Tried to save a {typeof(ScriptableObject)}, that was not added to the Asset Registry! Please add it!");
                         continue;
                     }
                 }
-                //UnityEngine.Component always exists on a guidPath depth of 2. Processing it would result in a wrong guidPath
-                if (reflectedProperty is UnityEngine.Component) continue;
+                if (reflectedProperty is UnityEngine.Object) continue;
                 
                 var path = new GuidPath(guidPath.FullPath, propertyInfo.Name);
                 ProcessSavableElement(savableObjectsLookup, reflectedProperty, path, objectReferenceLookup);
