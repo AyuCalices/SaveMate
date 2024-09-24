@@ -2,24 +2,26 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
+    
     public class Color32Converter : BaseConverter<Color32>
     {
         protected override void OnSave(Color32 data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("r", data.r);
-            saveDataHandler.AddSerializable("g", data.g);
-            saveDataHandler.AddSerializable("b", data.b);
-            saveDataHandler.AddSerializable("a", data.a);
+            saveDataHandler.SaveAsValue("r", data.r);
+            saveDataHandler.SaveAsValue("g", data.g);
+            saveDataHandler.SaveAsValue("b", data.b);
+            saveDataHandler.SaveAsValue("a", data.a);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
-            var r = loadDataHandler.GetSerializable<byte>("r");
-            var g = loadDataHandler.GetSerializable<byte>("g");
-            var b = loadDataHandler.GetSerializable<byte>("b");
-            var a = loadDataHandler.GetSerializable<byte>("a");
-            
-            loadDataHandler.InitializeInstance(new Color32(r, g, b, a));
+            var r = loadDataHandler.LoadValue<byte>("r");
+            var g = loadDataHandler.LoadValue<byte>("g");
+            var b = loadDataHandler.LoadValue<byte>("b");
+            var a = loadDataHandler.LoadValue<byte>("a");
+
+            return new Color32(r, g, b, a);
         }
     }
+    
 }

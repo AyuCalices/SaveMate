@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     public class ArrayConverter : IConvertable
     {
-        public bool TryGetConverter(Type type, out IConvertable convertable)
+        public bool CanConvert(Type type, out IConvertable convertable)
         {
             if (type.IsArray)
             {
@@ -19,34 +20,40 @@ namespace SaveLoadSystem.Core.Converter.Collections
         
         public void OnSave(object data, SaveDataHandler saveDataHandler)
         {
-            var saveElements = new List<object>();
+            saveDataHandler.SaveAsValue("count", ((Array)data).Length);
             var index = 0;
             foreach (var obj in (Array)data)
             {
-                var savable = saveDataHandler.ToReferencableObject(index.ToString(), obj);
-                saveElements.Add(savable);
+                saveDataHandler.TrySaveAsReferencable(index.ToString(), obj);
                 index++;
             }
-            saveDataHandler.AddSerializable("elements", saveElements);
             
-            var containedType = data.GetType().GetElementType();
-            saveDataHandler.AddSerializable("type", containedType);
+            var typeString = data.GetType().GetElementType()?.AssemblyQualifiedName;
+            saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public void OnLoad(LoadDataHandler loadDataHandler)
+        public object OnLoad(LoadDataHandler loadDataHandler)
         {
-            var loadElements = loadDataHandler.GetSerializable<List<object>>("elements");
-            var type = loadDataHandler.GetSerializable<Type>("type");
+            var count = loadDataHandler.LoadValue<int>("count");
+            var loadElements = new List<GuidPath>();
+            for (int index = 0; index < count; index++)
+            {
+                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
+                {
+                    loadElements.Add(obj);
+                }
+            }
             
-            var array = Array.CreateInstance(type, loadElements.Count);
-            
-            loadDataHandler.InitializeInstance(array);
+            var typeString = loadDataHandler.LoadValue<string>("type");
+            var array = Array.CreateInstance(Type.GetType(typeString), loadElements.Count);
 
             for (var index = 0; index < loadElements.Count; index++)
             {
                 var innerScopeIndex = index;
                 loadDataHandler.EnqueueReferenceBuilding(loadElements[index], targetObject => array.SetValue(targetObject, innerScopeIndex));
             }
+
+            return array;
         }
     }
 }

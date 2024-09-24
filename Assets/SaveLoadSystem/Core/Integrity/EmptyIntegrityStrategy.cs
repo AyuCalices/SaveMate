@@ -4,7 +4,7 @@ namespace SaveLoadSystem.Core.Integrity
 {
     public class EmptyIntegrityStrategy : IIntegrityStrategy
     {
-        public string ComputeChecksum(Stream stream)
+        public string ComputeChecksum(byte[] data)
         {
             return string.Empty;
         }

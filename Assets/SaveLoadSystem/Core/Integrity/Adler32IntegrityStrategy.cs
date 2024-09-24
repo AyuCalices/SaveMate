@@ -18,24 +18,17 @@ namespace SaveLoadSystem.Core.Integrity
     {
         private const uint ModAdler = 65521;
         
-        public string ComputeChecksum(Stream stream)
+        public string ComputeChecksum(byte[] data)
         {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
 
             uint a = 1, b = 0;
 
-            int bufferLength = 1024;
-            byte[] buffer = new byte[bufferLength];
-            int bytesRead;
-
-            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            foreach (byte bValue in data)
             {
-                for (int i = 0; i < bytesRead; i++)
-                {
-                    a = (a + buffer[i]) % ModAdler;
-                    b = (b + a) % ModAdler;
-                }
+                a = (a + bValue) % ModAdler;
+                b = (b + a) % ModAdler;
             }
 
             uint checksum = (b << 16) | a;

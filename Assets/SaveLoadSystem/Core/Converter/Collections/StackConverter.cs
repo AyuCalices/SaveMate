@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -8,31 +9,40 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(Stack data, SaveDataHandler saveDataHandler)
         {
+            saveDataHandler.SaveAsValue("count", data.Count);
+            
             var saveElements = data.ToArray();
             for (var index = 0; index < saveElements.Length; index++)
             {
-                saveElements[index] = saveDataHandler.ToReferencableObject(index.ToString(), saveElements[index]);
+                saveDataHandler.TrySaveAsReferencable(index.ToString(), saveElements[index]);
             }
-            saveDataHandler.AddSerializable("elements", saveElements);
             
-            var containedType = data.GetType().GetGenericArguments()[0];
-            saveDataHandler.AddSerializable("type", containedType);
+            var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
+            saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
-            var loadElements = loadDataHandler.GetSerializable<List<object>>("elements");
-            var type = loadDataHandler.GetSerializable<Type>("type");
+            var count = loadDataHandler.LoadValue<int>("count");
+            var loadElements = new List<GuidPath>();
+            for (var index = 0; index < count; index++)
+            {
+                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
+                {
+                    loadElements.Add(obj);
+                }
+            }
             
-            var stackType = typeof(Stack<>).MakeGenericType(type);
+            var typeString = loadDataHandler.LoadValue<string>("type");
+            var stackType = typeof(Stack<>).MakeGenericType(Type.GetType(typeString));
             var stack = (Stack)Activator.CreateInstance(stackType);
             
-            loadDataHandler.InitializeInstance(stack);
-            
-            foreach (var saveElement in loadElements)
+            foreach (var loadElement in loadElements)
             {
-                loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => stack.Push(foundObject));
+                loadDataHandler.EnqueueReferenceBuilding(loadElement, foundObject => stack.Push(foundObject));
             }
+
+            return stack;
         }
     }
 }

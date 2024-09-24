@@ -16,7 +16,7 @@ namespace SaveLoadSystem.Core.Component
 
         [SerializeField] private string prefabPath;
 
-        [SerializeField] private bool customSpawning;
+        [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
         [SerializeField] private List<ComponentsContainer> serializeFieldSavableList = new();
         private readonly List<ComponentsContainer> _resetBufferSavableList = new();
@@ -26,7 +26,7 @@ namespace SaveLoadSystem.Core.Component
 
         public string SceneGuid => serializeFieldSceneGuid;
         public string PrefabGuid => prefabPath;
-        public bool CustomSpawning => customSpawning;
+        public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
         public List<ComponentsContainer> SavableList => serializeFieldSavableList;
         public List<ComponentsContainer> ReferenceList => serializeFieldSavableReferenceList;
         
@@ -228,11 +228,7 @@ namespace SaveLoadSystem.Core.Component
             {
                 var guid = Guid.NewGuid().ToString();
                 
-                AddToSavableGroup(new ComponentsContainer
-                {
-                    guid = guid,
-                    unityObject = foundElement
-                });
+                AddToSavableGroup(new ComponentsContainer(guid, foundElement));
             }
         }
 
@@ -240,12 +236,12 @@ namespace SaveLoadSystem.Core.Component
         {
             if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == transform))
             {
-                serializeFieldSavableReferenceList.Add(new ComponentsContainer{unityObject = transform, guid = Guid.NewGuid().ToString()});
+                serializeFieldSavableReferenceList.Add(new ComponentsContainer(Guid.NewGuid().ToString(), transform));
             }
             
             if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == gameObject))
             {
-                serializeFieldSavableReferenceList.Add(new ComponentsContainer{unityObject = gameObject, guid = Guid.NewGuid().ToString()});
+                serializeFieldSavableReferenceList.Add(new ComponentsContainer(Guid.NewGuid().ToString(), gameObject));
             }
         }
         

@@ -19,10 +19,10 @@ namespace SaveLoadSystem.Core.Integrity
     /// </summary>
     public class Sha256HashingIntegrityStrategy : IIntegrityStrategy
     {
-        public string ComputeChecksum(Stream stream)
+        public string ComputeChecksum(byte[] data)
         {
             using var sha256 = SHA256.Create();
-            var hashBytes = sha256.ComputeHash(stream);
+            var hashBytes = sha256.ComputeHash(data);
             return Convert.ToBase64String(hashBytes);
         }
     }

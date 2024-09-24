@@ -40,25 +40,18 @@ namespace SaveLoadSystem.Core.Integrity
                 Table[i] = crc;
             }
         }
-        
-        public string ComputeChecksum(Stream stream)
+    
+        public string ComputeChecksum(byte[] data)
         {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
 
             uint crc = 0xffffffff;
 
-            int bufferLength = 1024;
-            byte[] buffer = new byte[bufferLength];
-            int bytesRead;
-
-            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+            foreach (var b in data)
             {
-                for (int i = 0; i < bytesRead; i++)
-                {
-                    byte index = (byte)(((crc) & 0xff) ^ buffer[i]);
-                    crc = (uint)((crc >> 8) ^ Table[index]);
-                }
+                byte index = (byte)((crc & 0xff) ^ b);
+                crc = (crc >> 8) ^ Table[index];
             }
 
             crc ^= 0xffffffff;

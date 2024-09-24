@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SaveLoadSystem.Core.SerializableTypes;
+using Newtonsoft.Json.Linq;
+using SaveLoadSystem.Core.Component;
+using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Debug = UnityEngine.Debug;
 
 namespace SaveLoadSystem.Core
 {
@@ -19,7 +23,7 @@ namespace SaveLoadSystem.Core
         private readonly SaveLoadManager _saveLoadManager;
         private readonly AsyncOperationQueue _asyncQueue;
         
-        private Dictionary<string, object> _customMetaData;
+        private JObject _customMetaData;
         private SaveMetaData _metaData;
         private SaveData _saveData;
         
@@ -47,7 +51,7 @@ namespace SaveLoadSystem.Core
             {
                 if (SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName) && SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName))
                 {
-                    _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, FileName);
+                    _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, _saveLoadManager, FileName);
                     IsPersistent = true;
                     _customMetaData = _metaData.CustomData;
                 }
@@ -68,9 +72,19 @@ namespace SaveLoadSystem.Core
             
             _asyncQueue.Enqueue(() =>
             {
-                _customMetaData[identifier] = data;
+                _customMetaData.Add(identifier, JToken.FromObject(data));
                 return Task.CompletedTask;
             });
+        }
+
+        public T GetCustomMetaData<T>(string identifier)
+        {
+            if (_customMetaData?[identifier] == null)
+            {
+                return default;
+            }
+            
+            return _customMetaData[identifier].ToObject<T>();
         }
         
         public void SnapshotActiveScenes()
@@ -85,6 +99,7 @@ namespace SaveLoadSystem.Core
                 _saveData ??= new SaveData();
                 HasPendingData = true;
                 InternalSnapshotActiveScenes(_saveData, scenesToSnapshot);
+                
                 return Task.CompletedTask;
             });
         }
@@ -107,7 +122,7 @@ namespace SaveLoadSystem.Core
                 };
 
                 OnBeforeWriteToDisk?.Invoke();
-                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, FileName, _metaData, _saveData);
+                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, _saveData);
 
                 IsPersistent = true;
                 HasPendingData = false;
@@ -147,10 +162,17 @@ namespace SaveLoadSystem.Core
         
         public void LoadActiveScenes()
         {
-            LoadScenes(UnityUtility.GetActiveScenes());
+            ReadFromDisk();
+            ApplySnapshotToActiveScenes();
         }
         
         public void LoadScenes(params Scene[] scenesToLoad)
+        {
+            ReadFromDisk();
+            ApplySnapshotToScenes(scenesToLoad);
+        }
+
+        public void ReadFromDisk()
         {
             _asyncQueue.Enqueue(async () =>
             {
@@ -160,10 +182,8 @@ namespace SaveLoadSystem.Core
                 //only load saveData, if it is persistent and not initialized
                 if (IsPersistent && _saveData == null)
                 {
-                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
-                
-                InternalLoadActiveScenes(_saveData, scenesToLoad);
             });
         }
         
@@ -186,7 +206,7 @@ namespace SaveLoadSystem.Core
                 //only load saveData, if it is persistent and not initialized
                 if (IsPersistent && _saveData == null)
                 {
-                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
 
                 //buffer save paths, because they will be null later on the scene array
@@ -264,6 +284,9 @@ namespace SaveLoadSystem.Core
 
         private void InternalSnapshotActiveScenes(SaveData saveData, params Scene[] scenesToSnapshot)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            
             OnBeforeSnapshot?.Invoke();
 
             foreach (var scene in scenesToSnapshot)
@@ -273,21 +296,37 @@ namespace SaveLoadSystem.Core
                     Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
                     continue;
                 }
-                
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
-                             Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+
+                if (Application.isPlaying)
                 {
-                    saveData.SetSceneData(scene, trackedSaveSceneManager.CreateSnapshot());
+                    //SaveSceneManagers will register themself during runtime
+                    foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
+                                 Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                    {
+                        saveData.SetSceneData(scene, trackedSaveSceneManager.CreateSnapshot());
+                    }
+                }
+                else
+                {
+                    //If editor mode, SaveSceneManagers must be searched
+                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                    saveData.SetSceneData(scene, saveSceneManager.CreateSnapshot());
                 }
             }
 
             OnAfterSnapshot?.Invoke();
+            
+            stopwatch.Stop();
+            UnityEngine.Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
             
             Debug.LogWarning("Snapshot Completed!");
         }
 
         private void InternalLoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            
             OnBeforeLoad?.Invoke();
 
             foreach (var scene in scenesToLoad)
@@ -300,14 +339,27 @@ namespace SaveLoadSystem.Core
 
                 if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
                 
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.
-                             Where(trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                if (Application.isPlaying)
                 {
-                    trackedSaveSceneManager.LoadSnapshot(sceneDataContainer);
+                    //SaveSceneManagers will register themself during runtime
+                    foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers.Where(
+                                 trackedSaveSceneManager => trackedSaveSceneManager.gameObject.scene == scene))
+                    {
+                        trackedSaveSceneManager.LoadSnapshot(sceneDataContainer);
+                    }
+                }
+                else
+                {
+                    //If editor mode, SaveSceneManagers must be searched
+                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                    saveSceneManager.LoadSnapshot(sceneDataContainer);
                 }
             }
 
             OnAfterLoad?.Invoke();
+            
+            stopwatch.Stop();
+            UnityEngine.Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
             
             Debug.LogWarning("Loading Completed!");
         }

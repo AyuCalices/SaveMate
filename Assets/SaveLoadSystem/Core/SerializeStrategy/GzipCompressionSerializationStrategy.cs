@@ -4,34 +4,47 @@ using System.Threading.Tasks;
 
 namespace SaveLoadSystem.Core.SerializeStrategy
 {
-    public class GzipCompressionSerializationStrategy : ISerializeStrategy
+    public class GzipCompressionSerializationStrategy : ICompressionStrategy
     {
-        public ISerializeStrategy SerializeStrategy { get; set; }
-
-        public GzipCompressionSerializationStrategy(ISerializeStrategy serializeStrategy)
+        public async Task<byte[]> CompressAsync(byte[] data)
         {
-            SerializeStrategy = serializeStrategy;
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                using (GZipStream gzipStream = new GZipStream(memoryStream, CompressionMode.Compress))
+                {
+                    await gzipStream.WriteAsync(data, 0, data.Length);
+                }
+
+                return memoryStream.ToArray();
+            }
         }
 
-        public async Task SerializeAsync<T>(Stream stream, T data)
+        public async Task<byte[]> DecompressAsync(byte[] data)
         {
-            using var memoryStream = new MemoryStream();
-            await SerializeStrategy.SerializeAsync(memoryStream, data);
-            await using var gzipStream = new GZipStream(stream, CompressionMode.Compress);
-            memoryStream.Position = 0;
-            await memoryStream.CopyToAsync(gzipStream);
+            using (MemoryStream memoryStream = new MemoryStream(data))
+            {
+                using (GZipStream gzipStream = new GZipStream(memoryStream, CompressionMode.Decompress))
+                {
+                    using (MemoryStream decompressedStream = new MemoryStream())
+                    {
+                        await gzipStream.CopyToAsync(decompressedStream);
+                        return decompressedStream.ToArray();
+                    }
+                }
+            }
+        }
+    }
+    
+    public class NoneCompressionSerializationStrategy : ICompressionStrategy
+    {
+        public Task<byte[]> CompressAsync(byte[] data)
+        {
+            return Task.FromResult(data);
         }
 
-        public async Task<T> DeserializeAsync<T>(Stream stream) where T : class
+        public Task<byte[]> DecompressAsync(byte[] data)
         {
-            using var decompressedStream = new MemoryStream();
-            await stream.CopyToAsync(decompressedStream);
-            decompressedStream.Position = 0;
-            await using var gzipStream = new GZipStream(decompressedStream, CompressionMode.Decompress);
-            var resultStream = new MemoryStream();
-            await gzipStream.CopyToAsync(resultStream);
-            resultStream.Position = 0;
-            return await SerializeStrategy.DeserializeAsync<T>(resultStream);
+            return Task.FromResult(data);
         }
     }
 }

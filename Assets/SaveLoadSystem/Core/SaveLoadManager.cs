@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using SaveLoadSystem.Core.Component;
+using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
-using SaveLoadSystem.Core.SerializableTypes;
 using SaveLoadSystem.Core.SerializeStrategy;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -11,7 +11,7 @@ using UnityEngine;
 namespace SaveLoadSystem.Core
 {
     [CreateAssetMenu]
-    public class SaveLoadManager : ScriptableObject, ISaveConfig
+    public class SaveLoadManager : ScriptableObject, ISaveConfig, ISaveStrategy
     {
         [Header("Version")] 
         [SerializeField] private int major;
@@ -26,7 +26,6 @@ namespace SaveLoadSystem.Core
         
         [Header("Storage")]
         [SerializeField] private SaveIntegrityType integrityCheckType;
-        //[SerializeField] private SaveStorageType storageType;
         [SerializeField] private SaveCompressionType compressionType;
         [SerializeField] private SaveEncryptionType encryptionType;
         [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
@@ -111,9 +110,9 @@ namespace SaveLoadSystem.Core
                 if (_saveFocus.FileName == fileName) return;
                 
                 //other save, but still has pending data that can be saved
-                if (_saveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
+                if (autoSaveOnSaveFocusSwap)
                 {
-                    _saveFocus.WriteToDisk();
+                    _saveFocus.SaveScenes();
                 }
             }
             
@@ -123,9 +122,9 @@ namespace SaveLoadSystem.Core
         public void ReleaseFocus()
         {
             //save pending data if allowed
-            if (HasSaveFocus && _saveFocus.HasPendingData && autoSaveOnSaveFocusSwap)
+            if (HasSaveFocus && autoSaveOnSaveFocusSwap)
             {
-                _saveFocus.WriteToDisk();
+                _saveFocus.SaveScenes();
             }
             
             SwapFocus(null);
@@ -133,14 +132,40 @@ namespace SaveLoadSystem.Core
 
         #endregion
 
-        public ISerializeStrategy GetSerializeStrategy()
+        public ICompressionStrategy GetCompressionStrategy()
         {
-            ISerializeStrategy strategy = GetSerializationStrategy();
-            strategy = WrapWithCompression(strategy);
-            strategy = WrapWithEncryption(strategy);
-            return strategy;
+            return compressionType switch
+            {
+                SaveCompressionType.None => new NoneCompressionSerializationStrategy(),
+                SaveCompressionType.Gzip => new GzipCompressionSerializationStrategy(),
+                _ => throw new ArgumentOutOfRangeException()
+            };
         }
 
+        public ISerializationStrategy GetSerializationStrategy()
+        {
+            return new JsonSerializeStrategy();
+        }
+
+        public IEncryptionStrategy GetEncryptionStrategy()
+        {
+            switch (encryptionType)
+            {
+                case SaveEncryptionType.None:
+                    return new NoneEncryptSerializeStrategy();
+                
+                case SaveEncryptionType.Aes:
+                    if (_aesKey.Length == 0 || _aesIv.Length == 0)
+                    {
+                        return new AesEncryptSerializeStrategy(Encoding.UTF8.GetBytes(defaultEncryptionKey), Encoding.UTF8.GetBytes(defaultEncryptionIv));
+                    }
+                    return new AesEncryptSerializeStrategy(_aesKey, _aesIv);
+
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+        
         public IIntegrityStrategy GetIntegrityStrategy()
         {
             return integrityCheckType switch
@@ -190,48 +215,6 @@ namespace SaveLoadSystem.Core
             _saveFocus = newSaveFocus;
             
             OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
-        }
-        
-        private ISerializeStrategy GetSerializationStrategy()
-        {
-            return new BinarySerializeStrategy();
-            
-            /*
-            return storageType switch
-            {
-                SaveStorageType.Binary => new BinarySerializeStrategy(),
-                SaveStorageType.Json => new JsonSerializeStrategy(),
-                _ => throw new ArgumentOutOfRangeException()
-            };*/
-        }
-        
-        private ISerializeStrategy WrapWithCompression(ISerializeStrategy strategy)
-        {
-            return compressionType switch
-            {
-                SaveCompressionType.None => strategy,
-                SaveCompressionType.Gzip => new GzipCompressionSerializationStrategy(strategy),
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
-
-        private ISerializeStrategy WrapWithEncryption(ISerializeStrategy strategy)
-        {
-            switch (encryptionType)
-            {
-                case SaveEncryptionType.None:
-                    return strategy;
-                
-                case SaveEncryptionType.Aes:
-                    if (_aesKey.Length == 0 || _aesIv.Length == 0)
-                    {
-                        return new AesEncryptSerializeStrategy(strategy, Encoding.UTF8.GetBytes(defaultEncryptionKey), Encoding.UTF8.GetBytes(defaultEncryptionIv));
-                    }
-                    return new AesEncryptSerializeStrategy(strategy, _aesKey, _aesIv);
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
         }
 
         #endregion

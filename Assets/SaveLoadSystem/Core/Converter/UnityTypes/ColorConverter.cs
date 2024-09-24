@@ -6,20 +6,20 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     {
         protected override void OnSave(Color data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.AddSerializable("r", data.r);
-            saveDataHandler.AddSerializable("g", data.g);
-            saveDataHandler.AddSerializable("b", data.b);
-            saveDataHandler.AddSerializable("a", data.a);
+            saveDataHandler.SaveAsValue("r", data.r);
+            saveDataHandler.SaveAsValue("g", data.g);
+            saveDataHandler.SaveAsValue("b", data.b);
+            saveDataHandler.SaveAsValue("a", data.a);
         }
 
-        public override void OnLoad(LoadDataHandler loadDataHandler)
+        public override object OnLoad(LoadDataHandler loadDataHandler)
         {
-            var r = loadDataHandler.GetSerializable<float>("r");
-            var g = loadDataHandler.GetSerializable<float>("g");
-            var b = loadDataHandler.GetSerializable<float>("b");
-            var a = loadDataHandler.GetSerializable<float>("a");
+            var r = loadDataHandler.LoadValue<float>("r");
+            var g = loadDataHandler.LoadValue<float>("g");
+            var b = loadDataHandler.LoadValue<float>("b");
+            var a = loadDataHandler.LoadValue<float>("a");
 
-            loadDataHandler.InitializeInstance(new Color(r, g, b, a));
+            return new Color(r, g, b, a);
         }
     }
 }
