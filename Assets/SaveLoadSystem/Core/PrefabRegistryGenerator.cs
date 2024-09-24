@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
+    
+#if UNITY_EDITOR
+    
     [InitializeOnLoad]
     public class PrefabRegistryGenerator : AssetPostprocessor
     {
@@ -134,4 +137,7 @@ namespace SaveLoadSystem.Core
             }
         }
     }
+    
+#endif
+    
 }

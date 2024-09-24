@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core.Component.SavableConverter
 {
+    
     public class SavePosition : MonoBehaviour, ISavable
     {
         public void OnSave(SaveDataHandler saveDataHandler)
@@ -21,4 +22,5 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
             }
         }
     }
+    
 }

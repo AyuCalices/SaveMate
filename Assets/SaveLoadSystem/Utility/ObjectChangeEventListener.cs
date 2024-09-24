@@ -3,6 +3,9 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Utility
 {
+    
+#if UNITY_EDITOR
+    
     [InitializeOnLoad]
     public class ObjectChangeEventListener
     {
@@ -242,4 +245,6 @@ namespace SaveLoadSystem.Utility
         }
         */
     }
+    
+#endif
 }

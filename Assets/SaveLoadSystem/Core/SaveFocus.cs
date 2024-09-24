@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Utility;
-using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Debug = UnityEngine.Debug;
 
 namespace SaveLoadSystem.Core
 {
@@ -97,6 +99,7 @@ namespace SaveLoadSystem.Core
                 _saveData ??= new SaveData();
                 HasPendingData = true;
                 InternalSnapshotActiveScenes(_saveData, scenesToSnapshot);
+                
                 return Task.CompletedTask;
             });
         }
@@ -159,10 +162,17 @@ namespace SaveLoadSystem.Core
         
         public void LoadActiveScenes()
         {
-            LoadScenes(UnityUtility.GetActiveScenes());
+            ReadFromDisk();
+            ApplySnapshotToActiveScenes();
         }
         
         public void LoadScenes(params Scene[] scenesToLoad)
+        {
+            ReadFromDisk();
+            ApplySnapshotToScenes(scenesToLoad);
+        }
+
+        public void ReadFromDisk()
         {
             _asyncQueue.Enqueue(async () =>
             {
@@ -174,8 +184,6 @@ namespace SaveLoadSystem.Core
                 {
                     _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
-                
-                InternalLoadActiveScenes(_saveData, scenesToLoad);
             });
         }
         
@@ -276,6 +284,9 @@ namespace SaveLoadSystem.Core
 
         private void InternalSnapshotActiveScenes(SaveData saveData, params Scene[] scenesToSnapshot)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            
             OnBeforeSnapshot?.Invoke();
 
             foreach (var scene in scenesToSnapshot)
@@ -305,11 +316,17 @@ namespace SaveLoadSystem.Core
 
             OnAfterSnapshot?.Invoke();
             
+            stopwatch.Stop();
+            UnityEngine.Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
+            
             Debug.LogWarning("Snapshot Completed!");
         }
 
         private void InternalLoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            
             OnBeforeLoad?.Invoke();
 
             foreach (var scene in scenesToLoad)
@@ -340,6 +357,9 @@ namespace SaveLoadSystem.Core
             }
 
             OnAfterLoad?.Invoke();
+            
+            stopwatch.Stop();
+            UnityEngine.Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
             
             Debug.LogWarning("Loading Completed!");
         }

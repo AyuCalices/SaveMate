@@ -28,6 +28,7 @@ namespace SaveLoadSystem.Core.Converter
             Factories.Add(new QuaternionConverter());
             
             //add your own converter here
+            //Factories.Add(new ItemConverter());   //enable this for Type-Converter save-strategy and disable Attribute- and Component-Saving from item
         }
 
         public static bool HasConverter(Type type)

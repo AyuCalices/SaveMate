@@ -1,5 +1,5 @@
 using System;
-using Unity.Plastic.Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {

@@ -1,0 +1,4 @@
+campfire: https://game-icons.net/1x1/lorc/campfire.html
+diplodocus: https://game-icons.net/1x1/delapouite/diplodocus.html
+drink-me: https://game-icons.net/1x1/lorc/drink-me.html
+gauntlet: https://game-icons.net/1x1/delapouite/gauntlet.html

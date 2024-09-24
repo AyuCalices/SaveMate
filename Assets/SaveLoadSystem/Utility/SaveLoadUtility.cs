@@ -46,22 +46,23 @@ namespace SaveLoadSystem.Utility
             try
             {
                 // Prepare save data
-                var saveDataPath = SaveDataPath(saveConfig, fileName);
-                await using var saveDataStream = new FileStream(saveDataPath, FileMode.Create);
                 var serializedSaveData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveData);
                 var compressedSaveData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedSaveData);
                 var encryptedSaveData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedSaveData);
                 saveMetaData.Checksum = saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedSaveData);
                 
                 // Prepare meta data
-                var metaDataPath = MetaDataPath(saveConfig, fileName);
-                await using var metaDataStream = new FileStream(metaDataPath, FileMode.Create);
                 var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveMetaData);
                 var compressedData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedData);
                 var encryptedData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedData);
                 
                 // Write to disk
+                var metaDataPath = MetaDataPath(saveConfig, fileName);
+                await using var metaDataStream = new FileStream(metaDataPath, FileMode.Create);
                 await metaDataStream.WriteAsync(encryptedData, 0, encryptedData.Length);
+                
+                var saveDataPath = SaveDataPath(saveConfig, fileName);
+                await using var saveDataStream = new FileStream(saveDataPath, FileMode.Create);
                 await saveDataStream.WriteAsync(encryptedSaveData, 0, encryptedSaveData.Length);
             }
             catch (Exception e)
