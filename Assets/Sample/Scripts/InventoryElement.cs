@@ -1,11 +1,11 @@
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.Attributes;
-using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.EventHandler;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class InventoryElement : MonoBehaviour//, ISavable
+public class InventoryElement : MonoBehaviour, ISaveMateAfterLoadHandler//, ISavable
 {
     [SerializeField] private SaveLoadManager saveLoadManager;
     [SerializeField] private Image image;
@@ -13,26 +13,16 @@ public class InventoryElement : MonoBehaviour//, ISavable
     
     [Savable] public Item ContainedItem { get; private set; }
 
-    private void Awake()
-    {
-        saveLoadManager.SaveFocus.OnAfterLoad += UpdateContainedItem;
-    }
-
-    private void OnDestroy()
-    {
-        saveLoadManager.SaveFocus.OnAfterLoad -= UpdateContainedItem;
-    }
-
-    private void UpdateContainedItem()
-    {
-        Setup(ContainedItem);
-    }
-
     public void Setup(Item item)
     {
         ContainedItem = item;
         image.sprite = item.sprite;
         itemName.text = item.itemName;
+    }
+    
+    public void OnAfterLoad()
+    {
+        Setup(ContainedItem);
     }
 
     //Optional Component-Saving implementation approach

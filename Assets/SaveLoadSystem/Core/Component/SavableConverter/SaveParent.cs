@@ -33,7 +33,7 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
             loadDataHandler.EnqueueReferenceBuilding(parent, foundObject =>
             {
                 // Cast the found object to Transform and set it as the parent of the current object.
-                transform.parent = (Transform)foundObject;
+                transform.SetParent((Transform)foundObject, false);
                 
                 // Set the sibling index to maintain the order in the hierarchy.
                 transform.SetSiblingIndex(siblingIndex);

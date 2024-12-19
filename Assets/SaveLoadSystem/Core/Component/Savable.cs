@@ -24,27 +24,44 @@ namespace SaveLoadSystem.Core.Component
         [SerializeField] private List<ComponentsContainer> serializeFieldSavableReferenceList = new();
         private readonly List<ComponentsContainer> _resetBufferSavableReferenceList = new();
 
+        
         public string SceneGuid => serializeFieldSceneGuid;
         public string PrefabGuid => prefabPath;
         public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
         public List<ComponentsContainer> SavableList => serializeFieldSavableList;
         public List<ComponentsContainer> ReferenceList => serializeFieldSavableReferenceList;
+
+        
+        private SaveSceneManager _saveSceneManager;
+        
         
         private void Reset()
         {
-            ApplyResetBuffer();
+            ApplySavableListResetBuffer();
+            ApplySceneGuidResetBuffer();
+            
         }
 
         private void Awake()
         {
+            RegisterToSceneManager();
+            
             SetupSceneGuid();
+        }
+
+        private void OnDestroy()
+        {
+            UnregisterFromSceneManager();
         }
 
         private void OnValidate()
         {
             if (Application.isPlaying) return;
             
-            ApplyScriptReloadBuffer();
+            RegisterToSceneManager();
+            
+            SetupSavableListResetBuffer();
+            SetupSceneGuidResetBuffer();
             SetupAll();
         }
         
@@ -82,12 +99,44 @@ namespace SaveLoadSystem.Core.Component
             
             SetupAll();
         }
+
+        private bool AcquireSceneManager()
+        {
+            if (_saveSceneManager.IsUnityNull())
+            {
+                _saveSceneManager = FindObjectOfType<SaveSceneManager>();
+                
+                if (_saveSceneManager.IsUnityNull())
+                {
+                    Debug.LogWarning("[SaveMate] SaveSceneManager is missing in the current scene. Please ensure a SaveSceneManager is present to enable proper functionality.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        
+        private void RegisterToSceneManager()
+        {
+            if (AcquireSceneManager() && gameObject.scene.IsValid())
+            {
+                _saveSceneManager.RegisterSavable(this);
+            }
+        }
+        
+        private void UnregisterFromSceneManager()
+        {
+            if (!_saveSceneManager.IsUnityNull() && gameObject.scene.IsValid())
+            {
+                _saveSceneManager.UnregisterSavable(this);
+            }
+        }
         
         /// <summary>
-        /// If a Component get's resetted, all Serialize Field values are lost. This method will reapply the lost values
+        /// If the Component is being resetted, all Serialize Field values are lost. This method will reapply the lost values
         /// for the Serialize Fields with the Reset Buffer. This prevents loosing the original guid.
         /// </summary>
-        private void ApplyResetBuffer()
+        private void ApplySavableListResetBuffer()
         {
             serializeFieldSavableList.Clear();
             foreach (var savableContainer in _resetBufferSavableList)
@@ -103,11 +152,20 @@ namespace SaveLoadSystem.Core.Component
         }
 
         /// <summary>
+        /// If a Component is being resetted, all Serialize Field values are lost. This method will reapply the lost values
+        /// for the Scene Guid. This prevents loosing the original guid.
+        /// </summary>
+        private void ApplySceneGuidResetBuffer()
+        {
+            serializeFieldSceneGuid = _resetBufferSceneGuid;
+        }
+
+        /// <summary>
         /// Serialize Fields will be serialized through script reloads and application restarts. The Reset Buffer values
         /// will be lost. This method will reapply the lost values for the Reset Buffer with the Serialize Fields. This
         /// prevents loosing the original guid.
         /// </summary>
-        private void ApplyScriptReloadBuffer()
+        private void SetupSavableListResetBuffer()
         {
             if (serializeFieldSavableList.Count != _resetBufferSavableList.Count)
             {
@@ -126,6 +184,16 @@ namespace SaveLoadSystem.Core.Component
                     _resetBufferSavableReferenceList.Add(referenceContainer);
                 }
             }
+        }
+        
+        /// <summary>
+        /// Serialize Fields will be serialized through script reloads and application restarts. The Reset Buffer values
+        /// will be lost. This method will reapply the lost values for the Reset Buffer with the Serialize Fields. This
+        /// prevents loosing the original guid.
+        /// </summary>
+        private void SetupSceneGuidResetBuffer()
+        {
+            _resetBufferSceneGuid = serializeFieldSceneGuid;
         }
 
         private void SetupAll()

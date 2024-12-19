@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using Newtonsoft.Json.Linq;
@@ -8,6 +7,7 @@ using SaveLoadSystem.Core.Attributes;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.EventHandler;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.Events;
@@ -25,13 +25,14 @@ namespace SaveLoadSystem.Core.Component
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDestroy;
         [SerializeField] private SceneManagerEvents sceneManagerEvents;
 
+        private HashSet<Savable> _savables;
         private static bool _isQuitting;
 
         #region Unity Lifecycle
 
         private void Awake()
         {
-            saveLoadManager.RegisterSaveSceneManager(this);
+            saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
 
             if (loadSceneOnAwake)
             {
@@ -41,12 +42,19 @@ namespace SaveLoadSystem.Core.Component
         
         private void OnEnable()
         {
-            saveLoadManager.RegisterSaveSceneManager(this);
+            saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
         }
         
         private void OnDisable()
         {
-            saveLoadManager.UnregisterSaveSceneManager(this);
+            saveLoadManager.UnregisterSaveSceneManager(gameObject.scene);
+        }
+
+        private void OnValidate()
+        {
+            if (Application.isPlaying) return;
+
+            saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
         }
 
         private void OnDestroy()
@@ -68,7 +76,7 @@ namespace SaveLoadSystem.Core.Component
                 }
             }
             
-            saveLoadManager.UnregisterSaveSceneManager(this);
+            saveLoadManager.UnregisterSaveSceneManager(gameObject.scene);
         }
 
         private void OnApplicationQuit()
@@ -77,6 +85,19 @@ namespace SaveLoadSystem.Core.Component
         }
 
         #endregion
+
+        internal bool RegisterSavable(Savable savable)
+        {
+            _savables ??= new HashSet<Savable>();
+            
+            return _savables.Add(savable);
+        }
+
+        internal bool UnregisterSavable(Savable savable)
+        {
+            _savables ??= new HashSet<Savable>();
+            return _savables.Remove(savable);
+        }
 
         #region SaveLoad Methods
 
@@ -113,19 +134,131 @@ namespace SaveLoadSystem.Core.Component
         [ContextMenu("Wipe Scene Data")]
         public void WipeSceneData()
         {
-            saveLoadManager.SaveFocus.WipeSceneData(gameObject.scene);
+            saveLoadManager.SaveFocus.DeleteSceneData(gameObject.scene);
         }
         
         [ContextMenu("Delete Scene Data")]
         public void DeleteSceneData()
         {
-            saveLoadManager.SaveFocus.DeleteSceneDataFromDisk(gameObject.scene);
+            saveLoadManager.SaveFocus.DeleteAll(gameObject.scene);
         }
 
         [ContextMenu("Reload Then Load Scene")]
         public void ReloadThenLoadScene()
         {
             saveLoadManager.SaveFocus.ReloadThenLoadScenes(gameObject.scene);
+        }
+        
+        public void HandleBeforeSnapshot()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeSnapshotHandlers = savable.GetComponents<ISaveMateBeforeSnapshotHandler>();
+                foreach (var beforeSnapshotHandler in beforeSnapshotHandlers)
+                {
+                    beforeSnapshotHandler.OnBeforeSnapshot();
+                }
+            }
+            
+            sceneManagerEvents.onBeforeSnapshot.Invoke();
+        }
+        
+        public void HandleAfterSnapshot()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeSnapshotHandlers = savable.GetComponents<ISaveMateAfterSnapshotHandler>();
+                foreach (var beforeSnapshotHandler in beforeSnapshotHandlers)
+                {
+                    beforeSnapshotHandler.OnAfterSnapshot();
+                }
+            }
+            
+            sceneManagerEvents.onAfterSnapshot.Invoke();
+        }
+        
+        public void HandleBeforeLoad()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeLoadHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeLoad();
+                }
+            }
+            
+            sceneManagerEvents.onBeforeLoad.Invoke();
+        }
+        
+        public void HandleAfterLoad()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterLoadHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnAfterLoad();
+                }
+            }
+            
+            sceneManagerEvents.onAfterLoad.Invoke();
+        }
+        
+        public void HandleBeforeDeleteDiskData()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeDeleteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeDeleteDiskData();
+                }
+            }
+            
+            sceneManagerEvents.onBeforeDeleteDiskData.Invoke();
+        }
+        
+        public void HandleAfterDeleteDiskData()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterDeleteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnAfterDeleteDiskData();
+                }
+            }
+            
+            sceneManagerEvents.onAfterDeleteDiskData.Invoke();
+        }
+        
+        public void HandleBeforeWriteToDisk()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeWriteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeWriteToDisk();
+                }
+            }
+            
+            sceneManagerEvents.onBeforeWriteToDisk.Invoke();
+        }
+        
+        public void HandleAfterWriteToDisk()
+        {
+            foreach (var savable in _savables)
+            {
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterWriteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnAfterWriteToDisk();
+                }
+            }
+            
+            sceneManagerEvents.onAfterWriteToDisk.Invoke();
         }
 
         #endregion
@@ -646,8 +779,15 @@ namespace SaveLoadSystem.Core.Component
         {
             public UnityEvent onBeforeSnapshot;
             public UnityEvent onAfterSnapshot;
+            
             public UnityEvent onBeforeLoad;
             public UnityEvent onAfterLoad;
+            
+            public UnityEvent onBeforeDeleteDiskData;
+            public UnityEvent onAfterDeleteDiskData;
+            
+            public UnityEvent onBeforeWriteToDisk;
+            public UnityEvent onAfterWriteToDisk;
         }
         
         public void RegisterAction(UnityAction action, SceneManagerEventType firstEventType, params SceneManagerEventType[] additionalEventTypes)
@@ -667,6 +807,18 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     case SceneManagerEventType.OnAfterLoad:
                         sceneManagerEvents.onAfterLoad.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnBeforeDeleteDiskData:
+                        sceneManagerEvents.onBeforeDeleteDiskData.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterDeleteDiskData:
+                        sceneManagerEvents.onAfterDeleteDiskData.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnBeforeWriteToDisk:
+                        sceneManagerEvents.onBeforeWriteToDisk.AddListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterWriteToDisk:
+                        sceneManagerEvents.onAfterWriteToDisk.AddListener(action);
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -691,6 +843,18 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     case SceneManagerEventType.OnAfterLoad:
                         sceneManagerEvents.onAfterLoad.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnBeforeDeleteDiskData:
+                        sceneManagerEvents.onBeforeDeleteDiskData.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterDeleteDiskData:
+                        sceneManagerEvents.onAfterDeleteDiskData.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnBeforeWriteToDisk:
+                        sceneManagerEvents.onBeforeWriteToDisk.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.OnAfterWriteToDisk:
+                        sceneManagerEvents.onAfterWriteToDisk.RemoveListener(action);
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();

@@ -32,7 +32,7 @@ namespace SaveLoadSystem.Utility
             return obj == null || obj.Equals(null);
         }
         
-        public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
+        public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive)
         {
             var objectsInScene = new List<T>();
             if (!scene.isLoaded) return objectsInScene;
@@ -46,9 +46,9 @@ namespace SaveLoadSystem.Utility
             return objectsInScene;
         }
         
-        public static T FindObjectOfTypeInScene<T>(Scene scene, bool includeInactive) where T : Object
+        public static T FindObjectOfTypeInScene<T>(Scene scene, bool includeInactive)
         {
-            if (!scene.isLoaded) return null;
+            if (!scene.isLoaded) return default;
             
             var rootObjects = scene.GetRootGameObjects();
             foreach (GameObject go in rootObjects)
@@ -60,7 +60,7 @@ namespace SaveLoadSystem.Utility
                 }
             }
             
-            return null;
+            return default;
         }
 
         public static List<T> FindObjectsOfTypeInAllScenes<T>(bool includeInactive) where T : Object

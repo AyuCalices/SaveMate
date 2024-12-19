@@ -7,6 +7,7 @@ using SaveLoadSystem.Core.Integrity;
 using SaveLoadSystem.Core.SerializeStrategy;
 using SaveLoadSystem.Utility;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core
 {
@@ -41,7 +42,7 @@ namespace SaveLoadSystem.Core
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
         public SaveVersion SaveVersion => new(major, minor, patch);
-        public HashSet<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
+        public Dictionary<Scene, SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
         public bool HasSaveFocus => _saveFocus != null;
         public SaveFocus SaveFocus
         {
@@ -192,16 +193,16 @@ namespace SaveLoadSystem.Core
 
         #region Internal
 
-        internal void RegisterSaveSceneManager(SaveSceneManager saveSceneManager)
-        {
-            TrackedSaveSceneManagers.Add(saveSceneManager);
+        internal void RegisterSaveSceneManager(Scene scene, SaveSceneManager saveSceneManager)
+        { 
+            TrackedSaveSceneManagers[scene] = saveSceneManager;
         }
         
-        internal void UnregisterSaveSceneManager(SaveSceneManager saveSceneManager)
+        internal bool UnregisterSaveSceneManager(Scene scene)
         {
-            TrackedSaveSceneManagers.Remove(saveSceneManager);
+            return TrackedSaveSceneManagers.Remove(scene);
         }
-
+        
         #endregion
 
         #region Private

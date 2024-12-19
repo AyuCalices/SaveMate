@@ -12,7 +12,11 @@ namespace SaveLoadSystem.Utility
         OnBeforeSnapshot,
         OnAfterSnapshot,
         OnBeforeLoad,
-        OnAfterLoad
+        OnAfterLoad,
+        OnBeforeDeleteDiskData,
+        OnAfterDeleteDiskData,
+        OnBeforeWriteToDisk,
+        OnAfterWriteToDisk
     }
     
     public enum SaveIntegrityType
