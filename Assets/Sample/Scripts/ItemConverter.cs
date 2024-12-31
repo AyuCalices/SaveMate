@@ -1,32 +1,24 @@
+using Sample.Scripts;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.Converter;
-using SaveLoadSystem.Core.DataTransferObject;
-using UnityEngine;
 
 //Optional Type-Converter implementation approach
 public class ItemConverter : BaseConverter<Item>
 {
     protected override void OnSave(Item data, SaveDataHandler saveDataHandler)
     {
-        saveDataHandler.SaveAsValue("name", data.itemName);
-        saveDataHandler.TrySaveAsReferencable("item", data.sprite);
+        saveDataHandler.Save("name", data.itemName);
+        saveDataHandler.Save("item", data.sprite);
     }
 
-    public override object OnLoad(LoadDataHandler loadDataHandler)
+    protected override Item OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
     {
-        var name = loadDataHandler.LoadValue<string>("name");
-        loadDataHandler.TryLoadReferencable("item", out GuidPath guidPath);
+        return new Item();
+    }
 
-        var item = new Item
-        {
-            itemName = name
-        };
-        
-        loadDataHandler.EnqueueReferenceBuilding(guidPath, foundObject =>
-        {
-            item.sprite = (Sprite)foundObject;
-        });
-
-        return item;
+    protected override void OnLoad(Item data, LoadDataHandler loadDataHandler)
+    {
+        loadDataHandler.TryLoad("name", out data.itemName);
+        loadDataHandler.TryLoad("item", out data.sprite);
     }
 }

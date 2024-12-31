@@ -6,20 +6,23 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     {
         protected override void OnSave(Vector4 data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("x", data.x);
-            saveDataHandler.SaveAsValue("y", data.y);
-            saveDataHandler.SaveAsValue("z", data.z);
-            saveDataHandler.SaveAsValue("w", data.w);
+            saveDataHandler.Save("x", data.x);
+            saveDataHandler.Save("y", data.y);
+            saveDataHandler.Save("z", data.z);
+            saveDataHandler.Save("w", data.w);
         }
 
-        public override object OnLoad(LoadDataHandler loadDataHandler)
+        protected override Vector4 OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
         {
-            var x = loadDataHandler.LoadValue<float>("x");
-            var y = loadDataHandler.LoadValue<float>("y");
-            var z = loadDataHandler.LoadValue<float>("z");
-            var w = loadDataHandler.LoadValue<float>("w");
+            return new Vector4();
+        }
 
-            return new Vector4(x, y, z, w);
+        protected override void OnLoad(Vector4 data, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad("x", out data.x);
+            loadDataHandler.TryLoad("y", out data.y);
+            loadDataHandler.TryLoad("z", out data.z);
+            loadDataHandler.TryLoad("w", out data.w);
         }
     }
 }

@@ -9,6 +9,5 @@ namespace SaveLoadSystem.Core
         public SaveStrategy SaveStrategy;
         public GuidPath CreatorGuidPath;
         public object Obj;
-        public Dictionary<string, object> MemberInfoList;
     }
 }

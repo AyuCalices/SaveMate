@@ -23,12 +23,6 @@ namespace SaveLoadSystem.Core.DataTransferObject
             Array.Copy(parentPath, FullPath, parentPath.Length);
             FullPath[^1] = guid;
         }
-        
-        public Stack<string> ToStack()
-        {
-            var stack = new Stack<string>(FullPath.Reverse());
-            return stack;
-        }
 
         public override string ToString()
         {

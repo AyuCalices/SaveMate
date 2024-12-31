@@ -1,3 +1,4 @@
+using Sample.Scripts;
 using UnityEngine;
 
 [CreateAssetMenu]

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -11,37 +10,34 @@ namespace SaveLoadSystem.Core.Converter.Collections
         {
             saveDataHandler.SaveAsValue("count", data.Count);
             
-            for (var index = 0; index < data.Count; index++)
-            {
-                saveDataHandler.TrySaveAsReferencable(index.ToString(), data[index]);
-            }
-            
             var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
             saveDataHandler.SaveAsValue("type", typeString);
+            
+            for (var index = 0; index < data.Count; index++)
+            {
+                saveDataHandler.Save(index.ToString(), data[index]);
+            }
         }
 
-        public override object OnLoad(LoadDataHandler loadDataHandler)
+        protected override IList OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.LoadValue<int>("count");
-            var loadElements = new List<GuidPath>();
+            loadDataHandler.TryLoadValue("type", out string typeString);
+            
+            var listType = typeof(List<>).MakeGenericType(Type.GetType(typeString));
+            return (IList)Activator.CreateInstance(listType);
+        }
+
+        protected override void OnLoad(IList data, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoadValue("count", out int count);
+            
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
+                if (loadDataHandler.TryLoad(index.ToString(), out object obj))
                 {
-                    loadElements.Add(obj);
+                    data.Add(obj);
                 }
             }
-            
-            var typeString = loadDataHandler.LoadValue<string>("type");
-            var listType = typeof(List<>).MakeGenericType(Type.GetType(typeString));
-            var list = (IList)Activator.CreateInstance(listType);
-            
-            foreach (var saveElement in loadElements)
-            {
-                loadDataHandler.EnqueueReferenceBuilding(saveElement, foundObject => list.Add(foundObject));
-            }
-
-            return list;
         }
     }
 }

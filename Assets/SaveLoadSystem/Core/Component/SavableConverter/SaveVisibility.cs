@@ -6,12 +6,15 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
     {
         public void OnSave(SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("activeSelf", gameObject.activeSelf);
+            saveDataHandler.Save("activeSelf", gameObject.activeSelf);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            gameObject.SetActive(loadDataHandler.LoadValue<bool>("activeSelf"));
+            if (loadDataHandler.TryLoad("activeSelf", out bool activeSelf))
+            {
+                gameObject.SetActive(activeSelf);
+            }
         }
     }
 }

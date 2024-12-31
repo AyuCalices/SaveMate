@@ -1,9 +1,8 @@
 using System;
-using System.Collections.Generic;
-using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
+    //TODO: multi-dimensional Arrays
     public class ArrayConverter : IConvertable
     {
         public bool CanConvert(Type type, out IConvertable convertable)
@@ -21,39 +20,38 @@ namespace SaveLoadSystem.Core.Converter.Collections
         public void OnSave(object data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.SaveAsValue("count", ((Array)data).Length);
-            var index = 0;
-            foreach (var obj in (Array)data)
-            {
-                saveDataHandler.TrySaveAsReferencable(index.ToString(), obj);
-                index++;
-            }
             
             var typeString = data.GetType().GetElementType()?.AssemblyQualifiedName;
             saveDataHandler.SaveAsValue("type", typeString);
+            
+            var index = 0;
+            foreach (var obj in (Array)data)
+            {
+                saveDataHandler.Save(index.ToString(), obj);
+                index++;
+            }
         }
 
-        public object OnLoad(LoadDataHandler loadDataHandler)
+        public object OnBeginLoad(SimpleLoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.LoadValue<int>("count");
-            var loadElements = new List<GuidPath>();
-            for (int index = 0; index < count; index++)
-            {
-                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
-                {
-                    loadElements.Add(obj);
-                }
-            }
+            loadDataHandler.TryLoadValue("count", out int count);
+            loadDataHandler.TryLoadValue("type", out string typeString);
             
-            var typeString = loadDataHandler.LoadValue<string>("type");
-            var array = Array.CreateInstance(Type.GetType(typeString), loadElements.Count);
+            return Array.CreateInstance(Type.GetType(typeString), count);
+        }
 
-            for (var index = 0; index < loadElements.Count; index++)
+        public void OnLoad(object data, LoadDataHandler loadDataHandler)
+        {
+            var arrayData = (Array)data;
+            
+            for (int index = 0; index < arrayData.Length; index++)
             {
                 var innerScopeIndex = index;
-                loadDataHandler.EnqueueReferenceBuilding(loadElements[index], targetObject => array.SetValue(targetObject, innerScopeIndex));
+                if (loadDataHandler.TryLoad(index.ToString(), out object obj))
+                {
+                    arrayData.SetValue(obj, innerScopeIndex);
+                }
             }
-
-            return array;
         }
     }
 }

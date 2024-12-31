@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
+using Sample.Scripts;
 using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.Attributes;
 using SaveLoadSystem.Core.Component.SavableConverter;
-using SaveLoadSystem.Core.DataTransferObject;
 using UnityEngine;
 
 [CreateAssetMenu]
-public class Inventory : ScriptableObject//, ISavable
+public class Inventory : ScriptableObject, ISavable
 {
-    [SerializeField, Savable] private List<Item> items;
+    [SerializeField] private List<Item> items;
 
     public int ItemCount => items.Count;
 
@@ -50,17 +49,13 @@ public class Inventory : ScriptableObject//, ISavable
     //Optional Component-Saving implementation approach
     public void OnSave(SaveDataHandler saveDataHandler)
     {
-        saveDataHandler.TrySaveAsReferencable("items", items);
+        saveDataHandler.Save("items", items);
     }
 
     //Optional Component-Saving implementation approach
     public void OnLoad(LoadDataHandler loadDataHandler)
     {
-        loadDataHandler.TryLoadReferencable("items", out GuidPath guidPath);
-        loadDataHandler.EnqueueReferenceBuilding(guidPath, foundObject =>
-        {
-            items = (List<Item>)foundObject;
-        });
+        loadDataHandler.TryLoad("items", out items);
     }
 }
 

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using SaveLoadSystem.Core.DataTransferObject;
+using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
@@ -7,76 +9,111 @@ namespace SaveLoadSystem.Core
     /// The <see cref="LoadDataHandler"/> class is responsible for managing the deserialization and retrieval of
     /// serialized data, as well as handling reference building for complex object graphs.
     /// </summary>
-    public class LoadDataHandler
+    public class LoadDataHandler : SimpleLoadDataHandler
     {
-        private readonly SaveDataBuffer _loadSaveDataBuffer;
-        private readonly DeserializeReferenceBuilder _deserializeReferenceBuilder;
+        private readonly Dictionary<string, object> _guidPathReferenceLookup;
+        private readonly Dictionary<GuidPath, object> _pathToObjectReferenceLookup;
 
-        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, DeserializeReferenceBuilder deserializeReferenceBuilder)
+        public LoadDataHandler(SaveDataBuffer loadSaveDataBuffer, Dictionary<string, object> guidPathReferenceLookup, 
+            Dictionary<GuidPath, object> pathToObjectReferenceLookup) : base(loadSaveDataBuffer)
         {
-            _loadSaveDataBuffer = loadSaveDataBuffer;
-            _deserializeReferenceBuilder = deserializeReferenceBuilder;
+            _guidPathReferenceLookup = guidPathReferenceLookup;
+            _pathToObjectReferenceLookup = pathToObjectReferenceLookup;
         }
 
-        /// <summary>
-        /// Retrieves an object of type <typeparamref name="T"/> associated with the specified identifier.
-        /// Supports all valid types for Newtonsoft Json. Uses less disk space and is faster than Referencable Saving and Loading.
-        /// </summary>
-        /// <typeparam name="T">The type to which the JSON object should be deserialized.</typeparam>
-        /// <param name="identifier">The unique identifier for the JSON object in the save data buffer.</param>
-        /// <returns>
-        /// The object of type <typeparamref name="T"/> if found and successfully deserialized;
-        /// otherwise, returns the default value of <typeparamref name="T"/>.
-        /// </returns>
-        public T LoadValue<T>(string identifier)
+        //TODO: enqueue value types as well -> by doing so, as soon as everything exists, queueing things will make sure it exists when the next is needed
+        public bool TryLoad<T>(string identifier, out T value)
         {
-            if (_loadSaveDataBuffer.CustomSerializableSaveData[identifier] == null)
+            if (typeof(T).IsValueType)
             {
-                return default;
+                return TryLoadValue(identifier, out value);
             }
-            
-            return _loadSaveDataBuffer.CustomSerializableSaveData[identifier].ToObject<T>();
+
+            if (TryGetReference(identifier, out value))
+            {
+                return true;
+            }
+
+            Debug.LogWarning("Couldn't load, cause reference was not found");     //TODO: debug
+            return false;
         }
         
-        /// <summary>
-        /// Attempts to retrieve a <see cref="GuidPath"/> associated with the specified identifier.
-        /// </summary>
-        /// <param name="identifier">The unique identifier for the <see cref="GuidPath"/>.</param>
-        /// <param name="guidPath">
-        /// When this method returns, contains the <see cref="GuidPath"/> associated with the specified identifier,
-        /// if the identifier is found; otherwise, the default value for the type of the guidPath parameter.
-        /// This parameter is passed uninitialized.
-        /// </param>
-        /// <returns>
-        /// <c>true</c> if the <see cref="GuidPath"/> is found; otherwise, <c>false</c>.
-        /// </returns>
-        public bool TryLoadReferencable(string identifier, out GuidPath guidPath)
+        public bool TryLoad(Type type, string identifier, out object value)
         {
-            return _loadSaveDataBuffer.CustomGuidPathSaveData.TryGetValue(identifier, out guidPath);
+            if (type.IsValueType)
+            {
+                return TryLoadValue(type, identifier, out value);
+            }
+
+            if (TryGetReference(identifier, out value))
+            {
+                return true;
+            }
+
+            Debug.LogWarning("Couldn't load, cause reference was not found");     //TODO: debug
+            return false;
         }
 
-        /// <summary>
-        /// Enqueues an action to be executed when a reference corresponding to the specified path is found.
-        /// </summary>
-        /// <param name="path">The path used to identify the reference.</param>
-        /// <param name="onReferenceFound">
-        /// The action to be executed when the reference is found. It takes the found object as a parameter.
-        /// </param>
-        public void EnqueueReferenceBuilding(GuidPath path, Action<object> onReferenceFound)
+        private bool TryGetReference<T>(string identifier, out T value)
         {
-            _deserializeReferenceBuilder.EnqueueReferenceBuilding(path, onReferenceFound);
-        }
+            value = default;
 
-        /// <summary>
-        /// Enqueues an action to be executed when references corresponding to the specified path group are found.
-        /// </summary>
-        /// <param name="pathGroup">An array of paths used to identify the references.</param>
-        /// <param name="onReferenceFound">
-        /// The action to be executed when all references are found. It takes an array of the found objects as a parameter.
-        /// </param>
-        public void EnqueueReferenceBuilding(GuidPath[] pathGroup, Action<object[]> onReferenceFound)
+            if (!LoadSaveDataBuffer.CustomGuidPathSaveData.TryGetValue(identifier, out var guidPath))
+            {
+                Debug.LogWarning("Wasn't able to find the created object!");        //TODO: debug
+                return false;
+            }
+            
+            if (_pathToObjectReferenceLookup.TryGetValue(guidPath, out var match))
+            {
+                value = (T)match;
+                return true;
+            }
+
+            if (_guidPathReferenceLookup.TryGetValue(guidPath.ToString(), out match))
+            {
+                value = (T)match;
+                return true;
+            }
+
+            Debug.LogWarning("Wasn't able to find the created object!");        //TODO: debug
+            return false;
+        }
+    }
+
+    public class SimpleLoadDataHandler
+    {
+        protected readonly SaveDataBuffer LoadSaveDataBuffer;
+        
+        public SimpleLoadDataHandler(SaveDataBuffer loadSaveDataBuffer)
         {
-            _deserializeReferenceBuilder.EnqueueReferenceBuilding(pathGroup, onReferenceFound);
+            LoadSaveDataBuffer = loadSaveDataBuffer;
+        }
+        
+        public bool TryLoadValue<T>(string identifier, out T value)
+        {
+            value = default;
+            
+            if (LoadSaveDataBuffer.CustomSerializableSaveData[identifier] == null)
+            {
+                return false;     //TODO: debug
+            }
+
+            value = LoadSaveDataBuffer.CustomSerializableSaveData[identifier].ToObject<T>();
+            return true;
+        }
+        
+        public bool TryLoadValue(Type type, string identifier, out object value)
+        {
+            value = default;
+            
+            if (LoadSaveDataBuffer.CustomSerializableSaveData[identifier] == null)
+            {
+                return false;     //TODO: debug
+            }
+            
+            value = LoadSaveDataBuffer.CustomSerializableSaveData[identifier].ToObject(type);
+            return true;
         }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -11,38 +10,35 @@ namespace SaveLoadSystem.Core.Converter.Collections
         {
             saveDataHandler.SaveAsValue("count", data.Count);
             
+            var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
+            saveDataHandler.SaveAsValue("type", typeString);
+            
             var saveElements = data.ToArray();
             for (var index = 0; index < saveElements.Length; index++)
             {
-                saveDataHandler.TrySaveAsReferencable(index.ToString(), saveElements[index]);
+                saveDataHandler.Save(index.ToString(), saveElements[index]);
             }
-            
-            var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
-            saveDataHandler.SaveAsValue("type", typeString);
         }
 
-        public override object OnLoad(LoadDataHandler loadDataHandler)
+        protected override Queue OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.LoadValue<int>("count");
-            var loadElements = new List<GuidPath>();
+            loadDataHandler.TryLoadValue("type", out string typeString);
+            
+            var queueType = typeof(Queue<>).MakeGenericType(Type.GetType(typeString));
+            return (Queue)Activator.CreateInstance(queueType);
+        }
+
+        protected override void OnLoad(Queue data, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoadValue("count", out int count);
+            
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoadReferencable(index.ToString(), out var obj))
+                if (loadDataHandler.TryLoad(index.ToString(), out object targetObject))
                 {
-                    loadElements.Add(obj);
+                    data.Enqueue(targetObject);
                 }
             }
-            
-            var typeString = loadDataHandler.LoadValue<string>("type");
-            var queueType = typeof(Queue<>).MakeGenericType(Type.GetType(typeString));
-            var queue = (Queue)Activator.CreateInstance(queueType);
-            
-            foreach (var saveElement in loadElements)
-            {
-                loadDataHandler.EnqueueReferenceBuilding(saveElement, targetObject => queue.Enqueue(targetObject));
-            }
-
-            return queue;
         }
     }
 }

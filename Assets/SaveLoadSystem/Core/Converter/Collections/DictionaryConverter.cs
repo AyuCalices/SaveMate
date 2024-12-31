@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.DataTransferObject;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -11,49 +10,50 @@ namespace SaveLoadSystem.Core.Converter.Collections
         {
             saveDataHandler.SaveAsValue("count", data.Keys.Count);
             
-            var index = 0;
-            foreach (var dataKey in data.Keys)
-            {
-                saveDataHandler.TrySaveAsReferencable("key" + index, dataKey);
-                saveDataHandler.TrySaveAsReferencable("value" + index, data[dataKey]);
-                index++;
-            }
-            
             var keyTypeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
             saveDataHandler.SaveAsValue("keyType", keyTypeString);
             
             var valueTypeString = data.GetType().GetGenericArguments()[1].AssemblyQualifiedName;
             saveDataHandler.SaveAsValue("valueType", valueTypeString);
+            
+            var index = 0;
+            foreach (var dataKey in data.Keys)
+            {
+                saveDataHandler.Save("key" + index, dataKey);
+                saveDataHandler.Save("value" + index, data[dataKey]);
+                index++;
+            }
         }
 
-        public override object OnLoad(LoadDataHandler loadDataHandler)
+        protected override IDictionary OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
         {
-            var count = loadDataHandler.LoadValue<int>("count");
-            var loadElements = new List<(GuidPath, GuidPath)>();
+            loadDataHandler.TryLoadValue("keyType", out string keyTypeString);
+            loadDataHandler.TryLoadValue("valueType", out string valueTypeString);
+            
+            var keyType = Type.GetType(keyTypeString);
+            var valueType = Type.GetType(valueTypeString);
+            
+            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
+            return (IDictionary)Activator.CreateInstance(dictionaryType);
+        }
+
+        protected override void OnLoad(IDictionary data, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad<int>("count", out var count);
+            loadDataHandler.TryLoad<string>("keyType", out var keyTypeString);
+            loadDataHandler.TryLoad<string>("valueType", out var valueTypeString);
+            
+            var keyType = Type.GetType(keyTypeString);
+            var valueType = Type.GetType(valueTypeString);
+            
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoadReferencable("key" + index, out var key)
-                    && loadDataHandler.TryLoadReferencable("value" + index, out var value))
+                if (loadDataHandler.TryLoad(keyType, "key" + index, out var key)
+                    && loadDataHandler.TryLoad(valueType, "value" + index, out var value))
                 {
-                    loadElements.Add((key, value));
+                    data.Add(key, value);
                 }
             }
-            
-            var keyTypeString = loadDataHandler.LoadValue<string>("keyType");
-            var valueTypeString = loadDataHandler.LoadValue<string>("valueType");
-            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(Type.GetType(keyTypeString), Type.GetType(valueTypeString));
-            var dictionary = (IDictionary)Activator.CreateInstance(dictionaryType);
-
-            foreach (var (key, value) in loadElements)
-            {
-                var objectGroup = new[] { key, value };
-                loadDataHandler.EnqueueReferenceBuilding(objectGroup, foundObject =>
-                {
-                    dictionary.Add(foundObject[0], foundObject[1]);
-                });
-            }
-
-            return dictionary;
         }
     }
 }

@@ -23,6 +23,19 @@ namespace SaveLoadSystem.Core.Converter
 
         protected abstract void OnSave(T data, SaveDataHandler saveDataHandler);
 
-        public abstract object OnLoad(LoadDataHandler loadDataHandler);
+
+        public object OnBeginLoad(SimpleLoadDataHandler loadDataHandler)
+        {
+            return OnCreateInstanceForLoading(loadDataHandler);
+        }
+        
+        protected abstract T OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler);
+        
+        public void OnLoad(object data, LoadDataHandler loadDataHandler)
+        {
+            OnLoad((T)data, loadDataHandler);
+        }
+
+        protected abstract void OnLoad(T data, LoadDataHandler loadDataHandler);
     }
 }

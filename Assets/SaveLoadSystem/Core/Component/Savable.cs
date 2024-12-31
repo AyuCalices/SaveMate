@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.Attributes;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEditor;
@@ -265,11 +264,7 @@ namespace SaveLoadSystem.Core.Component
         private void UpdateSavableComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
-            var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, 
-                TypeUtility.ClassHasAttribute<SavableObjectAttribute>,
-                TypeUtility.ContainsProperty<SavableAttribute>, 
-                TypeUtility.ContainsField<SavableAttribute>,
-                TypeUtility.ContainsInterface<ISavable>);
+            var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, TypeUtility.ContainsInterface<ISavable>);
             
             //update removed elements and those that are kept 
             for (var index = serializeFieldSavableList.Count - 1; index >= 0; index--)

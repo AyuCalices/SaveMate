@@ -8,19 +8,15 @@ namespace SaveLoadSystem.Core.Component.SavableConverter
     {
         public void OnSave(SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.TrySaveAsReferencable("position", transform.position);
+            saveDataHandler.Save("position", transform.position);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            if (loadDataHandler.TryLoadReferencable("position", out GuidPath path))
+            if (loadDataHandler.TryLoad("position", out Vector3 position))
             {
-                loadDataHandler.EnqueueReferenceBuilding(path, foundObject =>
-                {
-                    transform.position = (Vector3)foundObject;
-                });
+                transform.position = position;
             }
         }
     }
-    
 }

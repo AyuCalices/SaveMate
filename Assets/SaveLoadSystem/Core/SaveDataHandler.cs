@@ -14,16 +14,16 @@ namespace SaveLoadSystem.Core
         private readonly SaveDataBuffer _objectSaveDataBuffer;
         private readonly GuidPath _originGuidPath;
         private readonly Dictionary<GuidPath, SaveDataBuffer> _saveDataBuffer;
-        private readonly SavableObjectsLookup _savableObjectsLookup;
+        private readonly Dictionary<object, GuidPath> _processedSavablesLookup;
         private readonly Dictionary<object, GuidPath> _objectReferenceLookup;
 
         public SaveDataHandler(Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SaveDataBuffer objectSaveDataBuffer, GuidPath originGuidPath, 
-            SavableObjectsLookup savableObjectsLookup, Dictionary<object, GuidPath> objectReferenceLookup)
+            Dictionary<object, GuidPath> processedSavablesLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             _objectSaveDataBuffer = objectSaveDataBuffer;
             _originGuidPath = originGuidPath;
             _saveDataBuffer = saveDataBuffer;
-            _savableObjectsLookup = savableObjectsLookup;
+            _processedSavablesLookup = processedSavablesLookup;
             _objectReferenceLookup = objectReferenceLookup;
         }
 
@@ -48,15 +48,21 @@ namespace SaveLoadSystem.Core
         /// <param name="uniqueIdentifier">The unique identifier for the object reference.</param>
         /// <param name="obj">The object to be referenced and added to the buffer.</param>
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
-        public bool TrySaveAsReferencable(string uniqueIdentifier, object obj)
+        public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
-            if (TryConvertToPath(uniqueIdentifier, obj, out GuidPath guidPath))
-            {
-                _objectSaveDataBuffer.CustomGuidPathSaveData.Add(uniqueIdentifier, guidPath);
-                return true;
-            }
+            _objectSaveDataBuffer.CustomGuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
+        }
 
-            return false;
+        public void Save(string uniqueIdentifier, object obj)
+        {
+            if (obj.GetType().IsValueType)
+            {
+                SaveAsValue(uniqueIdentifier, obj);
+            }
+            else
+            {
+                SaveAsReferencable(uniqueIdentifier, obj);
+            }
         }
 
         /// <summary>
@@ -66,37 +72,23 @@ namespace SaveLoadSystem.Core
         /// <param name="obj">The object to convert to a GUID path.</param>
         /// <param name="guidPath">The resulting GUID path if the conversion is successful.</param>
         /// <returns><c>true</c> if the object was successfully converted to a GUID path; otherwise, <c>false</c>.</returns>
-        private bool TryConvertToPath(string uniqueIdentifier, object obj, out GuidPath guidPath)
+        private GuidPath ConvertToPath(string uniqueIdentifier, object obj)
         {
-            guidPath = default;
-            
             if (obj == null)
             {
-                return false;
+                //TODO: debug
+                return null;
             }
             
-            if (_objectReferenceLookup.TryGetValue(obj, out guidPath)) return true;
+            if (_objectReferenceLookup.TryGetValue(obj, out var guidPath)) return guidPath;
             
-            if (!_savableObjectsLookup.ContainsElement(obj))
+            if (!_processedSavablesLookup.TryGetValue(obj, out guidPath))
             {
                 guidPath = new GuidPath(_originGuidPath.FullPath, uniqueIdentifier);
-                SaveSceneManager.ProcessSavableElement(_savableObjectsLookup, obj, guidPath, _objectReferenceLookup);
+                SaveSceneManager.ProcessAsSaveReferencable(_processedSavablesLookup, obj, guidPath, _saveDataBuffer, _objectReferenceLookup);
             }
-                
-            if (_savableObjectsLookup.TryGetValue(obj, out SavableElement saveElement))
-            {
-                if (saveElement.SaveStrategy is SaveStrategy.Serializable)
-                {
-                    var componentDataBuffer = new SaveDataBuffer(saveElement.SaveStrategy, saveElement.Obj.GetType());
-                    componentDataBuffer.CustomSerializableSaveData.Add("Serializable", JToken.FromObject(obj));
-                    _saveDataBuffer.Add(saveElement.CreatorGuidPath, componentDataBuffer);
-                }
-                
-                guidPath = saveElement.CreatorGuidPath;
-                return true;
-            }
-
-            return false;
+            
+            return guidPath;
         }
     }
 }

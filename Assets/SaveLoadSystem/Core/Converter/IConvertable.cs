@@ -6,6 +6,7 @@ namespace SaveLoadSystem.Core.Converter
     {
         bool CanConvert(Type type, out IConvertable convertable);
         void OnSave(object data, SaveDataHandler saveDataHandler);
-        object OnLoad(LoadDataHandler loadDataHandler);
+        object OnBeginLoad(SimpleLoadDataHandler loadDataHandler);
+        void OnLoad(object data, LoadDataHandler loadDataHandler);
     }
 }

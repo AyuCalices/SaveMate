@@ -6,16 +6,19 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     {
         protected override void OnSave(Vector2 data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("x", data.x);
-            saveDataHandler.SaveAsValue("y", data.y);
+            saveDataHandler.Save("x", data.x);
+            saveDataHandler.Save("y", data.y);
         }
 
-        public override object OnLoad(LoadDataHandler loadDataHandler)
+        protected override Vector2 OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
         {
-            var x = loadDataHandler.LoadValue<float>("x");
-            var y = loadDataHandler.LoadValue<float>("y");
+            return new Vector2();
+        }
 
-            return new Vector2(x, y);
+        protected override void OnLoad(Vector2 data, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad("x", out data.x);
+            loadDataHandler.TryLoad("y", out data.y);
         }
     }
 }
