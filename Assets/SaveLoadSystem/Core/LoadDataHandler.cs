@@ -58,7 +58,7 @@ namespace SaveLoadSystem.Core
         {
             value = default;
 
-            if (!LoadSaveDataBuffer.CustomGuidPathSaveData.TryGetValue(identifier, out var guidPath))
+            if (!LoadSaveDataBuffer.GuidPathSaveData.TryGetValue(identifier, out var guidPath))
             {
                 Debug.LogWarning("Wasn't able to find the created object!");        //TODO: debug
                 return false;
@@ -94,12 +94,12 @@ namespace SaveLoadSystem.Core
         {
             value = default;
             
-            if (LoadSaveDataBuffer.CustomSerializableSaveData[identifier] == null)
+            if (LoadSaveDataBuffer.JsonSerializableSaveData[identifier] == null)
             {
                 return false;     //TODO: debug
             }
 
-            value = LoadSaveDataBuffer.CustomSerializableSaveData[identifier].ToObject<T>();
+            value = LoadSaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<T>();
             return true;
         }
         
@@ -107,12 +107,12 @@ namespace SaveLoadSystem.Core
         {
             value = default;
             
-            if (LoadSaveDataBuffer.CustomSerializableSaveData[identifier] == null)
+            if (LoadSaveDataBuffer.JsonSerializableSaveData[identifier] == null)
             {
                 return false;     //TODO: debug
             }
             
-            value = LoadSaveDataBuffer.CustomSerializableSaveData[identifier].ToObject(type);
+            value = LoadSaveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
             return true;
         }
     }

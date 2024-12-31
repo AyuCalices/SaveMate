@@ -35,7 +35,7 @@ namespace SaveLoadSystem.Core
         /// <param name="obj">The object to be serialized and added to the buffer.</param>
         public void SaveAsValue(string uniqueIdentifier, object obj)
         {
-            _objectSaveDataBuffer.CustomSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
+            _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
         }
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace SaveLoadSystem.Core
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
         public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
-            _objectSaveDataBuffer.CustomGuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
+            _objectSaveDataBuffer.GuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
 
         public void Save(string uniqueIdentifier, object obj)

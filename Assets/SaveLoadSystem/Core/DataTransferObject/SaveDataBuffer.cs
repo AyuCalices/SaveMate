@@ -9,8 +9,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
     {
         [JsonProperty] public readonly Component.SaveStrategy SaveStrategy;
         [JsonProperty] public readonly string SavableType;
-
-        //save data should only be initialized, when needed
+        
         private Dictionary<string, GuidPath> _guidPathSaveData;
         public Dictionary<string, GuidPath> GuidPathSaveData
         {
@@ -22,37 +21,15 @@ namespace SaveLoadSystem.Core.DataTransferObject
             set => _guidPathSaveData = value;
         }
         
-        private JObject _serializableSaveData;
-        public JObject SerializableSaveData
+        private JObject _jsonSerializableSaveData;
+        public JObject JsonSerializableSaveData
         {
             get 
             { 
-                _serializableSaveData ??= new();
-                return _serializableSaveData;
+                _jsonSerializableSaveData ??= new();
+                return _jsonSerializableSaveData;
             }
-            set => _serializableSaveData = value;
-        }
-        
-        private Dictionary<string, GuidPath> _customGuidPathSaveData;
-        public Dictionary<string, GuidPath> CustomGuidPathSaveData
-        {
-            get 
-            { 
-                _customGuidPathSaveData ??= new();
-                return _customGuidPathSaveData;
-            }
-            set => _customGuidPathSaveData = value;
-        }
-        
-        private JObject _customSerializableSaveData;
-        public JObject CustomSerializableSaveData
-        {
-            get 
-            { 
-                _customSerializableSaveData ??= new();
-                return _customSerializableSaveData;
-            }
-            set => _customSerializableSaveData = value;
+            set => _jsonSerializableSaveData = value;
         }
 
         public SaveDataBuffer(Component.SaveStrategy saveStrategy, Type savableType)

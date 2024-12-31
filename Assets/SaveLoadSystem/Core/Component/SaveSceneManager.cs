@@ -391,7 +391,7 @@ namespace SaveLoadSystem.Core.Component
                 
                 saveDataBuffer.Add(guidPath, componentDataBuffer);
                 
-                componentDataBuffer.CustomSerializableSaveData.Add("SerializeRef", JToken.FromObject(targetObject));
+                componentDataBuffer.JsonSerializableSaveData.Add("SerializeRef", JToken.FromObject(targetObject));
             }
         }
 
@@ -511,7 +511,7 @@ namespace SaveLoadSystem.Core.Component
                         break;
                     
                     case SaveStrategy.Serializable:
-                        var serializableInstance = saveDataBuffer.CustomSerializableSaveData["Serializable"]?.ToObject(type);
+                        var serializableInstance = saveDataBuffer.JsonSerializableSaveData["SerializeRef"]?.ToObject(type);
                         createdObjectsLookup.Add(guidPath, serializableInstance);
                         break;
                     
