@@ -266,14 +266,14 @@ namespace SaveLoadSystem.Core.Component
         internal SceneDataContainer CreateSnapshot()
         {
             //prepare data
-            Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer = new();
+            Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup = new();
             var savableList = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var saveDataBufferContainer = new SceneDataContainer(saveDataBuffer, CreatePrefabPoolList(savableList));
+            var saveDataContainer = new SceneDataContainer(saveDataBufferLookup, CreatePrefabPoolList(savableList));
             var objectReferenceLookup = BuildObjectToPathReferenceLookup(savableList);
             
             //core saving
-            BuildSavableObjectsLookup(savableList, saveDataBuffer, objectReferenceLookup);
-            return saveDataBufferContainer;
+            BuildSavableObjectsLookup(savableList, saveDataBufferLookup, objectReferenceLookup);
+            return saveDataContainer;
         }
 
         internal void LoadSnapshot(SceneDataContainer sceneDataContainer)
@@ -333,7 +333,7 @@ namespace SaveLoadSystem.Core.Component
         }
         
         private void BuildSavableObjectsLookup(List<Savable> savableList, 
-            Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, Dictionary<object, GuidPath> objectReferenceLookup)
+            Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             var processedSavablesLookup = new Dictionary<object, GuidPath>();
             
@@ -344,7 +344,7 @@ namespace SaveLoadSystem.Core.Component
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
                     //TODO: at this point it is always unityObject - maybe simplify
-                    ProcessAsSaveReferencable(processedSavablesLookup, componentContainer.unityObject, componentGuidPath, saveDataBuffer, objectReferenceLookup);
+                    ProcessAsSaveReferencable(componentContainer.unityObject, componentGuidPath, saveDataBufferLookup, processedSavablesLookup, objectReferenceLookup);
                 }
             }
         }
@@ -353,9 +353,8 @@ namespace SaveLoadSystem.Core.Component
         /// When only using Component-Saving and the Type-Converter, this Method will perform saving without reflection,
         /// which heavily improves performance. You will need the exchange the ProcessSavableElement method with this one.
         /// </summary>
-        public static void ProcessAsSaveReferencable(Dictionary<object, GuidPath> processedSavablesLookup, object targetObject, 
-            GuidPath guidPath, Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, 
-            Dictionary<object, GuidPath> objectReferenceLookup)  //TODO: objectReferenceLookup might be needed for scriptable object
+        public static void ProcessAsSaveReferencable(object targetObject, GuidPath guidPath, Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup, 
+            Dictionary<object, GuidPath> processedSavablesLookup, Dictionary<object, GuidPath> objectReferenceLookup)  //TODO: objectReferenceLookup might be needed for scriptable object
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
             if (targetObject.IsUnityNull() || !processedSavablesLookup.TryAdd(targetObject, guidPath)) return;
@@ -364,43 +363,43 @@ namespace SaveLoadSystem.Core.Component
             {
                 var componentDataBuffer = new SaveDataBuffer(SaveStrategy.UnityObject, targetObject.GetType());
                 
-                saveDataBuffer.Add(guidPath, componentDataBuffer);
+                saveDataBufferLookup.Add(guidPath, componentDataBuffer);
                 
-                HandleInterfaceOnSave(guidPath, targetObject, saveDataBuffer, componentDataBuffer, processedSavablesLookup, objectReferenceLookup);
+                HandleInterfaceOnSave(guidPath, targetObject, saveDataBufferLookup, componentDataBuffer, processedSavablesLookup, objectReferenceLookup);
             }
             else if (targetObject is ISavable)
             {
                 var savableDataBuffer = new SaveDataBuffer(SaveStrategy.CustomSavable, targetObject.GetType());
                 
-                saveDataBuffer.Add(guidPath, savableDataBuffer);
+                saveDataBufferLookup.Add(guidPath, savableDataBuffer);
                         
-                HandleInterfaceOnSave(guidPath, targetObject, saveDataBuffer, savableDataBuffer, processedSavablesLookup, objectReferenceLookup);
+                HandleInterfaceOnSave(guidPath, targetObject, saveDataBufferLookup, savableDataBuffer, processedSavablesLookup, objectReferenceLookup);
             }
             else if (TypeConverterRegistry.HasConverter(targetObject.GetType()))
             {
                 var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.CustomConvertable, targetObject.GetType());
                 
-                saveDataBuffer.Add(guidPath, convertableDataBuffer);
+                saveDataBufferLookup.Add(guidPath, convertableDataBuffer);
                         
-                var saveDataHandler = new SaveDataHandler(saveDataBuffer, convertableDataBuffer, guidPath, processedSavablesLookup, objectReferenceLookup);
+                var saveDataHandler = new SaveDataHandler(convertableDataBuffer, guidPath, saveDataBufferLookup, processedSavablesLookup, objectReferenceLookup);
                 TypeConverterRegistry.GetConverter(targetObject.GetType()).OnSave(targetObject, saveDataHandler);
             }
             else
             {
                 var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable, targetObject.GetType());
                 
-                saveDataBuffer.Add(guidPath, componentDataBuffer);
+                saveDataBufferLookup.Add(guidPath, componentDataBuffer);
                 
                 componentDataBuffer.JsonSerializableSaveData.Add("SerializeRef", JToken.FromObject(targetObject));
             }
         }
 
-        private static void HandleInterfaceOnSave(GuidPath creatorGuidPath, object saveObject, Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, 
+        private static void HandleInterfaceOnSave(GuidPath creatorGuidPath, object saveObject, Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup, 
             SaveDataBuffer objectSaveDataBuffer, Dictionary<object, GuidPath> processedSavablesLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             if (!TypeUtility.TryConvertTo(saveObject, out ISavable objectSavable)) return;
             
-            objectSavable.OnSave(new SaveDataHandler(saveDataBuffer, objectSaveDataBuffer, creatorGuidPath, processedSavablesLookup, objectReferenceLookup));
+            objectSavable.OnSave(new SaveDataHandler(objectSaveDataBuffer, creatorGuidPath, saveDataBufferLookup, processedSavablesLookup, objectReferenceLookup));
         }
 
         #endregion

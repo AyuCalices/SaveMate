@@ -13,16 +13,16 @@ namespace SaveLoadSystem.Core
     {
         private readonly SaveDataBuffer _objectSaveDataBuffer;
         private readonly GuidPath _originGuidPath;
-        private readonly Dictionary<GuidPath, SaveDataBuffer> _saveDataBuffer;
+        private readonly Dictionary<GuidPath, SaveDataBuffer> _saveDataBufferLookup;
         private readonly Dictionary<object, GuidPath> _processedSavablesLookup;
         private readonly Dictionary<object, GuidPath> _objectReferenceLookup;
 
-        public SaveDataHandler(Dictionary<GuidPath, SaveDataBuffer> saveDataBuffer, SaveDataBuffer objectSaveDataBuffer, GuidPath originGuidPath, 
+        public SaveDataHandler(SaveDataBuffer objectSaveDataBuffer, GuidPath originGuidPath, Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup, 
             Dictionary<object, GuidPath> processedSavablesLookup, Dictionary<object, GuidPath> objectReferenceLookup)
         {
             _objectSaveDataBuffer = objectSaveDataBuffer;
             _originGuidPath = originGuidPath;
-            _saveDataBuffer = saveDataBuffer;
+            _saveDataBufferLookup = saveDataBufferLookup;
             _processedSavablesLookup = processedSavablesLookup;
             _objectReferenceLookup = objectReferenceLookup;
         }
@@ -85,7 +85,7 @@ namespace SaveLoadSystem.Core
             if (!_processedSavablesLookup.TryGetValue(obj, out guidPath))
             {
                 guidPath = new GuidPath(_originGuidPath.FullPath, uniqueIdentifier);
-                SaveSceneManager.ProcessAsSaveReferencable(_processedSavablesLookup, obj, guidPath, _saveDataBuffer, _objectReferenceLookup);
+                SaveSceneManager.ProcessAsSaveReferencable(obj, guidPath, _saveDataBufferLookup, _processedSavablesLookup, _objectReferenceLookup);
             }
             
             return guidPath;
