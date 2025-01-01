@@ -349,6 +349,9 @@ namespace SaveLoadSystem.Core.Component
             }
         }
         
+        //TODO: if there is an object saved as A, but the same object comes in as extended B, the origin path will be changed to the place where B was defined
+        //TODO: when deserialising, things are beeing created lazy: as soon as they are needed -> order shall not matter!
+        
         /// <summary>
         /// When only using Component-Saving and the Type-Converter, this Method will perform saving without reflection,
         /// which heavily improves performance. You will need the exchange the ProcessSavableElement method with this one.

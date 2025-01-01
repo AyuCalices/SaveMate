@@ -26,6 +26,18 @@ namespace SaveLoadSystem.Core
             _processedSavablesLookup = processedSavablesLookup;
             _objectReferenceLookup = objectReferenceLookup;
         }
+        
+        public void Save(string uniqueIdentifier, object obj)
+        {
+            if (obj.GetType().IsValueType)
+            {
+                SaveAsValue(uniqueIdentifier, obj);
+            }
+            else
+            {
+                SaveAsReferencable(uniqueIdentifier, obj);
+            }
+        }
 
         /// <summary>
         /// Adds an object to the save data buffer using a unique identifier.
@@ -51,18 +63,6 @@ namespace SaveLoadSystem.Core
         public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
             _objectSaveDataBuffer.GuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
-        }
-
-        public void Save(string uniqueIdentifier, object obj)
-        {
-            if (obj.GetType().IsValueType)
-            {
-                SaveAsValue(uniqueIdentifier, obj);
-            }
-            else
-            {
-                SaveAsReferencable(uniqueIdentifier, obj);
-            }
         }
 
         /// <summary>
