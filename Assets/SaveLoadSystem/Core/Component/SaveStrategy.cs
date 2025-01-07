@@ -2,11 +2,9 @@ namespace SaveLoadSystem.Core.Component
 {
     public enum SaveStrategy
     {
-        NotSupported,
+        Serializable,
         UnityObject,
-        AutomaticSavable,
-        CustomSavable,
-        CustomConvertable,
-        Serializable
+        Savable,
+        Convertable,
     }
 }

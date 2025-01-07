@@ -32,7 +32,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        public object OnBeginLoad(SimpleLoadDataHandler loadDataHandler)
+        public object CreateInstanceForLoad(SimpleLoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoadValue("count", out int count);
             loadDataHandler.TryLoadValue("type", out string typeString);

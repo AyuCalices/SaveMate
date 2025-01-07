@@ -26,13 +26,11 @@ namespace Sample.Scripts
             Setup(ContainedItem);
         }
 
-        //Optional Component-Saving implementation approach
         public void OnSave(SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("item", ContainedItem);
         }
 
-        //Optional Component-Saving implementation approach
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             if (loadDataHandler.TryLoad("item", out Item item))

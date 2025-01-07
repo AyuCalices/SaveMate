@@ -46,13 +46,11 @@ public class Inventory : ScriptableObject, ISavable
         OnItemRemoved?.Invoke(itemToRemove);
     }
     
-    //Optional Component-Saving implementation approach
     public void OnSave(SaveDataHandler saveDataHandler)
     {
         saveDataHandler.Save("items", items);
     }
 
-    //Optional Component-Saving implementation approach
     public void OnLoad(LoadDataHandler loadDataHandler)
     {
         loadDataHandler.TryLoad("items", out items);

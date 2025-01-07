@@ -40,14 +40,12 @@ namespace Sample.Scripts
             Destroy(foundInventoryElement.gameObject);
         }
     
-        //Optional Component-Saving implementation approach
         public void OnSave(SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("content", _instantiatedInventoryElements);
             saveDataHandler.Save("inventory", inventory);
         }
 
-        //Optional Component-Saving implementation approach
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad("content", out _instantiatedInventoryElements);

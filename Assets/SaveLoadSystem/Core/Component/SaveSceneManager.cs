@@ -9,7 +9,6 @@ using SaveLoadSystem.Core.EventHandler;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.Events;
-using Debug = UnityEngine.Debug;
 
 namespace SaveLoadSystem.Core.Component
 {
@@ -284,8 +283,9 @@ namespace SaveLoadSystem.Core.Component
             
             //core loading
             var pathToObjectReferenceLookup = BuildPathToObjectReferenceLookup(savableList);
-            PrepareSaveElementInstances(sceneDataContainer, pathToObjectReferenceLookup, out var createdObjectsLookup, out var instancesList);
-            HandleInstancesOnLoad(instancesList, pathToObjectReferenceLookup, createdObjectsLookup);
+
+            var createdObjectsLookup = new Dictionary<GuidPath, object>();
+            LazyLoad(savableList, sceneDataContainer, pathToObjectReferenceLookup, createdObjectsLookup);
             
             //destroy prefabs, that are not present in the save file
             DestroyPrefabsOnLoad(sceneDataContainer, savableList, prefabPoolList);
@@ -349,7 +349,8 @@ namespace SaveLoadSystem.Core.Component
             }
         }
         
-        //TODO: if there is an object saved as A, but the same object comes in as extended B, the origin path will be changed to the place where B was defined
+        //TODO: if an object is beeing loaded in two different types, there must be an error -> not allowed
+        //TODO: objects must always be loaded with the same type like when saving: how to check this is the case? i cant, but i can throw an error, if at spot 1 it is A and at spot 2 it is B and it is performed in the wrong order
         //TODO: when deserialising, things are beeing created lazy: as soon as they are needed -> order shall not matter!
         
         /// <summary>
@@ -362,7 +363,7 @@ namespace SaveLoadSystem.Core.Component
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
             if (targetObject.IsUnityNull() || !processedSavablesLookup.TryAdd(targetObject, guidPath)) return;
 
-            if (targetObject is UnityEngine.Object)
+            if (targetObject is UnityEngine.Object) //TODO: if the UnityEngine.Object can't be found through a Savable or the Asset Registry
             {
                 var componentDataBuffer = new SaveDataBuffer(SaveStrategy.UnityObject, targetObject.GetType());
                 
@@ -372,7 +373,7 @@ namespace SaveLoadSystem.Core.Component
             }
             else if (targetObject is ISavable)
             {
-                var savableDataBuffer = new SaveDataBuffer(SaveStrategy.CustomSavable, targetObject.GetType());
+                var savableDataBuffer = new SaveDataBuffer(SaveStrategy.Savable, targetObject.GetType());
                 
                 saveDataBufferLookup.Add(guidPath, savableDataBuffer);
                         
@@ -380,7 +381,7 @@ namespace SaveLoadSystem.Core.Component
             }
             else if (TypeConverterRegistry.HasConverter(targetObject.GetType()))
             {
-                var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.CustomConvertable, targetObject.GetType());
+                var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.Convertable, targetObject.GetType());
                 
                 saveDataBufferLookup.Add(guidPath, convertableDataBuffer);
                         
@@ -466,81 +467,24 @@ namespace SaveLoadSystem.Core.Component
             return objectReferenceLookup;
         }
         
-        private void PrepareSaveElementInstances(SceneDataContainer sceneDataContainer, Dictionary<string, object> pathToObjectReferenceLookup,
-            out Dictionary<GuidPath, object> createdObjectsLookup, out List<(SaveDataBuffer, object)>  instancesList)
-        {
-            createdObjectsLookup = new Dictionary<GuidPath, object>();
-            instancesList = new List<(SaveDataBuffer, object)>();
-            
-            foreach (var (guidPath, saveDataBuffer) in sceneDataContainer.SaveObjectLookup)
-            {
-                var type = Type.GetType(saveDataBuffer.SavableType);
-                if (type == null)
-                {
-                    Debug.LogWarning("Couldn't convert the contained type!");
-                    continue;
-                }
-                
-                switch (saveDataBuffer.SaveStrategy)
-                {
-                    case SaveStrategy.NotSupported:
-                        Debug.LogWarning($"The object of type {saveDataBuffer.SavableType} is not supported!");
-                        break;
-                    
-                    case SaveStrategy.UnityObject:
-                        if (!pathToObjectReferenceLookup.TryGetValue(guidPath.ToString(), out var unityObj)) continue;
-                        
-                        createdObjectsLookup.Add(guidPath, unityObj);
-                        instancesList.Add((saveDataBuffer, unityObj));
-                        break;
-                    
-                    case SaveStrategy.CustomSavable:
-                        var customSavableObj = Activator.CreateInstance(type);
-
-                        createdObjectsLookup.Add(guidPath, customSavableObj);
-                        instancesList.Add((saveDataBuffer, customSavableObj));
-                        break;
-
-                    case SaveStrategy.CustomConvertable:
-
-                        if (TypeConverterRegistry.TryGetConverter(type, out IConvertable convertable))
-                        {
-                            var customConvertableObj = convertable.OnBeginLoad(new SimpleLoadDataHandler(saveDataBuffer));
-                            
-                            createdObjectsLookup.Add(guidPath, customConvertableObj);
-                            instancesList.Add((saveDataBuffer, customConvertableObj));
-                        }
-                        break;
-                    
-                    case SaveStrategy.Serializable:
-                        var serializableInstance = saveDataBuffer.JsonSerializableSaveData["SerializeRef"]?.ToObject(type);
-                        createdObjectsLookup.Add(guidPath, serializableInstance);
-                        break;
-                    
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-            }
-        }
-        
-        private void HandleInstancesOnLoad(List<(SaveDataBuffer, object)> instancesList, 
+        private void LazyLoad(List<Savable> savableList, SceneDataContainer sceneDataContainer, 
             Dictionary<string, object> pathToObjectReferenceLookup, Dictionary<GuidPath, object> createdObjectsLookup)
         {
-            foreach (var (saveDataBuffer, instance) in instancesList)
+            foreach (var savable in savableList)
             {
-                var loadDataHandler = new LoadDataHandler(saveDataBuffer, pathToObjectReferenceLookup, createdObjectsLookup);
-                if (saveDataBuffer.SaveStrategy is SaveStrategy.CustomConvertable)
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
+                foreach (var componentContainer in savable.SavableList)
                 {
-                    if (TypeConverterRegistry.TryGetConverter(instance.GetType(), out IConvertable convertable))
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
+
+                    if (sceneDataContainer.SaveObjectLookup.TryGetValue(componentGuidPath, out SaveDataBuffer data))
                     {
-                        convertable.OnLoad(instance, loadDataHandler);
-                    }
-                }
-                else
-                {
-                    if (!TypeUtility.TryConvertTo(instance, out ISavable objectSavable)) return;
+                        var loadDataHandler = new LoadDataHandler(sceneDataContainer, data, pathToObjectReferenceLookup, createdObjectsLookup);
+                        
+                        if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable objectSavable)) return;
                     
-                    objectSavable.OnLoad(loadDataHandler);
+                        objectSavable.OnLoad(loadDataHandler);
+                    }
                 }
             }
         }

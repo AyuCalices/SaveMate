@@ -24,7 +24,7 @@ namespace SaveLoadSystem.Core.Converter
         protected abstract void OnSave(T data, SaveDataHandler saveDataHandler);
 
 
-        public object OnBeginLoad(SimpleLoadDataHandler loadDataHandler)
+        public object CreateInstanceForLoad(SimpleLoadDataHandler loadDataHandler)
         {
             return OnCreateInstanceForLoading(loadDataHandler);
         }

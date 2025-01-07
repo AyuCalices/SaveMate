@@ -19,14 +19,12 @@ namespace Sample.Scripts
             this.itemName = itemName;
         }
 
-        //Optional Component-Saving implementation approach
         public void OnSave(SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("sprite", sprite);
             saveDataHandler.Save("itemName", itemName);
         }
 
-        //Optional Component-Saving implementation approach
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad("itemName", out itemName);
