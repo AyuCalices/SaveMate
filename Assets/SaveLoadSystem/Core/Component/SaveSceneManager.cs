@@ -365,7 +365,7 @@ namespace SaveLoadSystem.Core.Component
 
             if (targetObject is UnityEngine.Object) //TODO: if the UnityEngine.Object can't be found through a Savable or the Asset Registry
             {
-                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.UnityObject, targetObject.GetType());
+                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.UnityObject);
                 
                 saveDataBufferLookup.Add(guidPath, componentDataBuffer);
                 
@@ -373,7 +373,7 @@ namespace SaveLoadSystem.Core.Component
             }
             else if (targetObject is ISavable)
             {
-                var savableDataBuffer = new SaveDataBuffer(SaveStrategy.Savable, targetObject.GetType());
+                var savableDataBuffer = new SaveDataBuffer(SaveStrategy.Savable);
                 
                 saveDataBufferLookup.Add(guidPath, savableDataBuffer);
                         
@@ -381,7 +381,7 @@ namespace SaveLoadSystem.Core.Component
             }
             else if (TypeConverterRegistry.HasConverter(targetObject.GetType()))
             {
-                var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.Convertable, targetObject.GetType());
+                var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.Convertable);
                 
                 saveDataBufferLookup.Add(guidPath, convertableDataBuffer);
                         
@@ -390,7 +390,7 @@ namespace SaveLoadSystem.Core.Component
             }
             else
             {
-                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable, targetObject.GetType());
+                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable);
                 
                 saveDataBufferLookup.Add(guidPath, componentDataBuffer);
                 
