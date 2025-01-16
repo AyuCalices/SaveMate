@@ -10,7 +10,7 @@ namespace SaveLoadSystem.Core.SerializeStrategy
     {
         public async Task<byte[]> SerializeAsync(object data)
         {
-            string jsonString = JsonConvert.SerializeObject(data);
+            string jsonString = JsonConvert.SerializeObject(data, Formatting.Indented);
 
             // Using a memory stream to write bytes asynchronously
             using (MemoryStream memoryStream = new MemoryStream())

@@ -32,9 +32,11 @@ namespace SaveLoadSystem.Core.Converter.Collections
         {
             loadDataHandler.TryLoadValue("count", out int count);
             
+            var type = data.GetType().GetGenericArguments()[0];
+            
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad(index.ToString(), out object targetObject))
+                if (loadDataHandler.TryLoad(type, index.ToString(), out var targetObject))
                 {
                     data.Enqueue(targetObject);
                 }

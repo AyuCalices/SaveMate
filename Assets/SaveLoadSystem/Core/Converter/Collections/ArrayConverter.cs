@@ -47,7 +47,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             for (int index = 0; index < arrayData.Length; index++)
             {
                 var innerScopeIndex = index;
-                if (loadDataHandler.TryLoad(index.ToString(), out object obj))
+                if (loadDataHandler.TryLoad(arrayData.GetType().GetElementType(), index.ToString(), out var obj))
                 {
                     arrayData.SetValue(obj, innerScopeIndex);
                 }

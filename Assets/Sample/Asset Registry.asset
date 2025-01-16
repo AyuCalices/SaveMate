@@ -12,10 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20506696f801a304baa1d0db2a9a745e, type: 3}
   m_Name: Asset Registry
   m_EditorClassIdentifier: 
-  prefabLookup: {fileID: 11400000, guid: e423ed5e6ea6b8a4ca3eab7051cfc8c5, type: 2}
+  prefabRegistry: {fileID: 11400000, guid: e423ed5e6ea6b8a4ca3eab7051cfc8c5, type: 2}
+  scriptableObjectRegistry: {fileID: 11400000, guid: beb3ead7af8c8a14a977cd2b319f86a5, type: 2}
   unityObjectList:
-  - guid: 7ca6364b-833a-49bb-aeb2-77066b8bdbfe
-    unityObject: {fileID: 11400000, guid: 4bbc194549df92441ada2df6806111f8, type: 2}
   - guid: 14194a88-7e55-44da-853a-65b8f2fe23a0
     unityObject: {fileID: 21300000, guid: 111a0dc8dfed8974abfe5b2e9cf1477c, type: 3}
   - guid: d4561a40-600f-43e3-8b01-92696cbad980

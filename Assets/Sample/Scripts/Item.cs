@@ -22,13 +22,13 @@ namespace Sample.Scripts
         public void OnSave(SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("sprite", sprite);
-            saveDataHandler.Save("itemName", itemName);
+            saveDataHandler.SaveAsValue("itemName", itemName);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoad("itemName", out itemName);
             loadDataHandler.TryLoad("sprite", out sprite);
+            loadDataHandler.TryLoadValue("itemName", out itemName);
         }
     }
 }

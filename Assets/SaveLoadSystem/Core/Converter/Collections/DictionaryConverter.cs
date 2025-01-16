@@ -40,11 +40,9 @@ namespace SaveLoadSystem.Core.Converter.Collections
         protected override void OnLoad(IDictionary data, LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad<int>("count", out var count);
-            loadDataHandler.TryLoad<string>("keyType", out var keyTypeString);
-            loadDataHandler.TryLoad<string>("valueType", out var valueTypeString);
             
-            var keyType = Type.GetType(keyTypeString);
-            var valueType = Type.GetType(valueTypeString);
+            var keyType = data.GetType().GetGenericArguments()[0];
+            var valueType = data.GetType().GetGenericArguments()[1];
             
             for (var index = 0; index < count; index++)
             {

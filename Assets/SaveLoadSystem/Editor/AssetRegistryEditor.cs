@@ -9,13 +9,15 @@ namespace SaveLoadSystem.Editor
     public class AssetRegistryEditor : UnityEditor.Editor
     {
         private SerializedProperty _prefabLookupProperty;
+        private SerializedProperty _scriptableObjectLookupProperty;
         private SerializedProperty _unityObjectListProperty;
         
         private static bool _showUnityObjectList;
         
         private void OnEnable()
         {
-            _prefabLookupProperty = serializedObject.FindProperty("prefabLookup");
+            _prefabLookupProperty = serializedObject.FindProperty("prefabRegistry");
+            _scriptableObjectLookupProperty = serializedObject.FindProperty("scriptableObjectRegistry");
             _unityObjectListProperty = serializedObject.FindProperty("unityObjectList");
         }
         
@@ -24,6 +26,7 @@ namespace SaveLoadSystem.Editor
             serializedObject.Update();
             
             EditorGUILayout.PropertyField(_prefabLookupProperty);
+            EditorGUILayout.PropertyField(_scriptableObjectLookupProperty);
             
             // Disable editing
             GUI.enabled = false;

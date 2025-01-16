@@ -43,13 +43,11 @@ namespace Sample.Scripts
         public void OnSave(SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("content", _instantiatedInventoryElements);
-            saveDataHandler.Save("inventory", inventory);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad("content", out _instantiatedInventoryElements);
-            loadDataHandler.TryLoad("inventory", out inventory);
         }
     }
 }

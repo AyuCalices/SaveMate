@@ -2,9 +2,10 @@ namespace SaveLoadSystem.Core.Component
 {
     public enum SaveStrategy
     {
-        Serializable,
-        UnityObject,
+        ScriptableObject,
+        GameObject,
         Savable,
         Convertable,
+        Serializable
     }
 }

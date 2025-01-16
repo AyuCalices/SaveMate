@@ -1,6 +1,5 @@
-using System.Collections.Generic;
 using System.IO;
-using SaveLoadSystem.Core.Component;
+using SaveLoadSystem.Core.Component.SavableConverter;
 using UnityEditor;
 using UnityEngine;
 
@@ -10,12 +9,12 @@ namespace SaveLoadSystem.Core
 #if UNITY_EDITOR
     
     [InitializeOnLoad]
-    public class PrefabRegistryGenerator : AssetPostprocessor
+    public class ScriptableObjectRegistryGenerator : AssetPostprocessor
     {
-        private static PrefabRegistry _cachedPrefabRegistry;
+        private static ScriptableObjectRegistry _cachedScriptableObjectRegistry;
         private static string _defaultPath;
         
-        static PrefabRegistryGenerator()
+        static ScriptableObjectRegistryGenerator()
         {
             EditorApplication.delayCall += LoadSavablePrefab;
         }
@@ -29,30 +28,31 @@ namespace SaveLoadSystem.Core
             
             EditorApplication.delayCall -= LoadSavablePrefab;
         }
-
-        private static void ProcessAll(PrefabRegistry prefabRegistry)
+        
+        public static void ProcessAll(ScriptableObjectRegistry scriptableObjectRegistry)
         {
-            var guids = AssetDatabase.FindAssets("t:Prefab");
-            
+            // Get all ScriptableObject asset paths
+            string[] guids = AssetDatabase.FindAssets("t:ScriptableObject");
+
             foreach (string guid in guids)
             {
-                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(assetPath);
-                
-                if (savablePrefab != null)
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+
+                if (asset is ISavable)
                 {
-                    prefabRegistry.AddSavablePrefab(savablePrefab, assetPath);
+                    scriptableObjectRegistry.AddSavableScriptableObject(asset, path);
                 }
             }
         }
-    
+        
         //help of fishnet code
-        private static PrefabRegistry GetDefaultPrefabObjects()
+        private static ScriptableObjectRegistry GetDefaultPrefabObjects()
         {
             //If cached is null try to get it.
-            if (_cachedPrefabRegistry == null)
+            if (_cachedScriptableObjectRegistry == null)
             {
-                var guids = AssetDatabase.FindAssets($"t:{nameof(PrefabRegistry)}");
+                var guids = AssetDatabase.FindAssets($"t:{nameof(ScriptableObjectRegistry)}");
                 
                 if (guids.Length > 1)
                 {
@@ -62,13 +62,13 @@ namespace SaveLoadSystem.Core
                 if (guids.Length != 0)
                 {
                     string assetPath = AssetDatabase.GUIDToAssetPath(guids[0]);
-                    _cachedPrefabRegistry = AssetDatabase.LoadAssetAtPath<PrefabRegistry>(assetPath);
+                    _cachedScriptableObjectRegistry = AssetDatabase.LoadAssetAtPath<ScriptableObjectRegistry>(assetPath);
                 }
             }
 
-            if (_cachedPrefabRegistry == null)
+            if (_cachedScriptableObjectRegistry == null)
             {
-                var defaultPrefabsPath = GetPlatformPath(Path.Combine("Assets", "Prefab Registry.asset"));
+                var defaultPrefabsPath = GetPlatformPath(Path.Combine("Assets", "ScriptableObject Registry.asset"));
                 var fullPath = Path.GetFullPath(defaultPrefabsPath);
                 Debug.Log($"Creating a new DefaultPrefabsObject at {fullPath}.");
                 var directory = Path.GetDirectoryName(fullPath);
@@ -79,14 +79,14 @@ namespace SaveLoadSystem.Core
                     AssetDatabase.Refresh();
                 }
 
-                _cachedPrefabRegistry = ScriptableObject.CreateInstance<PrefabRegistry>();
-                AssetDatabase.CreateAsset(_cachedPrefabRegistry, defaultPrefabsPath);
+                _cachedScriptableObjectRegistry = ScriptableObject.CreateInstance<ScriptableObjectRegistry>();
+                AssetDatabase.CreateAsset(_cachedScriptableObjectRegistry, defaultPrefabsPath);
                 AssetDatabase.SaveAssets();
 
-                ProcessAll(_cachedPrefabRegistry);
+                ProcessAll(_cachedScriptableObjectRegistry);
             }
 
-            return _cachedPrefabRegistry;
+            return _cachedScriptableObjectRegistry;
         }
         
         private static string GetPlatformPath(string path)
@@ -98,7 +98,7 @@ namespace SaveLoadSystem.Core
             path = path.Replace(@"/"[0], Path.DirectorySeparatorChar);
             return path;
         }
-
+        
         private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
         {
             if (Application.isPlaying) return;
@@ -114,16 +114,16 @@ namespace SaveLoadSystem.Core
 
             foreach (var importedAsset in importedAssets)
             {
-                var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(importedAsset);
-                if (savablePrefab != null)
+                var savablePrefab = AssetDatabase.LoadAssetAtPath<ScriptableObject>(importedAsset);
+                if (savablePrefab != null && savablePrefab is ISavable)
                 {
-                    prefabRegistry.AddSavablePrefab(savablePrefab, importedAsset);
+                    prefabRegistry.AddSavableScriptableObject(savablePrefab, importedAsset);
                 }
             }
 
             foreach (var deletedAsset in deletedAssets)
             {
-                prefabRegistry.RemoveSavablePrefab(deletedAsset);
+                prefabRegistry.RemoveSavableScriptableObject(deletedAsset);
             }
 
             for (var i = 0; i < movedAssets.Length; i++)

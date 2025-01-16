@@ -294,7 +294,7 @@ namespace SaveLoadSystem.Core.Component
         private List<(string, string)> CreatePrefabPoolList(List<Savable> savableList)
         {
             return (from savable in savableList 
-                where !savable.DynamicPrefabSpawningDisabled && assetRegistry.PrefabLookup.ContainsPrefabGuid(savable.PrefabGuid) 
+                where !savable.DynamicPrefabSpawningDisabled && assetRegistry.PrefabRegistry.ContainsPrefabGuid(savable.PrefabGuid) 
                 select (savable.PrefabGuid, savable.SceneGuid)).ToList();
         }
 
@@ -306,6 +306,7 @@ namespace SaveLoadSystem.Core.Component
         {
             var objectReferenceLookup = new Dictionary<object, GuidPath>();
             
+            //iterate over all gameobject with the savable component
             foreach (var savable in savableList)
             {
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
@@ -323,6 +324,7 @@ namespace SaveLoadSystem.Core.Component
                 }
             }
             
+            //iterate over all elements inside the asset registry
             foreach (var componentsContainer in assetRegistry.GetCombinedEnumerable())
             {
                 var componentGuidPath = new GuidPath(componentsContainer.guid);
@@ -337,14 +339,29 @@ namespace SaveLoadSystem.Core.Component
         {
             var processedSavablesLookup = new Dictionary<object, GuidPath>();
             
+            //iterate over ScriptableObjects
+            foreach (var componentContainer in assetRegistry.ScriptableObjectRegistry.Savables)
+            {
+                var componentGuidPath = new GuidPath(componentContainer.guid);
+                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.ScriptableObject);
+                
+                saveDataBufferLookup.Add(componentGuidPath, componentDataBuffer);
+                HandleInterfaceOnSave(componentGuidPath, componentContainer.unityObject, saveDataBufferLookup, 
+                    componentDataBuffer, processedSavablesLookup, objectReferenceLookup);
+            }
+            
+            //iterate over GameObjects with savable component
             foreach (var savable in savableList)
             {
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
                 foreach (var componentContainer in savable.SavableList)
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
-                    //TODO: at this point it is always unityObject - maybe simplify
-                    ProcessAsSaveReferencable(componentContainer.unityObject, componentGuidPath, saveDataBufferLookup, processedSavablesLookup, objectReferenceLookup);
+                    var componentDataBuffer = new SaveDataBuffer(SaveStrategy.GameObject);
+                
+                    saveDataBufferLookup.Add(componentGuidPath, componentDataBuffer);
+                    HandleInterfaceOnSave(componentGuidPath, componentContainer.unityObject, saveDataBufferLookup, 
+                        componentDataBuffer, processedSavablesLookup, objectReferenceLookup);
                 }
             }
         }
@@ -363,15 +380,7 @@ namespace SaveLoadSystem.Core.Component
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
             if (targetObject.IsUnityNull() || !processedSavablesLookup.TryAdd(targetObject, guidPath)) return;
 
-            if (targetObject is UnityEngine.Object) //TODO: if the UnityEngine.Object can't be found through a Savable or the Asset Registry
-            {
-                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.UnityObject);
-                
-                saveDataBufferLookup.Add(guidPath, componentDataBuffer);
-                
-                HandleInterfaceOnSave(guidPath, targetObject, saveDataBufferLookup, componentDataBuffer, processedSavablesLookup, objectReferenceLookup);
-            }
-            else if (targetObject is ISavable)
+            if (targetObject is ISavable)
             {
                 var savableDataBuffer = new SaveDataBuffer(SaveStrategy.Savable);
                 
@@ -415,7 +424,7 @@ namespace SaveLoadSystem.Core.Component
             var instantiatedSavables = sceneDataContainer.PrefabList.Except(currentPrefabList);
             foreach (var (prefab, sceneGuid) in instantiatedSavables)
             {
-                if (assetRegistry.PrefabLookup.TryGetPrefab(prefab, out Savable savable))
+                if (assetRegistry.PrefabRegistry.TryGetPrefab(prefab, out Savable savable))
                 {
                     var instantiatedSavable = Instantiate(savable);
                     instantiatedSavable.SetSceneGuidGroup(sceneGuid);
@@ -470,6 +479,22 @@ namespace SaveLoadSystem.Core.Component
         private void LazyLoad(List<Savable> savableList, SceneDataContainer sceneDataContainer, 
             Dictionary<string, object> pathToObjectReferenceLookup, Dictionary<GuidPath, object> createdObjectsLookup)
         {
+            //iterate over ScriptableObjects
+            foreach (var componentContainer in assetRegistry.ScriptableObjectRegistry.Savables)
+            {
+                var componentGuidPath = new GuidPath(componentContainer.guid);
+                
+                if (sceneDataContainer.SaveObjectLookup.TryGetValue(componentGuidPath, out SaveDataBuffer data))
+                {
+                    var loadDataHandler = new LoadDataHandler(sceneDataContainer, data, pathToObjectReferenceLookup, createdObjectsLookup);
+                        
+                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable objectSavable)) return;
+                    
+                    objectSavable.OnLoad(loadDataHandler);
+                }
+            }
+            
+            //iterate over GameObjects with savable component
             foreach (var savable in savableList)
             {
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
