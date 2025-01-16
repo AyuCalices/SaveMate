@@ -35,7 +35,7 @@ namespace Sample.Scripts
     
         private void DestroyItem(Item removedItem)
         {
-            var foundInventoryElement = _instantiatedInventoryElements.Find(x => x.ContainedItem == removedItem);
+            var foundInventoryElement = _instantiatedInventoryElements.Find(x => x.ContainedItem.Equals(removedItem));
             _instantiatedInventoryElements.Remove(foundInventoryElement);
             Destroy(foundInventoryElement.gameObject);
         }

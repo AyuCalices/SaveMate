@@ -53,9 +53,7 @@ public class Inventory : ScriptableObject, ISavable
 
     public void OnLoad(LoadDataHandler loadDataHandler)
     {
-        var res = loadDataHandler.TryLoad("items", out items);
-        
-        Debug.Log(res);
+        loadDataHandler.TryLoad("items", out items);
     }
 }
 

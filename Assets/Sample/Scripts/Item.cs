@@ -6,12 +6,12 @@ using UnityEngine;
 namespace Sample.Scripts
 {
     [Serializable]
-    public class Item : ISavable
+    public struct Item : ISavable
     {
         public Sprite sprite;
         public string itemName;
 
-        public Item() {}
+        //public Item() {}
     
         public Item(Sprite sprite, string itemName)
         {
@@ -29,6 +29,13 @@ namespace Sample.Scripts
         {
             loadDataHandler.TryLoad("sprite", out sprite);
             loadDataHandler.TryLoadValue("itemName", out itemName);
+            
+            Debug.Log(itemName);
+        }
+
+        public override string ToString()
+        {
+            return itemName;
         }
     }
 }

@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Component;
+using SaveLoadSystem.Core.Component.SavableConverter;
+using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
+using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
@@ -47,7 +50,36 @@ namespace SaveLoadSystem.Core
         /// <param name="obj">The object to be serialized and added to the buffer.</param>
         public void SaveAsValue(string uniqueIdentifier, object obj)
         {
-            _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
+            if (obj is UnityEngine.Object)
+            {
+                Debug.LogError($"You can't save an object of type {typeof(UnityEngine.Object)} as a value!");
+                return;
+            }
+            
+            if (obj is ISavable savable)
+            {
+                var newPath = new GuidPath(uniqueIdentifier);
+                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable);
+                var saveDataHandler = new SaveDataHandler(componentDataBuffer, newPath, _saveDataBufferLookup, _processedSavablesLookup, _objectReferenceLookup);
+                
+                savable.OnSave(saveDataHandler);
+                
+                _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+            }
+            else if (TypeConverterRegistry.HasConverter(obj.GetType()))
+            {
+                var newPath = new GuidPath(uniqueIdentifier);
+                var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable);
+                var saveDataHandler = new SaveDataHandler(componentDataBuffer, newPath, _saveDataBufferLookup, _processedSavablesLookup, _objectReferenceLookup);
+                
+                TypeConverterRegistry.GetConverter(obj.GetType()).OnSave(obj, saveDataHandler);
+                
+                _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+            }
+            else
+            {
+                _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
+            }
         }
 
         /// <summary>

@@ -27,15 +27,39 @@ namespace SaveLoadSystem.Core
             _pathToObjectReferenceLookup = pathToObjectReferenceLookup;
             _createdObjectsLookup = createdObjectsLookup;
         }
-
+        
         public bool TryLoad<T>(string identifier, out T value)
         {
-            return typeof(T).IsValueType ? TryLoadValue(identifier, out value) : TryGetReference(identifier, out value);
+            value = default;
+            
+            return TryLoad(typeof(T), identifier, out var obj) && (value = (T)obj) is not null;
         }
-        
+
         public bool TryLoad(Type type, string identifier, out object value)
         {
-            return type.IsValueType ? TryLoadValue(type, identifier, out value) : TryGetReference(type, identifier, out value);
+            if (type.IsValueType)
+            {
+                if (typeof(UnityEngine.Object).IsAssignableFrom(type))
+                {
+                    Debug.LogError($"You can't load an object of type {typeof(UnityEngine.Object)} as a value!");
+                    value = default;
+                    return false;
+                }
+                
+                if (typeof(ISavable).IsAssignableFrom(type))
+                {
+                    return TryLoadSavable(type, identifier, out value);
+                }
+
+                if (TypeConverterRegistry.HasConverter(type))
+                {
+                    return TryLoadWithConverter(type, identifier, out value);
+                }
+
+                return TryLoadValue(type, identifier, out value);
+            }
+
+            return TryGetReference(type, identifier, out value);
         }
 
         public bool TryGetReference<T>(string identifier, out T reference)
@@ -50,14 +74,8 @@ namespace SaveLoadSystem.Core
                 reference = (T)match;
                 return true;
             }
-
-            if (!_sceneDataContainer.SaveObjectLookup.TryGetValue(guidPath, out SaveDataBuffer saveDataBuffer))
-            {
-                Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
-                return false;
-            }
-
-            if (HandleSaveStrategy(saveDataBuffer, guidPath, typeof(T), out var result))
+            
+            if (HandleSaveStrategy(guidPath, typeof(T), out var result))
             {
                 reference = (T)result;
                 return true;
@@ -78,14 +96,31 @@ namespace SaveLoadSystem.Core
                 reference = match;
                 return true;
             }
+            
+            return HandleSaveStrategy(guidPath, type, out reference);
+        }
+        
+        private bool TryLoadSavable(Type type, string identifier, out object value)
+        {
+            var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
+            var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
 
-            if (!_sceneDataContainer.SaveObjectLookup.TryGetValue(guidPath, out SaveDataBuffer saveDataBuffer))
-            {
-                Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
-                return false;
-            }
+            value = Activator.CreateInstance(type);
+            ((ISavable)value).OnLoad(loadDataHandler);
 
-            return HandleSaveStrategy(saveDataBuffer, guidPath, type, out reference);
+            return true;
+        }
+
+        private bool TryLoadWithConverter(Type type, string identifier, out object value)
+        {
+            var convertable = TypeConverterRegistry.GetConverter(type);
+            var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
+            var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
+
+            value = convertable.CreateInstanceForLoad(loadDataHandler);
+            convertable.OnLoad(value, loadDataHandler);
+
+            return true;
         }
         
         private bool TryGetGuidPath(string identifier, out GuidPath guidPath)
@@ -115,9 +150,16 @@ namespace SaveLoadSystem.Core
             return false;
         }
 
-        private bool HandleSaveStrategy(SaveDataBuffer saveDataBuffer, GuidPath guidPath, Type type, out object reference)
+        private bool HandleSaveStrategy(GuidPath guidPath, Type type, out object reference)
         {
             reference = null;
+            
+            if (!_sceneDataContainer.SaveObjectLookup.TryGetValue(guidPath, out SaveDataBuffer saveDataBuffer))
+            {
+                Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
+                return false;
+            }
+            
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
 
             switch (saveDataBuffer.SaveStrategy)

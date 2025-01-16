@@ -33,9 +33,11 @@ namespace Sample.Scripts
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            if (loadDataHandler.TryLoad("item", out Item item))
+            Debug.LogWarning("start");
+            if (loadDataHandler.TryLoad(typeof(Item), "item", out object item))
             {
-                ContainedItem = item;
+                ContainedItem = (Item)item;
+                Debug.LogWarning("end");
             }
         }
     }
