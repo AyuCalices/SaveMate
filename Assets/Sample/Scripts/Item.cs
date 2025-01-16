@@ -29,8 +29,6 @@ namespace Sample.Scripts
         {
             loadDataHandler.TryLoad("sprite", out sprite);
             loadDataHandler.TryLoadValue("itemName", out itemName);
-            
-            Debug.Log(itemName);
         }
 
         public override string ToString()
