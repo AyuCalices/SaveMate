@@ -6,12 +6,12 @@ using UnityEngine;
 namespace Sample.Scripts
 {
     [Serializable]
-    public struct Item : ISavable
+    public class Item : ISavable
     {
         public Sprite sprite;
         public string itemName;
 
-        //public Item() {}
+        public Item() {}
     
         public Item(Sprite sprite, string itemName)
         {

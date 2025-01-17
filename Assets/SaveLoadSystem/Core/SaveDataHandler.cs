@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using Sample.Scripts;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
@@ -30,7 +31,7 @@ namespace SaveLoadSystem.Core
             _objectReferenceLookup = objectReferenceLookup;
         }
         
-        public void Save(string uniqueIdentifier, object obj)
+        public void Save<T>(string uniqueIdentifier, T obj)
         {
             if (obj.GetType().IsValueType)
             {
@@ -48,7 +49,7 @@ namespace SaveLoadSystem.Core
         /// </summary>
         /// <param name="uniqueIdentifier">The unique identifier for the object to be serialized.</param>
         /// <param name="obj">The object to be serialized and added to the buffer.</param>
-        public void SaveAsValue(string uniqueIdentifier, object obj)
+        public void SaveAsValue<T>(string uniqueIdentifier, T obj)
         {
             if (obj is UnityEngine.Object)
             {
@@ -71,8 +72,8 @@ namespace SaveLoadSystem.Core
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable);
                 var saveDataHandler = new SaveDataHandler(componentDataBuffer, newPath, _saveDataBufferLookup, _processedSavablesLookup, _objectReferenceLookup);
-                
-                TypeConverterRegistry.GetConverter(obj.GetType()).OnSave(obj, saveDataHandler);
+
+                ConverterServiceProvider.GetConverter<T>().Save(obj, saveDataHandler);
                 
                 _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
@@ -92,7 +93,7 @@ namespace SaveLoadSystem.Core
         /// <param name="uniqueIdentifier">The unique identifier for the object reference.</param>
         /// <param name="obj">The object to be referenced and added to the buffer.</param>
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
-        public void SaveAsReferencable(string uniqueIdentifier, object obj)
+        public void SaveAsReferencable<T>(string uniqueIdentifier, T obj)
         {
             _objectSaveDataBuffer.GuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
@@ -104,7 +105,7 @@ namespace SaveLoadSystem.Core
         /// <param name="obj">The object to convert to a GUID path.</param>
         /// <param name="guidPath">The resulting GUID path if the conversion is successful.</param>
         /// <returns><c>true</c> if the object was successfully converted to a GUID path; otherwise, <c>false</c>.</returns>
-        private GuidPath ConvertToPath(string uniqueIdentifier, object obj)
+        private GuidPath ConvertToPath<T>(string uniqueIdentifier, T obj)
         {
             if (obj == null)
             {

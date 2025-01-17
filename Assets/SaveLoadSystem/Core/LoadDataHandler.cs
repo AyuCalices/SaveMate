@@ -28,54 +28,68 @@ namespace SaveLoadSystem.Core
             _createdObjectsLookup = createdObjectsLookup;
         }
         
-        public bool TryLoad<T>(string identifier, out T value)
-        {
-            value = default;
-            
-            return TryLoad(typeof(T), identifier, out var obj) && (value = (T)obj) is not null;
-        }
-
         public bool TryLoad(Type type, string identifier, out object value)
         {
-            if (type.IsValueType)
-            {
-                if (typeof(UnityEngine.Object).IsAssignableFrom(type))
-                {
-                    Debug.LogError($"You can't load an object of type {typeof(UnityEngine.Object)} as a value!");
-                    value = default;
-                    return false;
-                }
-                
-                if (typeof(ISavable).IsAssignableFrom(type))
-                {
-                    return TryLoadSavable(type, identifier, out value);
-                }
-
-                if (TypeConverterRegistry.HasConverter(type))
-                {
-                    return TryLoadWithConverter(type, identifier, out value);
-                }
-
-                return TryLoadValue(type, identifier, out value);
-            }
-
-            return TryGetReference(type, identifier, out value);
+            value = null;
+            return false;
         }
 
-        public bool TryGetReference<T>(string identifier, out T reference)
+        public bool TryLoad<T>(string identifier, out T value)
+        {
+            return typeof(T).IsValueType ? TryLoadValue(identifier, out value) : TryLoadReference(identifier, out value);
+        }
+        
+        public override bool TryLoadValue<T>(string identifier, out T value)
+        {
+            //unity object handling
+            if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(T)))
+            {
+                Debug.LogError($"You can't load an object of type {typeof(UnityEngine.Object)} as a value!");
+                value = default;
+                return false;
+            }
+            
+            //savable handling
+            if (typeof(ISavable).IsAssignableFrom(typeof(T)))
+            {
+                var res = TryLoadSavable(identifier, typeof(T), out var obj);
+                value = (T)obj;
+                return res;
+            }
+
+            //converter handling
+            if (ConverterServiceProvider.ExistsAndCreate<T>())
+            {
+                var res = TryLoadWithConverter<T>(identifier, out var obj);
+                value = (T)obj;
+                return res;
+            }
+            
+            //serialization handling
+            if (SaveDataBuffer.JsonSerializableSaveData[identifier] == null)
+            {
+                value = default;
+                return false;     //TODO: debug
+            }
+
+            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<T>();
+            return true;
+        }
+
+        public bool TryLoadReference<T>(string identifier, out T reference)
         {
             reference = default;
 
             if (!TryGetGuidPath(identifier, out var guidPath))
                 return false;
 
-            if (TryGetReferenceFromLookup(guidPath, typeof(T), out var match))
+            if (TryGetReferenceFromLookup<T>(guidPath, out var obj))
             {
-                reference = (T)match;
+                reference = (T)obj;
                 return true;
             }
             
-            if (HandleSaveStrategy(guidPath, typeof(T), out var result))
+            if (HandleSaveStrategy<T>(guidPath, out var result))
             {
                 reference = (T)result;
                 return true;
@@ -83,24 +97,8 @@ namespace SaveLoadSystem.Core
 
             return false;
         }
-
-        public bool TryGetReference(Type type, string identifier, out object reference)
-        {
-            reference = default;
-
-            if (!TryGetGuidPath(identifier, out var guidPath))
-                return false;
-
-            if (TryGetReferenceFromLookup(guidPath, type, out var match))
-            {
-                reference = match;
-                return true;
-            }
-            
-            return HandleSaveStrategy(guidPath, type, out reference);
-        }
         
-        private bool TryLoadSavable(Type type, string identifier, out object value)
+        private bool TryLoadSavable(string identifier, Type type, out object value)
         {
             var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
@@ -110,16 +108,14 @@ namespace SaveLoadSystem.Core
 
             return true;
         }
-
-        private bool TryLoadWithConverter(Type type, string identifier, out object value)
+        
+        private bool TryLoadWithConverter<T>(string identifier, out object value)
         {
-            var convertable = TypeConverterRegistry.GetConverter(type);
+            var convertable = ConverterServiceProvider.GetConverter<T>();
             var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
 
-            value = convertable.CreateInstanceForLoad(loadDataHandler);
-            convertable.OnLoad(value, loadDataHandler);
-
+            value = convertable.Load(loadDataHandler);
             return true;
         }
         
@@ -130,27 +126,32 @@ namespace SaveLoadSystem.Core
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
             }
+            
             return true;
         }
 
-        private bool TryGetReferenceFromLookup(GuidPath guidPath, Type type, out object match)
+        private bool TryGetReferenceFromLookup<T>(GuidPath guidPath, out object reference)
         {
-            if (_pathToObjectReferenceLookup.TryGetValue(guidPath.ToString(), out match))
+            reference = default;
+            
+            if (_pathToObjectReferenceLookup.TryGetValue(guidPath.ToString(), out reference))
                 return true;
 
-            if (_createdObjectsLookup.TryGetValue(guidPath, out match))
+            if (_createdObjectsLookup.TryGetValue(guidPath, out reference))
             {
-                if (match.GetType() != type)
+                if (reference.GetType() != typeof(T))
                 {
-                    Debug.LogWarning($"The requested object was already created as type '{match.GetType()}'. You tried to return it as type '{type}', which is not allowed. Please use matching types."); //TODO: debug
+                    Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. You tried to return it as type '{typeof(T)}', which is not allowed. Please use matching types."); //TODO: debug
                     return false;
                 }
+                
                 return true;
             }
+            
             return false;
         }
 
-        private bool HandleSaveStrategy(GuidPath guidPath, Type type, out object reference)
+        private bool HandleSaveStrategy<T>(GuidPath guidPath, out object reference)
         {
             reference = null;
             
@@ -170,7 +171,7 @@ namespace SaveLoadSystem.Core
                     return false;
 
                 case SaveStrategy.Savable:
-                    reference = Activator.CreateInstance(type);
+                    reference = Activator.CreateInstance(typeof(T));
                     if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
                         return false;
 
@@ -179,19 +180,21 @@ namespace SaveLoadSystem.Core
                     return true;
 
                 case SaveStrategy.Convertable:
-                    if (!TypeConverterRegistry.TryGetConverter(type, out IConvertable convertable))
+                    if (!ConverterServiceProvider.ExistsAndCreate<T>())
                         return false;
 
-                    reference = convertable.CreateInstanceForLoad(loadDataHandler);
+                    var converter = ConverterServiceProvider.GetConverter<T>();
+                    
+                    //TODO: this results in a stackoverflow with looped converter references
                     _createdObjectsLookup.Add(guidPath, reference);
-                    convertable.OnLoad(reference, loadDataHandler);
+                    reference = converter.Load(loadDataHandler);
                     return true;
 
                 case SaveStrategy.Serializable:
                     var jObject = saveDataBuffer.JsonSerializableSaveData["SerializeRef"];
                     if (jObject != null)
                     {
-                        reference = jObject.ToObject(type);
+                        reference = jObject.ToObject(typeof(T));
                         _createdObjectsLookup.Add(guidPath, reference);
                         return true;
                     }
@@ -214,7 +217,7 @@ namespace SaveLoadSystem.Core
             SaveDataBuffer = saveDataBuffer;
         }
         
-        public bool TryLoadValue<T>(string identifier, out T value)
+        public virtual bool TryLoadValue<T>(string identifier, out T value)
         {
             value = default;
             
@@ -224,19 +227,6 @@ namespace SaveLoadSystem.Core
             }
 
             value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<T>();
-            return true;
-        }
-        
-        public bool TryLoadValue(Type type, string identifier, out object value)
-        {
-            value = default;
-            
-            if (SaveDataBuffer.JsonSerializableSaveData[identifier] == null)
-            {
-                return false;     //TODO: debug
-            }
-            
-            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
             return true;
         }
     }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
@@ -20,6 +19,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
+        //TODO: remove this and put everything into one -> then test the case where the infinity loop is beeing created & check, how to message that looping in converters is not allowed
         protected override IList OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoadValue("type", out string typeString);
@@ -36,7 +36,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad(type ,index.ToString(), out var obj))
+                if (loadDataHandler.TryLoad(type, index.ToString(), out var obj))
                 {
                     data.Add(obj);
                 }
