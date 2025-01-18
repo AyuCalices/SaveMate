@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
-using Sample.Scripts;
 using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
@@ -49,7 +48,7 @@ namespace SaveLoadSystem.Core
         /// </summary>
         /// <param name="uniqueIdentifier">The unique identifier for the object to be serialized.</param>
         /// <param name="obj">The object to be serialized and added to the buffer.</param>
-        public void SaveAsValue<T>(string uniqueIdentifier, T obj)
+        public void SaveAsValue(string uniqueIdentifier, object obj)
         {
             if (obj is UnityEngine.Object)
             {
@@ -67,13 +66,13 @@ namespace SaveLoadSystem.Core
                 
                 _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
-            else if (ConverterServiceProvider.ExistsAndCreate<T>())
+            else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
             {
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable);
                 var saveDataHandler = new SaveDataHandler(componentDataBuffer, newPath, _saveDataBufferLookup, _processedSavablesLookup, _objectReferenceLookup);
 
-                ConverterServiceProvider.GetConverter<T>().Save(obj, saveDataHandler);
+                ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
                 _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }

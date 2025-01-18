@@ -4,9 +4,9 @@ using JetBrains.Annotations;
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     [UsedImplicitly]
-    public class DictionaryConverter<TKey, TValue> : IConverter<Dictionary<TKey, TValue>>
+    public class DictionaryConverter<TKey, TValue> : SaveMateBaseConverter<Dictionary<TKey, TValue>>
     {
-        public void Save(Dictionary<TKey, TValue> data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Dictionary<TKey, TValue> data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.SaveAsValue("count", data.Count);
             
@@ -19,7 +19,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        public Dictionary<TKey, TValue> Load(LoadDataHandler loadDataHandler)
+        protected override Dictionary<TKey, TValue> OnLoad(LoadDataHandler loadDataHandler)
         {
             var dictionary = new Dictionary<TKey, TValue>();
             

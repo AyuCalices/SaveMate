@@ -4,9 +4,9 @@ using JetBrains.Annotations;
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     [UsedImplicitly]
-    public class ListConverter<T> : IConverter<List<T>>
+    public class ListConverter<T> : SaveMateBaseConverter<List<T>>
     {
-        public void Save(List<T> data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(List<T> data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.SaveAsValue("count", data.Count);
             
@@ -16,7 +16,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        public List<T> Load(LoadDataHandler loadDataHandler)
+        protected override List<T> OnLoad(LoadDataHandler loadDataHandler)
         {
             var list = new List<T>();
             

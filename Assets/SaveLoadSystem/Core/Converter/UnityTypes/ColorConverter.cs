@@ -4,17 +4,17 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class ColorConverter : IConverter<Color>
+    public class ColorConverter : SaveMateBaseConverter<Color>
     {
-        public void Save(Color data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Color input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.Save("r", data.r);
-            saveDataHandler.Save("g", data.g);
-            saveDataHandler.Save("b", data.b);
-            saveDataHandler.Save("a", data.a);
+            saveDataHandler.Save("r", input.r);
+            saveDataHandler.Save("g", input.g);
+            saveDataHandler.Save("b", input.b);
+            saveDataHandler.Save("a", input.a);
         }
 
-        public Color Load(LoadDataHandler loadDataHandler)
+        protected override Color OnLoad(LoadDataHandler loadDataHandler)
         {
             var color = new Color();
             

@@ -374,12 +374,13 @@ namespace SaveLoadSystem.Core.Component
         /// When only using Component-Saving and the Type-Converter, this Method will perform saving without reflection,
         /// which heavily improves performance. You will need the exchange the ProcessSavableElement method with this one.
         /// </summary>
-        public static void ProcessAsSaveReferencable<T>(T targetObject, GuidPath guidPath, Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup, 
+        public static void ProcessAsSaveReferencable(object targetObject, GuidPath guidPath, Dictionary<GuidPath, SaveDataBuffer> saveDataBufferLookup, 
             Dictionary<object, GuidPath> processedSavablesLookup, Dictionary<object, GuidPath> objectReferenceLookup)  //TODO: objectReferenceLookup might be needed for scriptable object
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
             if (targetObject.IsUnityNull() || !processedSavablesLookup.TryAdd(targetObject, guidPath)) return;
 
+            
             if (targetObject is ISavable)
             {
                 var savableDataBuffer = new SaveDataBuffer(SaveStrategy.Savable);
@@ -388,14 +389,14 @@ namespace SaveLoadSystem.Core.Component
                         
                 HandleInterfaceOnSave(guidPath, targetObject, saveDataBufferLookup, savableDataBuffer, processedSavablesLookup, objectReferenceLookup);
             }
-            else if (ConverterServiceProvider.ExistsAndCreate<T>())
+            else if (ConverterServiceProvider.ExistsAndCreate(targetObject.GetType()))
             {
                 var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.Convertable);
                 
                 saveDataBufferLookup.Add(guidPath, convertableDataBuffer);
                         
                 var saveDataHandler = new SaveDataHandler(convertableDataBuffer, guidPath, saveDataBufferLookup, processedSavablesLookup, objectReferenceLookup);
-                ConverterServiceProvider.GetConverter<T>().Save(targetObject, saveDataHandler);
+                ConverterServiceProvider.GetConverter(targetObject.GetType()).Save(targetObject, saveDataHandler);
             }
             else
             {

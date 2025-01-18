@@ -27,22 +27,30 @@ namespace SaveLoadSystem.Core
             _pathToObjectReferenceLookup = pathToObjectReferenceLookup;
             _createdObjectsLookup = createdObjectsLookup;
         }
-        
-        public bool TryLoad(Type type, string identifier, out object value)
-        {
-            value = null;
-            return false;
-        }
 
         public bool TryLoad<T>(string identifier, out T value)
         {
-            return typeof(T).IsValueType ? TryLoadValue(identifier, out value) : TryLoadReference(identifier, out value);
+            var res = TryLoad(typeof(T), identifier, out var obj);
+            value = (T)obj;
+            return res;
         }
         
+        public bool TryLoad(Type type, string identifier, out object value)
+        {
+            return type.IsValueType ? TryLoadValue(type, identifier, out value) : TryLoadReference(type, identifier, out value);
+        }
+
         public override bool TryLoadValue<T>(string identifier, out T value)
         {
+            var res = TryLoadValue(typeof(T), identifier, out var obj);
+            value = (T)obj;
+            return res;
+        }
+
+        public override bool TryLoadValue(Type type, string identifier, out object value)
+        {
             //unity object handling
-            if (typeof(UnityEngine.Object).IsAssignableFrom(typeof(T)))
+            if (typeof(UnityEngine.Object).IsAssignableFrom(type))
             {
                 Debug.LogError($"You can't load an object of type {typeof(UnityEngine.Object)} as a value!");
                 value = default;
@@ -50,18 +58,16 @@ namespace SaveLoadSystem.Core
             }
             
             //savable handling
-            if (typeof(ISavable).IsAssignableFrom(typeof(T)))
+            if (typeof(ISavable).IsAssignableFrom(type))
             {
-                var res = TryLoadSavable(identifier, typeof(T), out var obj);
-                value = (T)obj;
+                var res = TryLoadSavable(type, identifier, out value);
                 return res;
             }
 
             //converter handling
-            if (ConverterServiceProvider.ExistsAndCreate<T>())
+            if (ConverterServiceProvider.ExistsAndCreate(type))
             {
-                var res = TryLoadWithConverter<T>(identifier, out var obj);
-                value = (T)obj;
+                var res = TryLoadWithConverter(type, identifier, out value);
                 return res;
             }
             
@@ -72,33 +78,34 @@ namespace SaveLoadSystem.Core
                 return false;     //TODO: debug
             }
 
-            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<T>();
+            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
             return true;
         }
-
+        
         public bool TryLoadReference<T>(string identifier, out T reference)
+        {
+            var res = TryLoadValue(typeof(T), identifier, out var obj);
+            reference = (T)obj;
+            return res;
+        }
+
+        public bool TryLoadReference(Type type, string identifier, out object reference)
         {
             reference = default;
 
             if (!TryGetGuidPath(identifier, out var guidPath))
                 return false;
 
-            if (TryGetReferenceFromLookup<T>(guidPath, out var obj))
-            {
-                reference = (T)obj;
+            if (TryGetReferenceFromLookup(type, guidPath, out reference))
                 return true;
-            }
             
-            if (HandleSaveStrategy<T>(guidPath, out var result))
-            {
-                reference = (T)result;
+            if (HandleSaveStrategy(type, guidPath, out reference))
                 return true;
-            }
 
             return false;
         }
         
-        private bool TryLoadSavable(string identifier, Type type, out object value)
+        private bool TryLoadSavable(Type type, string identifier, out object value)
         {
             var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
@@ -109,9 +116,9 @@ namespace SaveLoadSystem.Core
             return true;
         }
         
-        private bool TryLoadWithConverter<T>(string identifier, out object value)
+        private bool TryLoadWithConverter(Type type, string identifier, out object value)
         {
-            var convertable = ConverterServiceProvider.GetConverter<T>();
+            var convertable = ConverterServiceProvider.GetConverter(type);
             var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
 
@@ -130,7 +137,7 @@ namespace SaveLoadSystem.Core
             return true;
         }
 
-        private bool TryGetReferenceFromLookup<T>(GuidPath guidPath, out object reference)
+        private bool TryGetReferenceFromLookup(Type type, GuidPath guidPath, out object reference)
         {
             reference = default;
             
@@ -139,9 +146,9 @@ namespace SaveLoadSystem.Core
 
             if (_createdObjectsLookup.TryGetValue(guidPath, out reference))
             {
-                if (reference.GetType() != typeof(T))
+                if (reference.GetType() != type)
                 {
-                    Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. You tried to return it as type '{typeof(T)}', which is not allowed. Please use matching types."); //TODO: debug
+                    Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. You tried to return it as type '{type}', which is not allowed. Please use matching types."); //TODO: debug
                     return false;
                 }
                 
@@ -151,7 +158,7 @@ namespace SaveLoadSystem.Core
             return false;
         }
 
-        private bool HandleSaveStrategy<T>(GuidPath guidPath, out object reference)
+        private bool HandleSaveStrategy(Type type, GuidPath guidPath, out object reference)
         {
             reference = null;
             
@@ -171,7 +178,7 @@ namespace SaveLoadSystem.Core
                     return false;
 
                 case SaveStrategy.Savable:
-                    reference = Activator.CreateInstance(typeof(T));
+                    reference = Activator.CreateInstance(type);
                     if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
                         return false;
 
@@ -180,10 +187,10 @@ namespace SaveLoadSystem.Core
                     return true;
 
                 case SaveStrategy.Convertable:
-                    if (!ConverterServiceProvider.ExistsAndCreate<T>())
+                    if (!ConverterServiceProvider.ExistsAndCreate(type))
                         return false;
 
-                    var converter = ConverterServiceProvider.GetConverter<T>();
+                    var converter = ConverterServiceProvider.GetConverter(type);
                     
                     //TODO: this results in a stackoverflow with looped converter references
                     _createdObjectsLookup.Add(guidPath, reference);
@@ -194,7 +201,7 @@ namespace SaveLoadSystem.Core
                     var jObject = saveDataBuffer.JsonSerializableSaveData["SerializeRef"];
                     if (jObject != null)
                     {
-                        reference = jObject.ToObject(typeof(T));
+                        reference = jObject.ToObject(type);
                         _createdObjectsLookup.Add(guidPath, reference);
                         return true;
                     }
@@ -216,8 +223,15 @@ namespace SaveLoadSystem.Core
         {
             SaveDataBuffer = saveDataBuffer;
         }
-        
+
         public virtual bool TryLoadValue<T>(string identifier, out T value)
+        {
+            var res = TryLoadValue(typeof(T), identifier, out var obj);
+            value = (T)obj;
+            return res;
+        }
+
+        public virtual bool TryLoadValue(Type type, string identifier, out object value)
         {
             value = default;
             
@@ -226,7 +240,7 @@ namespace SaveLoadSystem.Core
                 return false;     //TODO: debug
             }
 
-            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<T>();
+            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
             return true;
         }
     }

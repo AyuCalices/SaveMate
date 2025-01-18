@@ -5,30 +5,69 @@ using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
-    [UsedImplicitly]
-    public class ArrayConverter<T> : IConverter<Array>
+    /*
+    public class ArrayConverter<T> : IConverter<T[]>
     {
-        public void Save(Array data, SaveDataHandler saveDataHandler)
+        public void Save(T[] data, SaveDataHandler saveDataHandler)
         {
-            // Save the rank (number of dimensions)
-            saveDataHandler.SaveAsValue("rank", data.Rank);
-            
-            // Save the lengths of each dimension
-            for (int i = 0; i < data.Rank; i++)
-            {
-                saveDataHandler.SaveAsValue($"dimension_{i}", data.GetLength(i));
-            }
+            saveDataHandler.SaveAsValue("length", data.Length);
 
-            // Save each element of the array using its indices as a key
-            foreach (var indices in GetIndices(data))
+            for (int i = 0; i < data.Length; i++)
             {
-                var key = string.Join(",", indices); // Create a string key from indices
-                saveDataHandler.Save(key, data.GetValue(indices));
+                saveDataHandler.Save(i.ToString(), data[i]);
             }
         }
 
-        public Array Load(LoadDataHandler loadDataHandler)
+        public T[] Load(LoadDataHandler loadDataHandler)
         {
+            if (!loadDataHandler.TryLoadValue("length", out int length))
+            {
+                return new T[0];
+            }
+
+            var array = new T[length];
+            for (int i = 0; i < length; i++)
+            {
+                if (loadDataHandler.TryLoad<T>(i.ToString(), out var element))
+                {
+                    array[i] = element;
+                }
+            }
+
+            return array;
+        }
+    }*/
+    
+    
+    [UsedImplicitly]
+    public class ArrayConverter<T> : SaveMateBaseConverter<T>
+    {
+        protected override void OnSave(T data, SaveDataHandler saveDataHandler)
+        {
+            if (data is not Array array) throw new ArgumentException("Data must be an array.");
+            
+            // Save the rank (number of dimensions)
+            saveDataHandler.SaveAsValue("rank", array.Rank);
+            
+            // Save the lengths of each dimension
+            for (int i = 0; i < array.Rank; i++)
+            {
+                saveDataHandler.SaveAsValue($"dimension_{i}", array.GetLength(i));
+            }
+
+            // Save each element of the array using its indices as a key
+            foreach (var indices in GetIndices(array))
+            {
+                var key = string.Join(",", indices); // Create a string key from indices
+                saveDataHandler.Save(key, array.GetValue(indices));
+            }
+        }
+
+        protected override T OnLoad(LoadDataHandler loadDataHandler)
+        {
+            var elementType = typeof(T).GetElementType();
+            if (elementType == null) throw new ArgumentException("T must be an array type.");
+            
             // Load the rank and dimensions
             loadDataHandler.TryLoadValue("rank", out int rank);
             var dimensions = new int[rank];
@@ -38,19 +77,19 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
 
             // Create the array with the loaded dimensions
-            var array = Array.CreateInstance(typeof(T), dimensions);
+            var array = Array.CreateInstance(elementType, dimensions);
 
             // Load each element using its indices as the key
             foreach (var indices in GetIndices(array))
             {
                 var key = string.Join(",", indices); // Use the same key format
-                if (loadDataHandler.TryLoad<T>(key, out var value))
+                if (loadDataHandler.TryLoad(elementType, key, out var value))
                 {
                     array.SetValue(value, indices);
                 }
             }
 
-            return array;
+            return (T)(object)array;
         }
 
         private IEnumerable<int[]> GetIndices(Array array)

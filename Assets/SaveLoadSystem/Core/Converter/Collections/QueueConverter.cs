@@ -4,13 +4,13 @@ using JetBrains.Annotations;
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     [UsedImplicitly]
-    public class QueueConverter<T> : IConverter<Queue<T>>
+    public class QueueConverter<T> : SaveMateBaseConverter<Queue<T>>
     {
-        public void Save(Queue<T> data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Queue<T> input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("count", data.Count);
+            saveDataHandler.SaveAsValue("count", input.Count);
             
-            var saveElements = data.ToArray();
+            var saveElements = input.ToArray();
             
             for (var index = 0; index < saveElements.Length; index++)
             {
@@ -18,7 +18,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        public Queue<T> Load(LoadDataHandler loadDataHandler)
+        protected override Queue<T> OnLoad(LoadDataHandler loadDataHandler)
         {
             var queue = new Queue<T>();
             

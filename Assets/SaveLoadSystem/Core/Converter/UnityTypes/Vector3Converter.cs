@@ -4,16 +4,16 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class Vector3Converter : IConverter<Vector3>
+    public class Vector3Converter : SaveMateBaseConverter<Vector3>
     {
-        public void Save(Vector3 data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Vector3 input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.Save("x", data.x);
-            saveDataHandler.Save("y", data.y);
-            saveDataHandler.Save("z", data.z);
+            saveDataHandler.Save("x", input.x);
+            saveDataHandler.Save("y", input.y);
+            saveDataHandler.Save("z", input.z);
         }
 
-        public Vector3 Load(LoadDataHandler loadDataHandler)
+        protected override Vector3 OnLoad(LoadDataHandler loadDataHandler)
         {
             var vector3 = new Vector3();
             

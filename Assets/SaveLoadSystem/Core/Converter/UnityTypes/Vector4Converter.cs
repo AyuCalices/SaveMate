@@ -4,17 +4,17 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class Vector4Converter : IConverter<Vector4>
+    public class Vector4Converter : SaveMateBaseConverter<Vector4>
     {
-        public void Save(Vector4 data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Vector4 input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.Save("x", data.x);
-            saveDataHandler.Save("y", data.y);
-            saveDataHandler.Save("z", data.z);
-            saveDataHandler.Save("w", data.w);
+            saveDataHandler.Save("x", input.x);
+            saveDataHandler.Save("y", input.y);
+            saveDataHandler.Save("z", input.z);
+            saveDataHandler.Save("w", input.w);
         }
 
-        public Vector4 Load(LoadDataHandler loadDataHandler)
+        protected override Vector4 OnLoad(LoadDataHandler loadDataHandler)
         {
             var vector4 = new Vector4();
             

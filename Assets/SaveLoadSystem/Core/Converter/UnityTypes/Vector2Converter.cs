@@ -4,15 +4,15 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class Vector2Converter : IConverter<Vector2>
+    public class Vector2Converter : SaveMateBaseConverter<Vector2>
     {
-        public void Save(Vector2 data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Vector2 input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.Save("x", data.x);
-            saveDataHandler.Save("y", data.y);
+            saveDataHandler.Save("x", input.x);
+            saveDataHandler.Save("y", input.y);
         }
 
-        public Vector2 Load(LoadDataHandler loadDataHandler)
+        protected override Vector2 OnLoad(LoadDataHandler loadDataHandler)
         {
             var vector2 = new Vector2();
             
