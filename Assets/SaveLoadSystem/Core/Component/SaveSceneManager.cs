@@ -388,7 +388,7 @@ namespace SaveLoadSystem.Core.Component
                         
                 HandleInterfaceOnSave(guidPath, targetObject, saveDataBufferLookup, savableDataBuffer, processedSavablesLookup, objectReferenceLookup);
             }
-            else if (TypeConverterRegistry.HasConverter(targetObject.GetType()))
+            else if (ConverterServiceProvider.ExistsAndCreate<T>())
             {
                 var convertableDataBuffer = new SaveDataBuffer(SaveStrategy.Convertable);
                 

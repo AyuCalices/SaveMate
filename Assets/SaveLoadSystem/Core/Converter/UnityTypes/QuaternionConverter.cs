@@ -1,10 +1,12 @@
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
-    public class QuaternionConverter : BaseConverter<Quaternion>
+    [UsedImplicitly]
+    public class QuaternionConverter : IConverter<Quaternion>
     {
-        protected override void OnSave(Quaternion data, SaveDataHandler saveDataHandler)
+        public void Save(Quaternion data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("x", data.x);
             saveDataHandler.Save("y", data.y);
@@ -12,17 +14,16 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.Save("w", data.w);
         }
 
-        protected override Quaternion OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        public Quaternion Load(LoadDataHandler loadDataHandler)
         {
-            return new Quaternion();
-        }
+            var quaternion = new Quaternion();
+            
+            loadDataHandler.TryLoad("x", out quaternion.x);
+            loadDataHandler.TryLoad("y", out quaternion.y);
+            loadDataHandler.TryLoad("z", out quaternion.z);
+            loadDataHandler.TryLoad("w", out quaternion.w);
 
-        protected override void OnLoad(Quaternion data, LoadDataHandler loadDataHandler)
-        {
-            loadDataHandler.TryLoad("x", out data.x);
-            loadDataHandler.TryLoad("y", out data.y);
-            loadDataHandler.TryLoad("z", out data.z);
-            loadDataHandler.TryLoad("w", out data.w);
+            return quaternion;
         }
     }
 }

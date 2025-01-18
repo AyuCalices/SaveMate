@@ -1,12 +1,12 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
-    public class StackConverter : BaseConverter<Stack>
+    [UsedImplicitly]
+    public class StackConverter<T> : IConverter<Stack<T>>
     {
-        protected override void OnSave(Stack data, SaveDataHandler saveDataHandler)
+        public void Save(Stack<T> data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("count", data.Count);
             
@@ -15,32 +15,23 @@ namespace SaveLoadSystem.Core.Converter.Collections
             {
                 saveDataHandler.Save(index.ToString(), saveElements[index]);
             }
-            
-            var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
-            saveDataHandler.Save("type", typeString);
         }
 
-        protected override Stack OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        public Stack<T> Load(LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("type", out string typeString);
-            
-            var stackType = typeof(Stack<>).MakeGenericType(Type.GetType(typeString));
-            return (Stack)Activator.CreateInstance(stackType);
-        }
+            var stack = new Stack<T>();
 
-        protected override void OnLoad(Stack data, LoadDataHandler loadDataHandler)
-        {
             loadDataHandler.TryLoadValue("count", out int count);
-            
-            var type = data.GetType().GetGenericArguments()[0];
             
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad(type, index.ToString(), out var obj))
+                if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
                 {
-                    data.Push(obj);
+                    stack.Push(obj);
                 }
             }
+
+            return stack;
         }
     }
 }

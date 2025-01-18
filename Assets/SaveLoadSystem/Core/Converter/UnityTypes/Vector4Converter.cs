@@ -1,10 +1,12 @@
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
-    public class Vector4Converter : BaseConverter<Vector4>
+    [UsedImplicitly]
+    public class Vector4Converter : IConverter<Vector4>
     {
-        protected override void OnSave(Vector4 data, SaveDataHandler saveDataHandler)
+        public void Save(Vector4 data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("x", data.x);
             saveDataHandler.Save("y", data.y);
@@ -12,17 +14,16 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.Save("w", data.w);
         }
 
-        protected override Vector4 OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        public Vector4 Load(LoadDataHandler loadDataHandler)
         {
-            return new Vector4();
-        }
+            var vector4 = new Vector4();
+            
+            loadDataHandler.TryLoad("x", out vector4.x);
+            loadDataHandler.TryLoad("y", out vector4.y);
+            loadDataHandler.TryLoad("z", out vector4.z);
+            loadDataHandler.TryLoad("w", out vector4.w);
 
-        protected override void OnLoad(Vector4 data, LoadDataHandler loadDataHandler)
-        {
-            loadDataHandler.TryLoad("x", out data.x);
-            loadDataHandler.TryLoad("y", out data.y);
-            loadDataHandler.TryLoad("z", out data.z);
-            loadDataHandler.TryLoad("w", out data.w);
+            return vector4;
         }
     }
 }

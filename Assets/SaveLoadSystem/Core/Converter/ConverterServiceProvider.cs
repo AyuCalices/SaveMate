@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using SaveLoadSystem.Core.Converter.Collections;
-using SaveLoadSystem.Core.Converter.UnityTypes;
-using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter
 {
@@ -78,6 +76,15 @@ namespace SaveLoadSystem.Core.Converter
 
         private static Type FindConverterType(Type targetType)
         {
+            // Handle array types specifically (for any dimension)
+            if (targetType.IsArray)
+            {
+                var elementType = targetType.GetElementType();
+                var arrayConverterType = typeof(ArrayConverter<>).MakeGenericType(elementType);
+                return arrayConverterType;
+            }
+            
+            // Handle all other types
             foreach (var usableConverter in UsableConverterLookup)
             {
                 foreach (var converterInterface in usableConverter.Interfaces)
@@ -109,91 +116,5 @@ namespace SaveLoadSystem.Core.Converter
         void Save(T data, SaveDataHandler saveDataHandler);
 
         T Load(LoadDataHandler loadDataHandler);
-    }
-
-    public class ListConverter<T> : IConverter<List<T>>
-    {
-        public void Save(List<T> data, SaveDataHandler saveDataHandler)
-        {
-            saveDataHandler.SaveAsValue("count", data.Count);
-            
-            for (var index = 0; index < data.Count; index++)
-            {
-                saveDataHandler.Save(index.ToString(), data[index]);
-            }
-        }
-
-        public List<T> Load(LoadDataHandler loadDataHandler)
-        {
-            var list = new List<T>();
-            
-            loadDataHandler.TryLoadValue("count", out int count);
-            
-            for (var index = 0; index < count; index++)
-            {
-                if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
-                {
-                    list.Add(obj);
-                }
-            }
-
-            return list;
-        }
-    }
-    
-    public static class TypeConverterRegistry
-    {
-        private static readonly List<IConvertable> Factories = new();
-
-        static TypeConverterRegistry()
-        {
-            //collections
-            Factories.Add(new ArrayConverter());    //array must be processed before list, due to both inheriting from IList
-            Factories.Add(new ListConverter());
-            Factories.Add(new DictionaryConverter());
-            Factories.Add(new StackConverter());
-            Factories.Add(new QueueConverter());
-            
-            //unity types
-            Factories.Add(new Color32Converter());
-            Factories.Add(new ColorConverter());
-            Factories.Add(new Vector2Converter());
-            Factories.Add(new Vector3Converter());
-            Factories.Add(new Vector4Converter());
-            Factories.Add(new QuaternionConverter());
-            
-            //add your own converter here
-            //Factories.Add(new ItemConverter());   //enable this for Type-Converter save-strategy and disable Attribute- and Component-Saving from item
-        }
-
-        public static bool HasConverter(Type type)
-        {
-            return Factories.Any(factory => factory.CanConvert(type, out _));
-        }
-
-        public static IConvertable GetConverter(Type type)
-        {
-            foreach (var factory in Factories)
-            {
-                if (factory.CanConvert(type, out IConvertable convertable))
-                {
-                    return convertable;
-                }
-            }
-            return null;
-        }
-
-        public static bool TryGetConverter(Type type, out IConvertable convertable)
-        {
-            foreach (var factory in Factories)
-            {
-                if (factory.CanConvert(type, out convertable))
-                {
-                    return true;
-                }
-            }
-            convertable = default;
-            return false;
-        }
     }
 }

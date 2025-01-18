@@ -1,24 +1,25 @@
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
-    public class Vector2Converter : BaseConverter<Vector2>
+    [UsedImplicitly]
+    public class Vector2Converter : IConverter<Vector2>
     {
-        protected override void OnSave(Vector2 data, SaveDataHandler saveDataHandler)
+        public void Save(Vector2 data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.Save("x", data.x);
             saveDataHandler.Save("y", data.y);
         }
 
-        protected override Vector2 OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        public Vector2 Load(LoadDataHandler loadDataHandler)
         {
-            return new Vector2();
-        }
+            var vector2 = new Vector2();
+            
+            loadDataHandler.TryLoad("x", out vector2.x);
+            loadDataHandler.TryLoad("y", out vector2.y);
 
-        protected override void OnLoad(Vector2 data, LoadDataHandler loadDataHandler)
-        {
-            loadDataHandler.TryLoad("x", out data.x);
-            loadDataHandler.TryLoad("y", out data.y);
+            return vector2;
         }
     }
 }

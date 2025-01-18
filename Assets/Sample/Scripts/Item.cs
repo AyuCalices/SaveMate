@@ -30,10 +30,5 @@ namespace Sample.Scripts
             loadDataHandler.TryLoad("sprite", out sprite);
             loadDataHandler.TryLoadValue("itemName", out itemName);
         }
-
-        public override string ToString()
-        {
-            return itemName;
-        }
     }
 }

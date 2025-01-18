@@ -67,7 +67,7 @@ namespace SaveLoadSystem.Core
                 
                 _objectSaveDataBuffer.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
-            else if (TypeConverterRegistry.HasConverter(obj.GetType()))
+            else if (ConverterServiceProvider.ExistsAndCreate<T>())
             {
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new SaveDataBuffer(SaveStrategy.Serializable);
