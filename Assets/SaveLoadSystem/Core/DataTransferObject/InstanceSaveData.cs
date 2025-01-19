@@ -5,10 +5,8 @@ using Newtonsoft.Json.Linq;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
-    public class SaveDataBuffer
+    public class InstanceSaveData
     {
-        [JsonProperty] public readonly Component.SaveStrategy SaveStrategy;
-        
         private Dictionary<string, GuidPath> _guidPathSaveData;
         public Dictionary<string, GuidPath> GuidPathSaveData
         {
@@ -29,11 +27,6 @@ namespace SaveLoadSystem.Core.DataTransferObject
                 return _jsonSerializableSaveData;
             }
             set => _jsonSerializableSaveData = value;
-        }
-
-        public SaveDataBuffer(Component.SaveStrategy saveStrategy)
-        {
-            SaveStrategy = saveStrategy;
         }
     }
 }

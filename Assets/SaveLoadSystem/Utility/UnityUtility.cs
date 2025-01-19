@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Utility
 {
@@ -61,17 +60,6 @@ namespace SaveLoadSystem.Utility
             }
             
             return default;
-        }
-
-        public static List<T> FindObjectsOfTypeInAllScenes<T>(bool includeInactive) where T : Object
-        {
-            var objectsInAllScenes = new List<T>();
-            for (var i = 0; i < SceneManager.sceneCount; i++)
-            {
-                var scene = SceneManager.GetSceneAt(i);
-                objectsInAllScenes.AddRange(FindObjectsOfTypeInScene<T>(scene, includeInactive));
-            }
-            return objectsInAllScenes;
         }
         
         public static Scene[] GetActiveScenes()

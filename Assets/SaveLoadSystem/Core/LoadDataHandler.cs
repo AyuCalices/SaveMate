@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
@@ -16,17 +15,17 @@ namespace SaveLoadSystem.Core
     //TODO: LoadDataHandler must be renamed, so it makes it clear, it is already correctly connected with the current object -> the SaveDataBuffer
     public class LoadDataHandler
     {
-        private readonly SaveDataBuffer _saveDataBuffer;
-        private readonly SceneDataContainer _sceneDataContainer;
-        private readonly Dictionary<string, object> _pathToObjectReferenceLookup;
+        private readonly InstanceSaveData _instanceSaveData;
+        private readonly SceneSaveData _sceneSaveData;
+        private readonly Dictionary<string, object> _unityObjectLookup;
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
 
-        public LoadDataHandler(SceneDataContainer sceneDataContainer, SaveDataBuffer saveDataBuffer, Dictionary<string, object> pathToObjectReferenceLookup, 
+        public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, Dictionary<string, object> unityObjectLookup, 
             Dictionary<GuidPath, object> createdObjectsLookup)
         {
-            _saveDataBuffer = saveDataBuffer;
-            _sceneDataContainer = sceneDataContainer;
-            _pathToObjectReferenceLookup = pathToObjectReferenceLookup;
+            _instanceSaveData = instanceSaveData;
+            _sceneSaveData = sceneSaveData;
+            _unityObjectLookup = unityObjectLookup;
             _createdObjectsLookup = createdObjectsLookup;
         }
 
@@ -46,9 +45,9 @@ namespace SaveLoadSystem.Core
             return res;
         }
         
-        public bool TryLoad(Type type, string identifier, out object value)
+        public bool TryLoad(Type type, string identifier, out object obj)
         {
-            return type.IsValueType ? TryLoadValue(type, identifier, out value) : TryLoadReference(type, identifier, out value);
+            return type.IsValueType ? TryLoadValue(type, identifier, out obj) : TryLoadReference(type, identifier, out obj);
         }
 
         public bool TryLoadValue<T>(string identifier, out T value)
@@ -80,25 +79,25 @@ namespace SaveLoadSystem.Core
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))
             {
-                var res = TryLoadSavable(type, identifier, out value);
+                var res = TryLoadValueSavable(type, identifier, out value);
                 return res;
             }
 
             //converter handling
             if (ConverterServiceProvider.ExistsAndCreate(type))
             {
-                var res = TryLoadWithConverter(type, identifier, out value);
+                var res = TryLoadValueWithConverter(type, identifier, out value);
                 return res;
             }
             
             //serialization handling
-            if (_saveDataBuffer.JsonSerializableSaveData[identifier] == null)
+            if (_instanceSaveData.JsonSerializableSaveData[identifier] == null)
             {
                 value = default;
                 return false;     //TODO: debug
             }
 
-            value = _saveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
+            value = _instanceSaveData.JsonSerializableSaveData[identifier].ToObject(type);
             return true;
         }
         
@@ -122,7 +121,7 @@ namespace SaveLoadSystem.Core
         {
             reference = default;
 
-            if (!TryGetGuidPath(identifier, out var guidPath))
+            if (!TryGetReferenceGuidPath(identifier, out var guidPath))
                 return false;
 
             if (TryGetReferenceFromLookup(type, guidPath, out reference))
@@ -134,10 +133,10 @@ namespace SaveLoadSystem.Core
             return false;
         }
         
-        private bool TryLoadSavable(Type type, string identifier, out object value)
+        private bool TryLoadValueSavable(Type type, string identifier, out object value)
         {
-            var saveDataBuffer = _saveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
-            var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
+            var saveDataBuffer = _instanceSaveData.JsonSerializableSaveData[identifier].ToObject<InstanceSaveData>();
+            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, _unityObjectLookup, _createdObjectsLookup);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -145,20 +144,20 @@ namespace SaveLoadSystem.Core
             return true;
         }
         
-        private bool TryLoadWithConverter(Type type, string identifier, out object value)
+        private bool TryLoadValueWithConverter(Type type, string identifier, out object value)
         {
             var convertable = ConverterServiceProvider.GetConverter(type);
-            var saveDataBuffer = _saveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
-            var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
+            var saveDataBuffer = _instanceSaveData.JsonSerializableSaveData[identifier].ToObject<InstanceSaveData>();
+            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, _unityObjectLookup, _createdObjectsLookup);
 
             value = convertable.CreateInstanceForLoad(loadDataHandler);
             convertable.Load(value, loadDataHandler);
             return true;
         }
         
-        private bool TryGetGuidPath(string identifier, out GuidPath guidPath)
+        private bool TryGetReferenceGuidPath(string identifier, out GuidPath guidPath)
         {
-            if (!_saveDataBuffer.GuidPathSaveData.TryGetValue(identifier, out guidPath))
+            if (!_instanceSaveData.GuidPathSaveData.TryGetValue(identifier, out guidPath))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
@@ -170,10 +169,12 @@ namespace SaveLoadSystem.Core
         private bool TryGetReferenceFromLookup(Type type, GuidPath guidPath, out object reference)
         {
             reference = default;
-            
-            if (_pathToObjectReferenceLookup.TryGetValue(guidPath.ToString(), out reference))
+
+            //get unity object
+            if (_unityObjectLookup.TryGetValue(guidPath.ToString(), out reference))
                 return true;
 
+            //return object, if already instantiated
             if (_createdObjectsLookup.TryGetValue(guidPath, out reference))
             {
                 if (reference.GetType() != type)
@@ -192,56 +193,52 @@ namespace SaveLoadSystem.Core
         {
             reference = null;
             
-            if (!_sceneDataContainer.SaveObjectLookup.TryGetValue(guidPath, out SaveDataBuffer saveDataBuffer))
+            if (!_sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out InstanceSaveData saveDataBuffer))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
             }
             
-            var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
-
-            switch (saveDataBuffer.SaveStrategy)
+            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, _unityObjectLookup, _createdObjectsLookup);
+            
+            //savable handling
+            if (typeof(ISavable).IsAssignableFrom(type))
             {
-                case SaveStrategy.ScriptableObject:
-                case SaveStrategy.GameObject:
-                    Debug.LogError("The searched object wasn't found. Please use the Savable Component or Asset Registry!"); //TODO: debug
+                reference = Activator.CreateInstance(type);
+                if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
                     return false;
 
-                case SaveStrategy.Savable:
-                    reference = Activator.CreateInstance(type);
-                    if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
-                        return false;
-
-                    _createdObjectsLookup.Add(guidPath, reference);
-                    objectSavable.OnLoad(loadDataHandler);
-                    return true;
-
-                case SaveStrategy.Convertable:
-                    if (!ConverterServiceProvider.ExistsAndCreate(type))
-                        return false;
-
-                    var converter = ConverterServiceProvider.GetConverter(type);
-
-                    reference = converter.CreateInstanceForLoad(loadDataHandler);
-                    _createdObjectsLookup.Add(guidPath, reference);
-                    converter.Load(reference, loadDataHandler);
-                    return true;
-
-                case SaveStrategy.Serializable:
-                    var jObject = saveDataBuffer.JsonSerializableSaveData["SerializeRef"];
-                    if (jObject != null)
-                    {
-                        reference = jObject.ToObject(type);
-                        _createdObjectsLookup.Add(guidPath, reference);
-                        return true;
-                    }
-
-                    Debug.LogError("Wasn't able to find the SerializeRef"); //TODO: debug
-                    return false;
-
-                default:
-                    throw new ArgumentOutOfRangeException();
+                _createdObjectsLookup.Add(guidPath, reference);
+                objectSavable.OnLoad(loadDataHandler);
+                return true;
             }
+
+            //converter handling
+            if (ConverterServiceProvider.ExistsAndCreate(type))
+            {
+                if (!ConverterServiceProvider.ExistsAndCreate(type))
+                    return false;
+
+                var converter = ConverterServiceProvider.GetConverter(type);
+
+                reference = converter.CreateInstanceForLoad(loadDataHandler);
+                _createdObjectsLookup.Add(guidPath, reference);
+                converter.Load(reference, loadDataHandler);
+                return true;
+            }
+
+            //serializable handling
+            var jObject = saveDataBuffer.JsonSerializableSaveData["SerializeRef"];
+            if (jObject != null)
+            {
+                reference = jObject.ToObject(type);
+                _createdObjectsLookup.Add(guidPath, reference);
+                return true;
+            }
+            
+            //TODO: if UnityEngine.Object, then it might not be inside any registry -> create Debug.log
+            Debug.LogError("Wasn't able to find the SerializeRef"); //TODO: debug
+            return false;
         }
     }
 }
