@@ -4,7 +4,7 @@ using JetBrains.Annotations;
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     [UsedImplicitly]
-    public class QueueConverter<T> : SaveMateBaseConverter<Queue<T>>
+    public class QueueConverter<T> : BaseConverter<Queue<T>>
     {
         protected override void OnSave(Queue<T> input, SaveDataHandler saveDataHandler)
         {
@@ -18,21 +18,22 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        protected override Queue<T> OnLoad(LoadDataHandler loadDataHandler)
+        protected override Queue<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            var queue = new Queue<T>();
-            
+            return new Queue<T>();
+        }
+
+        protected override void OnLoad(Queue<T> input, LoadDataHandler loadDataHandler)
+        {
             loadDataHandler.TryLoadValue("count", out int count);
             
             for (var index = 0; index < count; index++)
             {
                 if (loadDataHandler.TryLoad<T>( index.ToString(), out var targetObject))
                 {
-                    queue.Enqueue(targetObject);
+                    input.Enqueue(targetObject);
                 }
             }
-
-            return queue;
         }
     }
 }

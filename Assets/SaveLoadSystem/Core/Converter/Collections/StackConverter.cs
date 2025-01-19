@@ -4,7 +4,7 @@ using JetBrains.Annotations;
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     [UsedImplicitly]
-    public class StackConverter<T> : SaveMateBaseConverter<Stack<T>>
+    public class StackConverter<T> : BaseConverter<Stack<T>>
     {
         protected override void OnSave(Stack<T> input, SaveDataHandler saveDataHandler)
         {
@@ -17,21 +17,22 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        protected override Stack<T> OnLoad(LoadDataHandler loadDataHandler)
+        protected override Stack<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            var stack = new Stack<T>();
+            return new Stack<T>();
+        }
 
+        protected override void OnLoad(Stack<T> input, LoadDataHandler loadDataHandler)
+        {
             loadDataHandler.TryLoadValue("count", out int count);
             
             for (var index = 0; index < count; index++)
             {
                 if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
                 {
-                    stack.Push(obj);
+                    input.Push(obj);
                 }
             }
-
-            return stack;
         }
     }
 }

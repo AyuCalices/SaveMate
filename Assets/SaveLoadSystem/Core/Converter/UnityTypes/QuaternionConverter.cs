@@ -4,7 +4,7 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class QuaternionConverter : SaveMateBaseConverter<Quaternion>
+    public class QuaternionConverter : BaseConverter<Quaternion>
     {
         protected override void OnSave(Quaternion input, SaveDataHandler saveDataHandler)
         {
@@ -14,16 +14,17 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.Save("w", input.w);
         }
 
-        protected override Quaternion OnLoad(LoadDataHandler loadDataHandler)
+        protected override Quaternion OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            var quaternion = new Quaternion();
-            
-            loadDataHandler.TryLoad("x", out quaternion.x);
-            loadDataHandler.TryLoad("y", out quaternion.y);
-            loadDataHandler.TryLoad("z", out quaternion.z);
-            loadDataHandler.TryLoad("w", out quaternion.w);
+            return new Quaternion();
+        }
 
-            return quaternion;
+        protected override void OnLoad(Quaternion input, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad("x", out input.x);
+            loadDataHandler.TryLoad("y", out input.y);
+            loadDataHandler.TryLoad("z", out input.z);
+            loadDataHandler.TryLoad("w", out input.w);
         }
     }
 }

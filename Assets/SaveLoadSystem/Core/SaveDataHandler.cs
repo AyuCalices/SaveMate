@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Component;
@@ -29,8 +30,8 @@ namespace SaveLoadSystem.Core
             _processedSavablesLookup = processedSavablesLookup;
             _objectReferenceLookup = objectReferenceLookup;
         }
-        
-        public void Save<T>(string uniqueIdentifier, T obj)
+
+        public void Save(string uniqueIdentifier, object obj)
         {
             if (obj.GetType().IsValueType)
             {
@@ -92,7 +93,7 @@ namespace SaveLoadSystem.Core
         /// <param name="uniqueIdentifier">The unique identifier for the object reference.</param>
         /// <param name="obj">The object to be referenced and added to the buffer.</param>
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
-        public void SaveAsReferencable<T>(string uniqueIdentifier, T obj)
+        public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
             _objectSaveDataBuffer.GuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
@@ -104,7 +105,7 @@ namespace SaveLoadSystem.Core
         /// <param name="obj">The object to convert to a GUID path.</param>
         /// <param name="guidPath">The resulting GUID path if the conversion is successful.</param>
         /// <returns><c>true</c> if the object was successfully converted to a GUID path; otherwise, <c>false</c>.</returns>
-        private GuidPath ConvertToPath<T>(string uniqueIdentifier, T obj)
+        private GuidPath ConvertToPath(string uniqueIdentifier, object obj)
         {
             if (obj == null)
             {

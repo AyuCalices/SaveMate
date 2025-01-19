@@ -14,24 +14,35 @@ namespace SaveLoadSystem.Core
     /// serialized data, as well as handling reference building for complex object graphs.
     /// </summary>
     //TODO: LoadDataHandler must be renamed, so it makes it clear, it is already correctly connected with the current object -> the SaveDataBuffer
-    public class LoadDataHandler : SimpleLoadDataHandler
+    public class LoadDataHandler
     {
+        private readonly SaveDataBuffer _saveDataBuffer;
         private readonly SceneDataContainer _sceneDataContainer;
         private readonly Dictionary<string, object> _pathToObjectReferenceLookup;
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
 
         public LoadDataHandler(SceneDataContainer sceneDataContainer, SaveDataBuffer saveDataBuffer, Dictionary<string, object> pathToObjectReferenceLookup, 
-            Dictionary<GuidPath, object> createdObjectsLookup) : base(saveDataBuffer)
+            Dictionary<GuidPath, object> createdObjectsLookup)
         {
+            _saveDataBuffer = saveDataBuffer;
             _sceneDataContainer = sceneDataContainer;
             _pathToObjectReferenceLookup = pathToObjectReferenceLookup;
             _createdObjectsLookup = createdObjectsLookup;
         }
 
-        public bool TryLoad<T>(string identifier, out T value)
+        public bool TryLoad<T>(string identifier, out T obj)
         {
-            var res = TryLoad(typeof(T), identifier, out var obj);
-            value = (T)obj;
+            var res = TryLoad(typeof(T), identifier, out var innerObj);
+
+            if (res)
+            {
+                obj = (T)innerObj;
+            }
+            else
+            {
+                obj = default;
+            }
+            
             return res;
         }
         
@@ -40,14 +51,23 @@ namespace SaveLoadSystem.Core
             return type.IsValueType ? TryLoadValue(type, identifier, out value) : TryLoadReference(type, identifier, out value);
         }
 
-        public override bool TryLoadValue<T>(string identifier, out T value)
+        public bool TryLoadValue<T>(string identifier, out T value)
         {
             var res = TryLoadValue(typeof(T), identifier, out var obj);
-            value = (T)obj;
+            
+            if (res)
+            {
+                value = (T)obj;
+            }
+            else
+            {
+                value = default;
+            }
+            
             return res;
         }
 
-        public override bool TryLoadValue(Type type, string identifier, out object value)
+        public bool TryLoadValue(Type type, string identifier, out object value)
         {
             //unity object handling
             if (typeof(UnityEngine.Object).IsAssignableFrom(type))
@@ -72,20 +92,29 @@ namespace SaveLoadSystem.Core
             }
             
             //serialization handling
-            if (SaveDataBuffer.JsonSerializableSaveData[identifier] == null)
+            if (_saveDataBuffer.JsonSerializableSaveData[identifier] == null)
             {
                 value = default;
                 return false;     //TODO: debug
             }
 
-            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
+            value = _saveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
             return true;
         }
         
         public bool TryLoadReference<T>(string identifier, out T reference)
         {
             var res = TryLoadValue(typeof(T), identifier, out var obj);
-            reference = (T)obj;
+            
+            if (res)
+            {
+                reference = (T)obj;
+            }
+            else
+            {
+                reference = default;
+            }
+            
             return res;
         }
 
@@ -107,7 +136,7 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadSavable(Type type, string identifier, out object value)
         {
-            var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
+            var saveDataBuffer = _saveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
 
             value = Activator.CreateInstance(type);
@@ -119,16 +148,17 @@ namespace SaveLoadSystem.Core
         private bool TryLoadWithConverter(Type type, string identifier, out object value)
         {
             var convertable = ConverterServiceProvider.GetConverter(type);
-            var saveDataBuffer = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
+            var saveDataBuffer = _saveDataBuffer.JsonSerializableSaveData[identifier].ToObject<SaveDataBuffer>();
             var loadDataHandler = new LoadDataHandler(_sceneDataContainer, saveDataBuffer, _pathToObjectReferenceLookup, _createdObjectsLookup);
 
-            value = convertable.Load(loadDataHandler);
+            value = convertable.CreateInstanceForLoad(loadDataHandler);
+            convertable.Load(value, loadDataHandler);
             return true;
         }
         
         private bool TryGetGuidPath(string identifier, out GuidPath guidPath)
         {
-            if (!SaveDataBuffer.GuidPathSaveData.TryGetValue(identifier, out guidPath))
+            if (!_saveDataBuffer.GuidPathSaveData.TryGetValue(identifier, out guidPath))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
@@ -191,10 +221,10 @@ namespace SaveLoadSystem.Core
                         return false;
 
                     var converter = ConverterServiceProvider.GetConverter(type);
-                    
-                    //TODO: this results in a stackoverflow with looped converter references
+
+                    reference = converter.CreateInstanceForLoad(loadDataHandler);
                     _createdObjectsLookup.Add(guidPath, reference);
-                    reference = converter.Load(loadDataHandler);
+                    converter.Load(reference, loadDataHandler);
                     return true;
 
                 case SaveStrategy.Serializable:
@@ -212,36 +242,6 @@ namespace SaveLoadSystem.Core
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-        }
-    }
-
-    public class SimpleLoadDataHandler
-    {
-        protected readonly SaveDataBuffer SaveDataBuffer;
-        
-        public SimpleLoadDataHandler(SaveDataBuffer saveDataBuffer)
-        {
-            SaveDataBuffer = saveDataBuffer;
-        }
-
-        public virtual bool TryLoadValue<T>(string identifier, out T value)
-        {
-            var res = TryLoadValue(typeof(T), identifier, out var obj);
-            value = (T)obj;
-            return res;
-        }
-
-        public virtual bool TryLoadValue(Type type, string identifier, out object value)
-        {
-            value = default;
-            
-            if (SaveDataBuffer.JsonSerializableSaveData[identifier] == null)
-            {
-                return false;     //TODO: debug
-            }
-
-            value = SaveDataBuffer.JsonSerializableSaveData[identifier].ToObject(type);
-            return true;
         }
     }
 }

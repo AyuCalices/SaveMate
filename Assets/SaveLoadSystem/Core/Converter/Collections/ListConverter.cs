@@ -4,7 +4,7 @@ using JetBrains.Annotations;
 namespace SaveLoadSystem.Core.Converter.Collections
 {
     [UsedImplicitly]
-    public class ListConverter<T> : SaveMateBaseConverter<List<T>>
+    public class ListConverter<T> : BaseConverter<List<T>>
     {
         protected override void OnSave(List<T> data, SaveDataHandler saveDataHandler)
         {
@@ -16,21 +16,22 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        protected override List<T> OnLoad(LoadDataHandler loadDataHandler)
+        protected override List<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            var list = new List<T>();
-            
+            return new List<T>();
+        }
+
+        protected override void OnLoad(List<T> input, LoadDataHandler loadDataHandler)
+        {
             loadDataHandler.TryLoadValue("count", out int count);
             
             for (var index = 0; index < count; index++)
             {
                 if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
                 {
-                    list.Add(obj);
+                    input.Add(obj);
                 }
             }
-
-            return list;
         }
     }
 }

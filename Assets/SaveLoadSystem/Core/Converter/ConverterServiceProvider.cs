@@ -8,7 +8,7 @@ namespace SaveLoadSystem.Core.Converter
     public static class ConverterServiceProvider
     {
         private static readonly HashSet<(Type Type, Type HandledType)> UsableConverterLookup = new();
-        private static readonly Dictionary<Type, ISaveMateConverter> CreatedConverterLookup = new();
+        private static readonly Dictionary<Type, IConverter> CreatedConverterLookup = new();
 
         static ConverterServiceProvider()
         {
@@ -23,7 +23,7 @@ namespace SaveLoadSystem.Core.Converter
                 var baseType = type.BaseType;
                 while (baseType != null)
                 {
-                    if (baseType.IsGenericType && baseType.GetGenericTypeDefinition() == typeof(SaveMateBaseConverter<>))
+                    if (baseType.IsGenericType && baseType.GetGenericTypeDefinition() == typeof(BaseConverter<>))
                     {
                         // Handle both open and non-generic types
                         var handledType = baseType.GetGenericArguments()[0];
@@ -64,17 +64,17 @@ namespace SaveLoadSystem.Core.Converter
             }
 
             // Create the converter dynamically and cache it
-            var instance = (ISaveMateConverter)Activator.CreateInstance(converterType);
+            var instance = (IConverter)Activator.CreateInstance(converterType);
             CreatedConverterLookup[type] = instance;
             return true;
         }
 
-        public static ISaveMateConverter GetConverter<T>()
+        public static IConverter GetConverter<T>()
         {
             return GetConverter(typeof(T));
         }
 
-        public static ISaveMateConverter GetConverter(Type type)
+        public static IConverter GetConverter(Type type)
         {
             // Check if the converter already exists in the lookup
             if (CreatedConverterLookup.TryGetValue(type, out var converter))
@@ -91,7 +91,7 @@ namespace SaveLoadSystem.Core.Converter
             }
 
             // Create the converter dynamically and cache it
-            var instance = (ISaveMateConverter)Activator.CreateInstance(converterType);
+            var instance = (IConverter)Activator.CreateInstance(converterType);
             CreatedConverterLookup[type] = instance;
             return instance;
         }
@@ -125,26 +125,34 @@ namespace SaveLoadSystem.Core.Converter
         }
     }
 
-    public abstract class SaveMateBaseConverter<T> : ISaveMateConverter
+    public abstract class BaseConverter<T> : IConverter
     {
         public void Save(object input, SaveDataHandler saveDataHandler)
         {
             OnSave((T)input, saveDataHandler);
         }
 
-        public object Load(LoadDataHandler loadDataHandler)
+        protected abstract void OnSave(T input, SaveDataHandler saveDataHandler);
+        
+        public object CreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            return OnLoad(loadDataHandler);
+            return OnCreateInstanceForLoad(loadDataHandler);
         }
 
-        protected abstract void OnSave(T input, SaveDataHandler saveDataHandler);
+        protected abstract T OnCreateInstanceForLoad(LoadDataHandler loadDataHandler);
 
-        protected abstract T OnLoad(LoadDataHandler loadDataHandler);
+        public void Load(object input, LoadDataHandler loadDataHandler)
+        {
+            OnLoad((T)input, loadDataHandler);
+        }
+
+        protected abstract void OnLoad(T input, LoadDataHandler loadDataHandler);
     }
 
-    public interface ISaveMateConverter
+    public interface IConverter
     {
         void Save(object input, SaveDataHandler saveDataHandler);
-        object Load(LoadDataHandler loadDataHandler);
+        object CreateInstanceForLoad(LoadDataHandler loadDataHandler);
+        void Load(object input, LoadDataHandler loadDataHandler);
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class Color32Converter : SaveMateBaseConverter<Color32>
+    public class Color32Converter : BaseConverter<Color32>
     {
         protected override void OnSave(Color32 input, SaveDataHandler saveDataHandler)
         {
@@ -14,16 +14,17 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.Save("a", input.a);
         }
 
-        protected override Color32 OnLoad(LoadDataHandler loadDataHandler)
+        protected override Color32 OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            var color32 = new Color32();
-            
-            loadDataHandler.TryLoad("r", out color32.r);
-            loadDataHandler.TryLoad("g", out color32.g);
-            loadDataHandler.TryLoad("b", out color32.b);
-            loadDataHandler.TryLoad("a", out color32.a);
+            return new Color32();
+        }
 
-            return color32;
+        protected override void OnLoad(Color32 input, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad("r", out input.r);
+            loadDataHandler.TryLoad("g", out input.g);
+            loadDataHandler.TryLoad("b", out input.b);
+            loadDataHandler.TryLoad("a", out input.a);
         }
     }
 }

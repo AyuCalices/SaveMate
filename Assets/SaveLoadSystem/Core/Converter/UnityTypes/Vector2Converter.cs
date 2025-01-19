@@ -4,7 +4,7 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
     [UsedImplicitly]
-    public class Vector2Converter : SaveMateBaseConverter<Vector2>
+    public class Vector2Converter : BaseConverter<Vector2>
     {
         protected override void OnSave(Vector2 input, SaveDataHandler saveDataHandler)
         {
@@ -12,14 +12,15 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
             saveDataHandler.Save("y", input.y);
         }
 
-        protected override Vector2 OnLoad(LoadDataHandler loadDataHandler)
+        protected override Vector2 OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            var vector2 = new Vector2();
-            
-            loadDataHandler.TryLoad("x", out vector2.x);
-            loadDataHandler.TryLoad("y", out vector2.y);
+            return new Vector2();
+        }
 
-            return vector2;
+        protected override void OnLoad(Vector2 input, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad("x", out input.x);
+            loadDataHandler.TryLoad("y", out input.y);
         }
     }
 }

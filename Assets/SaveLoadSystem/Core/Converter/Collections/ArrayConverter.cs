@@ -5,42 +5,8 @@ using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
-    /*
-    public class ArrayConverter<T> : IConverter<T[]>
-    {
-        public void Save(T[] data, SaveDataHandler saveDataHandler)
-        {
-            saveDataHandler.SaveAsValue("length", data.Length);
-
-            for (int i = 0; i < data.Length; i++)
-            {
-                saveDataHandler.Save(i.ToString(), data[i]);
-            }
-        }
-
-        public T[] Load(LoadDataHandler loadDataHandler)
-        {
-            if (!loadDataHandler.TryLoadValue("length", out int length))
-            {
-                return new T[0];
-            }
-
-            var array = new T[length];
-            for (int i = 0; i < length; i++)
-            {
-                if (loadDataHandler.TryLoad<T>(i.ToString(), out var element))
-                {
-                    array[i] = element;
-                }
-            }
-
-            return array;
-        }
-    }*/
-    
-    
     [UsedImplicitly]
-    public class ArrayConverter<T> : SaveMateBaseConverter<T>
+    public class ArrayConverter<T> : BaseConverter<T>
     {
         protected override void OnSave(T data, SaveDataHandler saveDataHandler)
         {
@@ -63,7 +29,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        protected override T OnLoad(LoadDataHandler loadDataHandler)
+        protected override T OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
             var elementType = typeof(T).GetElementType();
             if (elementType == null) throw new ArgumentException("T must be an array type.");
@@ -77,8 +43,16 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
 
             // Create the array with the loaded dimensions
-            var array = Array.CreateInstance(elementType, dimensions);
+            return (T)(object)Array.CreateInstance(elementType, dimensions);
+        }
 
+        protected override void OnLoad(T input, LoadDataHandler loadDataHandler)
+        {
+            var elementType = typeof(T).GetElementType();
+            if (elementType == null) throw new ArgumentException("T must be an array type.");
+            
+            if (input is not Array array) throw new ArgumentException("Data must be an array.");
+            
             // Load each element using its indices as the key
             foreach (var indices in GetIndices(array))
             {
@@ -88,8 +62,6 @@ namespace SaveLoadSystem.Core.Converter.Collections
                     array.SetValue(value, indices);
                 }
             }
-
-            return (T)(object)array;
         }
 
         private IEnumerable<int[]> GetIndices(Array array)
