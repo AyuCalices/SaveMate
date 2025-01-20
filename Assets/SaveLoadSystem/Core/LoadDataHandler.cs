@@ -13,7 +13,7 @@ namespace SaveLoadSystem.Core
     /// serialized data, as well as handling reference building for complex object graphs.
     /// </summary>
     //TODO: LoadDataHandler must be renamed, so it makes it clear, it is already correctly connected with the current object -> the SaveDataBuffer
-    public class LoadDataHandler
+    public readonly struct LoadDataHandler
     {
         private readonly InstanceSaveData _instanceSaveData;
         private readonly SceneSaveData _sceneSaveData;

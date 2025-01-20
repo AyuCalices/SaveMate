@@ -820,7 +820,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
-  assetRegistry: {fileID: 11400000, guid: 82331d05614da7c4a9a01b4e156d158c, type: 2}
+  assetRegistry: {fileID: 11400000, guid: 9cfdd700030dba24396ea650a83be897, type: 2}
   loadSceneOnAwake: 0
   saveSceneOnDestroy: 0
   sceneManagerEvents:

@@ -28,6 +28,11 @@ namespace SaveLoadSystem.Core.Component
         
         private void Awake()
         {
+            if (assetRegistry == null)
+            {
+                Debug.LogWarning($"You didn't add an {nameof(AssetRegistry)}. ScriptableObjects and Dynamic Prefab loading is not supported!");
+            }
+            
             saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
 
             if (loadSceneOnAwake)
@@ -282,7 +287,14 @@ namespace SaveLoadSystem.Core.Component
             //prepare data
             Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup = new();
             var savableComponents = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var sceneSaveData = new SceneSaveData(instanceSaveDataLookup, CreateSavablePrefabLookup(savableComponents));
+
+            List<(string, string)> savablePrefabList = null;
+            if (assetRegistry != null)
+            {
+                savablePrefabList = CreateSavablePrefabLookup(savableComponents);
+            }
+            
+            var sceneSaveData = new SceneSaveData(instanceSaveDataLookup, savablePrefabList);
             var unityObjectLookup = BuildUnityObjectToPathLookup(savableComponents);
             
             //core saving
@@ -313,10 +325,13 @@ namespace SaveLoadSystem.Core.Component
             }
             
             //iterate over all elements inside the asset registry
-            foreach (var componentsContainer in assetRegistry.GetCombinedEnumerable())
+            if (assetRegistry != null)
             {
-                var componentGuidPath = new GuidPath(componentsContainer.guid);
-                unityObjectLookup.Add(componentsContainer.unityObject, componentGuidPath);
+                foreach (var componentsContainer in assetRegistry.GetSavableAssets())
+                {
+                    var componentGuidPath = new GuidPath(componentsContainer.guid);
+                    unityObjectLookup.Add(componentsContainer.unityObject, componentGuidPath);
+                }
             }
 
             return unityObjectLookup;
@@ -328,18 +343,22 @@ namespace SaveLoadSystem.Core.Component
             var processedInstancesLookup = new Dictionary<object, GuidPath>();
             
             //iterate over ScriptableObjects
-            foreach (var componentContainer in assetRegistry.ScriptableObjectRegistry.Savables)
+            if (assetRegistry != null)
             {
-                var guidPath = new GuidPath(componentContainer.guid);
-                var instanceSaveData = new InstanceSaveData();
-                
-                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
-                
-                if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
-            
-                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup, processedInstancesLookup, unityObjectLookup));
+                foreach (var componentContainer in assetRegistry.ScriptableObjectSavables)
+                {
+                    var guidPath = new GuidPath(componentContainer.guid);
+                    var instanceSaveData = new InstanceSaveData();
+
+                    instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+
+                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
+
+                    targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
+                        processedInstancesLookup, unityObjectLookup));
+                }
             }
-            
+
             //iterate over GameObjects with savable component
             foreach (var savable in savableComponents)
             {
@@ -367,16 +386,25 @@ namespace SaveLoadSystem.Core.Component
         internal void LoadSnapshot(SceneSaveData sceneSaveData)
         {
             var savableComponents = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
-            var savablePrefabList = CreateSavablePrefabLookup(savableComponents);     //instantiating needed prefabs must happen before performing the core load methods
-            InstantiatePrefabsOnLoad(sceneSaveData, savableComponents, savablePrefabList);
-            
+
+            List<(string, string)> savablePrefabList = null;
+            if (assetRegistry != null)
+            {
+                //instantiating needed prefabs must happen before performing the core load methods, so it doesnt miss out on their Savable Components
+                savablePrefabList = CreateSavablePrefabLookup(savableComponents);
+                InstantiatePrefabsOnLoad(sceneSaveData, savableComponents, savablePrefabList);
+            }
+
             //core loading
             var unityObjectLookup = BuildPathToUnityObjectLookup(savableComponents);
 
             LazyLoad(sceneSaveData, savableComponents, unityObjectLookup, new Dictionary<GuidPath, object>());
             
             //destroy prefabs, that are not present in the save file
-            DestroyPrefabsOnLoad(sceneSaveData, savableComponents, savablePrefabList);
+            if (savablePrefabList != null)
+            {
+                DestroyPrefabsOnLoad(sceneSaveData, savableComponents, savablePrefabList);
+            }
         }
 
         private void InstantiatePrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<(string, string)> savablePrefabList)
@@ -384,7 +412,7 @@ namespace SaveLoadSystem.Core.Component
             var instantiatedSavables = sceneSaveData.SavablePrefabList.Except(savablePrefabList);
             foreach (var (prefab, sceneGuid) in instantiatedSavables)
             {
-                if (assetRegistry.PrefabRegistry.TryGetPrefab(prefab, out Savable savable))
+                if (assetRegistry.TryGetPrefab(prefab, out Savable savable))
                 {
                     var instantiatedSavable = Instantiate(savable);
                     instantiatedSavable.SetSceneGuidGroup(sceneGuid);
@@ -413,10 +441,13 @@ namespace SaveLoadSystem.Core.Component
                     createdInstancesLookup.Add(componentGuidPath.ToString(), componentContainer.unityObject);
                 }
             }
-            
-            foreach (var componentsContainer in assetRegistry.GetCombinedEnumerable())
+
+            if (assetRegistry != null)
             {
-                createdInstancesLookup.Add(componentsContainer.guid, componentsContainer.unityObject);
+                foreach (var componentsContainer in assetRegistry.GetSavableAssets())
+                {
+                    createdInstancesLookup.Add(componentsContainer.guid, componentsContainer.unityObject);
+                }
             }
 
             return createdInstancesLookup;
@@ -426,17 +457,20 @@ namespace SaveLoadSystem.Core.Component
             Dictionary<string, object> unityObjectLookup, Dictionary<GuidPath, object> createdObjectsLookup)
         {
             //iterate over ScriptableObjects
-            foreach (var componentContainer in assetRegistry.ScriptableObjectRegistry.Savables)
+            if (assetRegistry != null)
             {
-                var guidPath = new GuidPath(componentContainer.guid);
-                
-                if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
+                foreach (var componentContainer in assetRegistry.ScriptableObjectSavables)
                 {
-                    var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, unityObjectLookup, createdObjectsLookup);
+                    var guidPath = new GuidPath(componentContainer.guid);
+                
+                    if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
+                    {
+                        var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, unityObjectLookup, createdObjectsLookup);
                         
-                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
+                        if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
                     
-                    targetSavable.OnLoad(loadDataHandler);
+                        targetSavable.OnLoad(loadDataHandler);
+                    }
                 }
             }
             
@@ -483,7 +517,7 @@ namespace SaveLoadSystem.Core.Component
         private List<(string, string)> CreateSavablePrefabLookup(List<Savable> savableComponents)
         {
             return (from savable in savableComponents 
-                where !savable.DynamicPrefabSpawningDisabled && assetRegistry.PrefabRegistry.ContainsPrefabGuid(savable.PrefabGuid) 
+                where !savable.DynamicPrefabSpawningDisabled && assetRegistry.ContainsPrefabGuid(savable.PrefabGuid) 
                 select (savable.PrefabGuid, savable.SceneGuid)).ToList();
         }
 

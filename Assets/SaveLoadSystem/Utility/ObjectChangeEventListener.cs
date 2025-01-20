@@ -80,7 +80,7 @@ namespace SaveLoadSystem.Utility
                 Debug.Log($"{type}: {newGameObject} in scene {createGameObjectHierarchy.scene}.");
             }
             
-            if (newGameObject.TryGetComponent(out ICreateGameObjectHierarchy createGameObjectHierarchyEvent))
+            if (newGameObject != null && newGameObject.TryGetComponent(out ICreateGameObjectHierarchy createGameObjectHierarchyEvent))
             {
                 createGameObjectHierarchyEvent.OnCreateGameObjectHierarchy();
             }

@@ -12,5 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 385683b4cf65c9d4eb7340ac922067a6, type: 3}
   m_Name: Campfire_ItemGenerator
   m_EditorClassIdentifier: 
+  spriteLookup: {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}
   sprite: {fileID: 21300000, guid: 111a0dc8dfed8974abfe5b2e9cf1477c, type: 3}
   itemName: Campfire
