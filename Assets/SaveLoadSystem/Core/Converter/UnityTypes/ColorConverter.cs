@@ -1,28 +1,30 @@
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core.Converter.UnityTypes
 {
+    [UsedImplicitly]
     public class ColorConverter : BaseConverter<Color>
     {
-        protected override void OnSave(Color data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Color input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.Save("r", data.r);
-            saveDataHandler.Save("g", data.g);
-            saveDataHandler.Save("b", data.b);
-            saveDataHandler.Save("a", data.a);
+            saveDataHandler.Save("r", input.r);
+            saveDataHandler.Save("g", input.g);
+            saveDataHandler.Save("b", input.b);
+            saveDataHandler.Save("a", input.a);
         }
 
-        protected override Color OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        protected override Color OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
             return new Color();
         }
 
-        protected override void OnLoad(Color data, LoadDataHandler loadDataHandler)
+        protected override void OnLoad(Color input, LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoad("r", out data.r);
-            loadDataHandler.TryLoad("g", out data.g);
-            loadDataHandler.TryLoad("b", out data.b);
-            loadDataHandler.TryLoad("a", out data.a);
+            loadDataHandler.TryLoad("r", out input.r);
+            loadDataHandler.TryLoad("g", out input.g);
+            loadDataHandler.TryLoad("b", out input.b);
+            loadDataHandler.TryLoad("a", out input.a);
         }
     }
 }

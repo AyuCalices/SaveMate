@@ -1,55 +1,39 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
-    public class DictionaryConverter : BaseConverter<IDictionary>
+    [UsedImplicitly]
+    public class DictionaryConverter<TKey, TValue> : BaseConverter<Dictionary<TKey, TValue>>
     {
-        protected override void OnSave(IDictionary data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(Dictionary<TKey, TValue> input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("count", data.Keys.Count);
-            
-            var keyTypeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
-            saveDataHandler.SaveAsValue("keyType", keyTypeString);
-            
-            var valueTypeString = data.GetType().GetGenericArguments()[1].AssemblyQualifiedName;
-            saveDataHandler.SaveAsValue("valueType", valueTypeString);
+            saveDataHandler.SaveAsValue("count", input.Count);
             
             var index = 0;
-            foreach (var dataKey in data.Keys)
+            foreach (var dataKey in input.Keys)
             {
                 saveDataHandler.Save("key" + index, dataKey);
-                saveDataHandler.Save("value" + index, data[dataKey]);
+                saveDataHandler.Save("value" + index, input[dataKey]);
                 index++;
             }
         }
 
-        protected override IDictionary OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        protected override Dictionary<TKey, TValue> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("keyType", out string keyTypeString);
-            loadDataHandler.TryLoadValue("valueType", out string valueTypeString);
-            
-            var keyType = Type.GetType(keyTypeString);
-            var valueType = Type.GetType(valueTypeString);
-            
-            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(keyType, valueType);
-            return (IDictionary)Activator.CreateInstance(dictionaryType);
+            return new Dictionary<TKey, TValue>();
         }
 
-        protected override void OnLoad(IDictionary data, LoadDataHandler loadDataHandler)
+        protected override void OnLoad(Dictionary<TKey, TValue> input, LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad<int>("count", out var count);
             
-            var keyType = data.GetType().GetGenericArguments()[0];
-            var valueType = data.GetType().GetGenericArguments()[1];
-            
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad(keyType, "key" + index, out var key)
-                    && loadDataHandler.TryLoad(valueType, "value" + index, out var value))
+                if (loadDataHandler.TryLoad<TKey>("key" + index, out var key)
+                    && loadDataHandler.TryLoad<TValue>("value" + index, out var value))
                 {
-                    data.Add(key, value);
+                    input.Add(key, value);
                 }
             }
         }

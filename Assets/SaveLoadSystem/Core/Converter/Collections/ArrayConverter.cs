@@ -1,55 +1,81 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
-    //TODO: multi-dimensional Arrays
-    public class ArrayConverter : IConvertable
+    [UsedImplicitly]
+    public class ArrayConverter<T> : BaseConverter<T>
     {
-        public bool CanConvert(Type type, out IConvertable convertable)
+        protected override void OnSave(T data, SaveDataHandler saveDataHandler)
         {
-            if (type.IsArray)
+            if (data is not Array array) throw new ArgumentException("Data must be an array.");
+            
+            // Save the rank (number of dimensions)
+            saveDataHandler.SaveAsValue("rank", array.Rank);
+            
+            // Save the lengths of each dimension
+            for (int i = 0; i < array.Rank; i++)
             {
-                convertable = this;
-                return true;
+                saveDataHandler.SaveAsValue($"dimension_{i}", array.GetLength(i));
             }
-            
-            convertable = default;
-            return false;
-        }
-        
-        public void OnSave(object data, SaveDataHandler saveDataHandler)
-        {
-            saveDataHandler.SaveAsValue("count", ((Array)data).Length);
-            
-            var typeString = data.GetType().GetElementType()?.AssemblyQualifiedName;
-            saveDataHandler.SaveAsValue("type", typeString);
-            
-            var index = 0;
-            foreach (var obj in (Array)data)
+
+            // Save each element of the array using its indices as a key
+            foreach (var indices in GetIndices(array))
             {
-                saveDataHandler.Save(index.ToString(), obj);
-                index++;
+                var key = string.Join(",", indices); // Create a string key from indices
+                saveDataHandler.Save(key, array.GetValue(indices));
             }
         }
 
-        public object CreateInstanceForLoad(SimpleLoadDataHandler loadDataHandler)
+        protected override T OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("count", out int count);
-            loadDataHandler.TryLoadValue("type", out string typeString);
+            var elementType = typeof(T).GetElementType();
+            if (elementType == null) throw new ArgumentException("T must be an array type.");
             
-            return Array.CreateInstance(Type.GetType(typeString), count);
+            // Load the rank and dimensions
+            loadDataHandler.TryLoadValue("rank", out int rank);
+            var dimensions = new int[rank];
+            for (int i = 0; i < rank; i++)
+            {
+                loadDataHandler.TryLoadValue($"dimension_{i}", out dimensions[i]);
+            }
+
+            // Create the array with the loaded dimensions
+            return (T)(object)Array.CreateInstance(elementType, dimensions);
         }
 
-        public void OnLoad(object data, LoadDataHandler loadDataHandler)
+        protected override void OnLoad(T input, LoadDataHandler loadDataHandler)
         {
-            var arrayData = (Array)data;
+            var elementType = typeof(T).GetElementType();
+            if (elementType == null) throw new ArgumentException("T must be an array type.");
             
-            for (int index = 0; index < arrayData.Length; index++)
+            if (input is not Array array) throw new ArgumentException("Data must be an array.");
+            
+            // Load each element using its indices as the key
+            foreach (var indices in GetIndices(array))
             {
-                var innerScopeIndex = index;
-                if (loadDataHandler.TryLoad(arrayData.GetType().GetElementType(), index.ToString(), out var obj))
+                var key = string.Join(",", indices); // Use the same key format
+                if (loadDataHandler.TryLoad(elementType, key, out var value))
                 {
-                    arrayData.SetValue(obj, innerScopeIndex);
+                    array.SetValue(value, indices);
+                }
+            }
+        }
+
+        private IEnumerable<int[]> GetIndices(Array array)
+        {
+            var dimensions = Enumerable.Range(0, array.Rank).Select(array.GetLength).ToArray();
+            var indices = new int[array.Rank];
+            while (true)
+            {
+                yield return (int[])indices.Clone();
+                for (int dim = array.Rank - 1; dim >= 0; dim--)
+                {
+                    if (++indices[dim] < dimensions[dim]) break;
+                    indices[dim] = 0;
+                    if (dim == 0) yield break;
                 }
             }
         }

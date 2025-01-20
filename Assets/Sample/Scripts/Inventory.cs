@@ -9,6 +9,7 @@ using UnityEngine;
 public class Inventory : ScriptableObject, ISavable
 {
     [SerializeField] private List<Item> items;
+    [SerializeField] private int test = 5;
 
     public int ItemCount => items.Count;
 
@@ -48,12 +49,30 @@ public class Inventory : ScriptableObject, ISavable
     
     public void OnSave(SaveDataHandler saveDataHandler)
     {
+        var test = new List<Item[]>();
+        for (var index = 0; index < items.Count; index++)
+        {
+            var innerTest = new Item[items.Count];
+            test.Add(innerTest);
+            
+            for (var i = 0; i < items.Count; i++)
+            {
+                innerTest[i] = items[i];
+            }
+        }
+
         saveDataHandler.Save("items", items);
+        saveDataHandler.Save("test", test);
+        saveDataHandler.Save("test2", this.test);
     }
 
     public void OnLoad(LoadDataHandler loadDataHandler)
     {
         loadDataHandler.TryLoad("items", out items);
+        
+        loadDataHandler.TryLoad("test", out List<Item[]> test);
+        
+        loadDataHandler.TryLoad("test3", out this.test);
     }
 }
 

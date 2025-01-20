@@ -1,24 +1,27 @@
-using Sample.Scripts;
+using JetBrains.Annotations;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.Converter;
 
-//Optional Type-Converter implementation approach
-public class ItemConverter : BaseConverter<Item>
+namespace Sample.Scripts
 {
-    protected override void OnSave(Item data, SaveDataHandler saveDataHandler)
+    [UsedImplicitly]
+    public class ItemConverter : BaseConverter<Item>
     {
-        saveDataHandler.Save("name", data.itemName);
-        saveDataHandler.Save("item", data.sprite);
-    }
+        protected override void OnSave(Item input, SaveDataHandler saveDataHandler)
+        {
+            saveDataHandler.Save("sprite", input.sprite);
+            saveDataHandler.Save("name", input.itemName);
+        }
 
-    protected override Item OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
-    {
-        return new Item();
-    }
+        protected override Item OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        {
+            return new Item();
+        }
 
-    protected override void OnLoad(Item data, LoadDataHandler loadDataHandler)
-    {
-        loadDataHandler.TryLoad("name", out data.itemName);
-        loadDataHandler.TryLoad("item", out data.sprite);
+        protected override void OnLoad(Item input, LoadDataHandler loadDataHandler)
+        {
+            loadDataHandler.TryLoad("sprite", out input.sprite);
+            loadDataHandler.TryLoad("name", out input.itemName);
+        }
     }
 }

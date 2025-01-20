@@ -33,9 +33,9 @@ namespace Sample.Scripts
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
-            if (loadDataHandler.TryLoad(typeof(Item), "item", out object item))
+            if (loadDataHandler.TryLoad("item", out Item item))
             {
-                ContainedItem = (Item)item;
+                ContainedItem = item;
             }
         }
     }

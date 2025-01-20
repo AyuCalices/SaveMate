@@ -6,11 +6,11 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class SaveData
     {
-        [JsonProperty] public readonly Dictionary<string, SceneDataContainer> SceneDataLookup = new();
+        [JsonProperty] public readonly Dictionary<string, SceneSaveData> SceneDataLookup = new();
 
-        public void SetSceneData(Scene scene, SceneDataContainer sceneDataContainer)
+        public void SetSceneData(Scene scene, SceneSaveData sceneSaveData)
         {
-            SceneDataLookup[scene.path] = sceneDataContainer;
+            SceneDataLookup[scene.path] = sceneSaveData;
         }
 
         public bool ContainsSceneData(Scene scene)
@@ -18,14 +18,14 @@ namespace SaveLoadSystem.Core.DataTransferObject
             return SceneDataLookup.ContainsKey(scene.path);
         }
 
-        public SceneDataContainer GetSceneData(Scene scene)
+        public SceneSaveData GetSceneData(Scene scene)
         {
             return SceneDataLookup[scene.path];
         }
 
-        public bool TryGetSceneData(Scene scene, out SceneDataContainer sceneDataContainer)
+        public bool TryGetSceneData(Scene scene, out SceneSaveData sceneSaveData)
         {
-            return SceneDataLookup.TryGetValue(scene.path, out sceneDataContainer);
+            return SceneDataLookup.TryGetValue(scene.path, out sceneSaveData);
         }
 
         public void RemoveSceneData(Scene scene)

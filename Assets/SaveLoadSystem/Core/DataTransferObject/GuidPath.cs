@@ -6,11 +6,9 @@ using Newtonsoft.Json;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
-    public class GuidPath : IEquatable<GuidPath>
+    public readonly struct GuidPath : IEquatable<GuidPath>
     {
         [JsonProperty] public readonly string[] FullPath;
-        
-        public GuidPath() {}
         
         public GuidPath(string guid)
         {
@@ -31,16 +29,13 @@ namespace SaveLoadSystem.Core.DataTransferObject
         
         public bool Equals(GuidPath other)
         {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
             return InternalEquals(other);
         }
 
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
+            if (obj.GetType() != GetType()) return false;
             return InternalEquals((GuidPath)obj);
         }
 

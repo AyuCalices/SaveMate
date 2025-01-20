@@ -361,7 +361,7 @@ namespace SaveLoadSystem.Core
             stopwatch.Start();
 
             //get relevant scene data
-            var sceneLookup = new List<(SceneDataContainer SceneDataContainer, SaveSceneManager SaveSceneManager)>();
+            var sceneLookup = new List<(SceneSaveData SceneDataContainer, SaveSceneManager SaveSceneManager)>();
             foreach (var scene in scenesToLoad)
             {
                 if (!scene.isLoaded)
@@ -370,7 +370,7 @@ namespace SaveLoadSystem.Core
                     continue;
                 }
 
-                if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
+                if (!saveData.TryGetSceneData(scene, out SceneSaveData sceneDataContainer)) continue;
                 
                 if (Application.isPlaying)
                 {
@@ -411,9 +411,9 @@ namespace SaveLoadSystem.Core
             Debug.LogWarning("Loading Completed!");
         }
 
-        private List<(Scene, SceneDataContainer, SaveSceneManager)> GetSceneDataLookup(SaveData saveData, params Scene[] scenes)
+        private List<(Scene, SceneSaveData, SaveSceneManager)> GetSceneDataLookup(SaveData saveData, params Scene[] scenes)
         {
-            var sceneLookup = new List<(Scene Scene, SceneDataContainer SceneDataContainer, SaveSceneManager SaveSceneManager)>();
+            var sceneLookup = new List<(Scene Scene, SceneSaveData SceneDataContainer, SaveSceneManager SaveSceneManager)>();
             
             foreach (var scene in scenes)
             {
@@ -423,7 +423,7 @@ namespace SaveLoadSystem.Core
                     continue;
                 }
 
-                if (!saveData.TryGetSceneData(scene, out SceneDataContainer sceneDataContainer)) continue;
+                if (!saveData.TryGetSceneData(scene, out SceneSaveData sceneDataContainer)) continue;
                 
                 if (Application.isPlaying)
                 {

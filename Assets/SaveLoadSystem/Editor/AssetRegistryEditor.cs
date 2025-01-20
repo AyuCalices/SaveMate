@@ -1,4 +1,3 @@
-using System;
 using SaveLoadSystem.Core;
 using UnityEditor;
 using UnityEngine;
@@ -8,43 +7,31 @@ namespace SaveLoadSystem.Editor
     [CustomEditor(typeof(AssetRegistry))]
     public class AssetRegistryEditor : UnityEditor.Editor
     {
-        private SerializedProperty _prefabLookupProperty;
-        private SerializedProperty _scriptableObjectLookupProperty;
-        private SerializedProperty _unityObjectListProperty;
+        private SerializedProperty _prefabSavablesProperty;
+        private SerializedProperty _scriptableObjectSavablesProperty;
         
-        private static bool _showUnityObjectList;
+        private static bool _showPrefabSavablesList;
+        private static bool _showScriptableObjectSavablesList;
         
         private void OnEnable()
         {
-            _prefabLookupProperty = serializedObject.FindProperty("prefabRegistry");
-            _scriptableObjectLookupProperty = serializedObject.FindProperty("scriptableObjectRegistry");
-            _unityObjectListProperty = serializedObject.FindProperty("unityObjectList");
+            _prefabSavablesProperty = serializedObject.FindProperty("prefabSavables");
+            _scriptableObjectSavablesProperty = serializedObject.FindProperty("scriptableObjectSavables");
         }
         
         public override void OnInspectorGUI()
         {
-            serializedObject.Update();
-            
-            EditorGUILayout.PropertyField(_prefabLookupProperty);
-            EditorGUILayout.PropertyField(_scriptableObjectLookupProperty);
-            
-            // Disable editing
             GUI.enabled = false;
-            
-            // Display the fields
-            SavableReferenceListPropertyLayout(_unityObjectListProperty, "Unity Objects", ref _showUnityObjectList, true);
-            
-            // Enable editing back
-            GUI.enabled = true;
 
+            SavableReferenceListPropertyLayout(_prefabSavablesProperty, "Prefab Savables", ref _showPrefabSavablesList);
+            SavableReferenceListPropertyLayout(_scriptableObjectSavablesProperty, "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
+            
             serializedObject.ApplyModifiedProperties();
         }
         
         private void SavableReferenceListPropertyLayout(SerializedProperty serializedProperty, string layoutName,
-            ref bool foldout, bool componentEditable = false, bool guidEditable = false)
+            ref bool foldout)
         {
-            GUI.enabled = true;
-            
             foldout = EditorGUILayout.Foldout(foldout, layoutName);
             if (!foldout) return;
             
@@ -54,11 +41,9 @@ namespace SaveLoadSystem.Editor
 
             // Headers
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Unity Object", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Savable", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Guid", EditorStyles.boldLabel);
             EditorGUILayout.EndHorizontal();
-            
-            GUI.enabled = false;
 
             for (var i = 0; i < serializedProperty.arraySize; i++)
             {
@@ -67,50 +52,15 @@ namespace SaveLoadSystem.Editor
                 var pathProperty = elementProperty.FindPropertyRelative("guid");
 
                 EditorGUILayout.BeginHorizontal();
-                EditableGUILayoutAction(componentEditable, () => EditorGUILayout.PropertyField(componentProperty, GUIContent.none));
-                EditableGUILayoutAction(guidEditable, () => EditorGUILayout.PropertyField(pathProperty, GUIContent.none));
-
-                GUI.enabled = true;
-                // Add a button to remove the element
-                if (GUILayout.Button("Remove", GUILayout.Width(60)))
-                {
-                    serializedProperty.DeleteArrayElementAtIndex(i);
-                }
-                GUI.enabled = false;
+                EditorGUILayout.PropertyField(componentProperty, GUIContent.none);
+                EditorGUILayout.PropertyField(pathProperty, GUIContent.none);
 
                 EditorGUILayout.EndHorizontal();
             }
-            
-            GUI.enabled = true;
-
-            // Add button to add new element
-            if (GUILayout.Button("Add Object"))
-            {
-                var newIndex = serializedProperty.arraySize;
-                serializedProperty.InsertArrayElementAtIndex(newIndex);
-
-                var newElementProperty = serializedProperty.GetArrayElementAtIndex(newIndex);
-                var newComponentProperty = newElementProperty.FindPropertyRelative("component");
-                var newPathProperty = newElementProperty.FindPropertyRelative("guid");
-
-                // Initialize new element properties if necessary
-                if (newComponentProperty != null) newComponentProperty.objectReferenceValue = null;
-                if (newPathProperty != null) newPathProperty.stringValue = Guid.NewGuid().ToString();
-            }
-            
-            GUI.enabled = false;
 
             EditorGUILayout.EndVertical();
-
+            
             EditorGUI.indentLevel--;
-        }
-        
-        private void EditableGUILayoutAction(bool isEditable, Action action)
-        {
-            var currentlyEditable = GUI.enabled;
-            GUI.enabled = isEditable;
-            action.Invoke();
-            GUI.enabled = currentlyEditable;
         }
     }
 }

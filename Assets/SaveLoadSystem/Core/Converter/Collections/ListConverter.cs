@@ -1,18 +1,14 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.Converter.Collections
 {
-    public class ListConverter : BaseConverter<IList>
+    [UsedImplicitly]
+    public class ListConverter<T> : BaseConverter<List<T>>
     {
-        protected override void OnSave(IList data, SaveDataHandler saveDataHandler)
+        protected override void OnSave(List<T> data, SaveDataHandler saveDataHandler)
         {
             saveDataHandler.SaveAsValue("count", data.Count);
-            
-            var typeString = data.GetType().GetGenericArguments()[0].AssemblyQualifiedName;
-            saveDataHandler.SaveAsValue("type", typeString);
             
             for (var index = 0; index < data.Count; index++)
             {
@@ -20,25 +16,20 @@ namespace SaveLoadSystem.Core.Converter.Collections
             }
         }
 
-        protected override IList OnCreateInstanceForLoading(SimpleLoadDataHandler loadDataHandler)
+        protected override List<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("type", out string typeString);
-            
-            var listType = typeof(List<>).MakeGenericType(Type.GetType(typeString));
-            return (IList)Activator.CreateInstance(listType);
+            return new List<T>();
         }
 
-        protected override void OnLoad(IList data, LoadDataHandler loadDataHandler)
+        protected override void OnLoad(List<T> input, LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoadValue("count", out int count);
-
-            var type = data.GetType().GetGenericArguments()[0];
             
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad(type ,index.ToString(), out var obj))
+                if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
                 {
-                    data.Add(obj);
+                    input.Add(obj);
                 }
             }
         }
