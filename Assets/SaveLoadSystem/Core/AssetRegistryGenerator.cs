@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using SaveLoadSystem.Core.Component;
-using SaveLoadSystem.Core.Component.SavableConverter;
+using SaveLoadSystem.Core.UnityComponent;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEditor;
 using UnityEngine;

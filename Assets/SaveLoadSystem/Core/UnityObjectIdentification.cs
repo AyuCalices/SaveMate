@@ -1,14 +1,15 @@
 using System;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Core
 {
     [Serializable]
-    public class ComponentsContainer
+    public class UnityObjectIdentification
     {
         public string guid;
-        public UnityEngine.Object unityObject;
+        public Object unityObject;
 
-        public ComponentsContainer(string guid, UnityEngine.Object unityObject)
+        public UnityObjectIdentification(string guid, Object unityObject)
         {
             this.guid = guid;
             this.unityObject = unityObject;

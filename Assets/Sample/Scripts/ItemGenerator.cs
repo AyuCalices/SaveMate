@@ -1,15 +1,17 @@
-using Sample.Scripts;
 using UnityEngine;
 
-[CreateAssetMenu]
-public class ItemGenerator : ScriptableObject
+namespace Sample.Scripts
 {
-    public SpriteLookup spriteLookup;
-    public Sprite sprite;
-    public string itemName;
-    
-    public Item GenerateItem()
+    [CreateAssetMenu]
+    public class ItemGenerator : ScriptableObject
     {
-        return new Item(spriteLookup, sprite, itemName);
+        public SpriteLookup spriteLookup;
+        public Sprite sprite;
+        public string itemName;
+    
+        public Item GenerateItem()
+        {
+            return new Item(spriteLookup, sprite, itemName);
+        }
     }
 }

@@ -1324,14 +1324,10 @@ MonoBehaviour:
   serializeFieldSceneGuid: 58f9c108-eb9a-40cb-83ce-d416dc1b49e1
   prefabPath: 
   dynamicPrefabSpawningDisabled: 0
-  serializeFieldSavableList:
-  - guid: 1a95d8a8-b756-47ea-94e7-6c15f94d19a0
+  savableLookup:
+  - guid: df1360dd-db19-46e4-ba8f-89a8ef4d1781
     unityObject: {fileID: 1042050944}
-  serializeFieldSavableReferenceList:
-  - guid: 2ee579a3-afa2-4f02-870d-92e15845830c
-    unityObject: {fileID: 1042050942}
-  - guid: 8be1a7d0-5879-49fe-b28f-8104c5527458
-    unityObject: {fileID: 1042050938}
+  duplicateComponentLookup: []
 --- !u!1 &1073139036
 GameObject:
   m_ObjectHideFlags: 0
@@ -2064,7 +2060,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1844078485}
   m_Direction: 0
   m_Value: 1
-  m_Size: 0.9999999
+  m_Size: 0.99999994
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2793,7 +2789,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.00001427531, y: 0.00006103516}
+  m_AnchoredPosition: {x: 0.0000052452087, y: 0.00007247925}
   m_SizeDelta: {x: 0.000091553, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &3962104659604066856
@@ -2844,12 +2840,8 @@ MonoBehaviour:
   serializeFieldSceneGuid: 2aa19a52-3eb8-4e8e-a4a9-f5ec9e454729
   prefabPath: Assets/Sample/Scenes/Content.prefab
   dynamicPrefabSpawningDisabled: 0
-  serializeFieldSavableList: []
-  serializeFieldSavableReferenceList:
-  - guid: 780c8972-342d-407f-9b55-786aa162b86c
-    unityObject: {fileID: 954882178456828259}
-  - guid: fbb4e717-8259-417e-9efc-cc9057a087f1
-    unityObject: {fileID: 3962104659604066856}
+  savableLookup: []
+  duplicateComponentLookup: []
 --- !u!114 &9077321036707125733
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,7 +1,6 @@
-using SaveLoadSystem.Core.DataTransferObject;
 using UnityEngine;
 
-namespace SaveLoadSystem.Core.Component.SavableConverter
+namespace SaveLoadSystem.Core.UnityComponent.SavableConverter
 {
     
     public class SaveParent : MonoBehaviour, ISavable

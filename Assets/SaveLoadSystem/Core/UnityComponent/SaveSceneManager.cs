@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.EventHandler;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace SaveLoadSystem.Core.Component
+namespace SaveLoadSystem.Core.UnityComponent
 {
     public class SaveSceneManager : MonoBehaviour
     {
@@ -295,34 +295,32 @@ namespace SaveLoadSystem.Core.Component
             }
             
             var sceneSaveData = new SceneSaveData(instanceSaveDataLookup, savablePrefabList);
-            var unityObjectLookup = BuildUnityObjectToPathLookup(savableComponents);
+            var assetLookup = BuildAssetToPathLookup();
+            var gameObjectLookup = BuildGameObjectToPathLookup(savableComponents);
+            var guidComponentLookup = BuildGuidComponentToPathLookup(savableComponents);
             
             //core saving
-            LazySave(instanceSaveDataLookup, savableComponents, unityObjectLookup);
+            LazySave(instanceSaveDataLookup, savableComponents, assetLookup, gameObjectLookup, guidComponentLookup);
             return sceneSaveData;
         }
 
-        private Dictionary<object, GuidPath> BuildUnityObjectToPathLookup(List<Savable> savableComponents)
+        private Dictionary<GameObject, GuidPath> BuildGameObjectToPathLookup(List<Savable> savableComponents)
         {
-            var unityObjectLookup = new Dictionary<object, GuidPath>();
+            var unityObjectLookup = new Dictionary<GameObject, GuidPath>();
             
             //iterate over all gameobject with the savable component
             foreach (var savable in savableComponents)
             {
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
-                
-                foreach (var componentContainer in savable.SavableList)
-                {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
-                    unityObjectLookup.Add(componentContainer.unityObject, componentGuidPath);
-                }
-                
-                foreach (var componentContainer in savable.ReferenceList)
-                {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
-                    unityObjectLookup.Add(componentContainer.unityObject, componentGuidPath);
-                }
+                unityObjectLookup.Add(savable.gameObject, savableGuidPath);
             }
+
+            return unityObjectLookup;
+        }
+
+        private Dictionary<UnityEngine.Object, GuidPath> BuildAssetToPathLookup()
+        {
+            var unityObjectLookup = new Dictionary<UnityEngine.Object, GuidPath>();
             
             //iterate over all elements inside the asset registry
             if (assetRegistry != null)
@@ -336,26 +334,52 @@ namespace SaveLoadSystem.Core.Component
 
             return unityObjectLookup;
         }
+
+        private Dictionary<Component, GuidPath> BuildGuidComponentToPathLookup(List<Savable> savableComponents)
+        {
+            var guidComponentLookup = new Dictionary<Component, GuidPath>();
+            
+            //iterate over all gameobject with the savable component
+            foreach (var savable in savableComponents)
+            {
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
+                
+                foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
+                {
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, unityObjectIdentification.guid);
+                    guidComponentLookup.Add((Component)unityObjectIdentification.unityObject, componentGuidPath);
+                }
+                
+                foreach (var unityObjectIdentification in savable.SavableLookup)
+                {
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, unityObjectIdentification.guid);
+                    guidComponentLookup.Add((Component)unityObjectIdentification.unityObject, componentGuidPath);
+                }
+            }
+
+            return guidComponentLookup;
+        }
         
-        private void LazySave(Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, 
-            List<Savable> savableComponents, Dictionary<object, GuidPath> unityObjectLookup)
+        private void LazySave(Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, List<Savable> savableComponents, 
+            Dictionary<UnityEngine.Object, GuidPath> assetLookup, Dictionary<GameObject, GuidPath> gameObjectLookup, 
+            Dictionary<Component, GuidPath> guidComponentLookup)
         {
             var processedInstancesLookup = new Dictionary<object, GuidPath>();
             
             //iterate over ScriptableObjects
             if (assetRegistry != null)
             {
-                foreach (var componentContainer in assetRegistry.ScriptableObjectSavables)
+                foreach (var unityObjectIdentification in assetRegistry.ScriptableObjectSavables)
                 {
-                    var guidPath = new GuidPath(componentContainer.guid);
+                    var guidPath = new GuidPath(unityObjectIdentification.guid);
                     var instanceSaveData = new InstanceSaveData();
 
                     instanceSaveDataLookup.Add(guidPath, instanceSaveData);
 
-                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
+                    if (!TypeUtility.TryConvertTo(unityObjectIdentification.unityObject, out ISavable targetSavable)) return;
 
                     targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
-                        processedInstancesLookup, unityObjectLookup));
+                        processedInstancesLookup, assetLookup, gameObjectLookup, guidComponentLookup));
                 }
             }
 
@@ -363,7 +387,7 @@ namespace SaveLoadSystem.Core.Component
             foreach (var savable in savableComponents)
             {
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
-                foreach (var componentContainer in savable.SavableList)
+                foreach (var componentContainer in savable.SavableLookup)
                 {
                     var guidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
                     var instanceSaveData = new InstanceSaveData();
@@ -372,7 +396,8 @@ namespace SaveLoadSystem.Core.Component
                     
                     if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
             
-                    targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup, processedInstancesLookup, unityObjectLookup));
+                    targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup, 
+                        processedInstancesLookup, assetLookup, gameObjectLookup, guidComponentLookup));
                 }
             }
         }
@@ -396,9 +421,12 @@ namespace SaveLoadSystem.Core.Component
             }
 
             //core loading
-            var unityObjectLookup = BuildPathToUnityObjectLookup(savableComponents);
+            var assetLookup = BuildPathToAssetLookup();
+            var gameObjectLookup = BuildPathToUnityObjectLookup(savableComponents);
+            var guidComponentLookup = BuildPathToGuidComponentLookup(savableComponents);
 
-            LazyLoad(sceneSaveData, savableComponents, unityObjectLookup, new Dictionary<GuidPath, object>());
+            LazyLoad(sceneSaveData, savableComponents, new Dictionary<GuidPath, object>(), 
+                assetLookup, gameObjectLookup, guidComponentLookup);
             
             //destroy prefabs, that are not present in the save file
             if (savablePrefabList != null)
@@ -421,40 +449,62 @@ namespace SaveLoadSystem.Core.Component
             }
         }
         
-        private Dictionary<string, object> BuildPathToUnityObjectLookup(List<Savable> savableComponents)
+        private Dictionary<string, UnityEngine.Object> BuildPathToAssetLookup()
         {
-            var createdInstancesLookup = new Dictionary<string, object>();
+            var assetLookup = new Dictionary<string, UnityEngine.Object>();
             
-            foreach (var savable in savableComponents)
-            {
-                var savableGuidPath = new GuidPath(savable.SceneGuid);
-                
-                foreach (var componentContainer in savable.SavableList)
-                {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
-                    createdInstancesLookup.Add(componentGuidPath.ToString(), componentContainer.unityObject);
-                }
-                
-                foreach (var componentContainer in savable.ReferenceList)
-                {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
-                    createdInstancesLookup.Add(componentGuidPath.ToString(), componentContainer.unityObject);
-                }
-            }
-
             if (assetRegistry != null)
             {
                 foreach (var componentsContainer in assetRegistry.GetSavableAssets())
                 {
-                    createdInstancesLookup.Add(componentsContainer.guid, componentsContainer.unityObject);
+                    assetLookup.Add(componentsContainer.guid, componentsContainer.unityObject);
                 }
             }
 
-            return createdInstancesLookup;
+            return assetLookup;
         }
         
-        private void LazyLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents,  
-            Dictionary<string, object> unityObjectLookup, Dictionary<GuidPath, object> createdObjectsLookup)
+        //TODO: implement duplication also for the savable components
+        //TODO: merge duplicate savables with duplicate components? or keep them separated?
+        private Dictionary<string, GameObject> BuildPathToUnityObjectLookup(List<Savable> savableComponents)
+        {
+            var unityObjectLookup = new Dictionary<string, GameObject>();
+            
+            foreach (var savable in savableComponents)
+            {
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
+                unityObjectLookup.Add(savableGuidPath.ToString(), savable.gameObject);
+            }
+
+            return unityObjectLookup;
+        }
+        
+        private Dictionary<string, Component> BuildPathToGuidComponentLookup(List<Savable> savableComponents)
+        {
+            var guidComponentLookup = new Dictionary<string, Component>();
+            
+            foreach (var savable in savableComponents)
+            {
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
+                foreach (var componentContainer in savable.DuplicateComponentLookup)
+                {
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
+                    guidComponentLookup.Add(componentGuidPath.ToString(), (Component)componentContainer.unityObject);
+                }
+                
+                foreach (var componentContainer in savable.SavableLookup)
+                {
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
+                    guidComponentLookup.Add(componentGuidPath.ToString(), (Component)componentContainer.unityObject);
+                }
+            }
+
+            return guidComponentLookup;
+        }
+        
+        private void LazyLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, 
+            Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<string, UnityEngine.Object> assetLookup, 
+            Dictionary<string, GameObject> gameObjectLookup, Dictionary<string, Component> guidComponentLookup)
         {
             //iterate over ScriptableObjects
             if (assetRegistry != null)
@@ -465,7 +515,8 @@ namespace SaveLoadSystem.Core.Component
                 
                     if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
                     {
-                        var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, unityObjectLookup, createdObjectsLookup);
+                        var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
+                            createdObjectsLookup, assetLookup, gameObjectLookup, guidComponentLookup);
                         
                         if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
                     
@@ -477,16 +528,18 @@ namespace SaveLoadSystem.Core.Component
             //iterate over GameObjects with savable component
             foreach (var savable in savableComponents)
             {
-                var sceneGuidPath = new GuidPath(savable.SceneGuid);
-                foreach (var componentContainer in savable.SavableList)
+                var savableGuidPath = new GuidPath(savable.SceneGuid);
+                
+                foreach (var savableComponent in savable.SavableLookup)
                 {
-                    var componentGuidPath = new GuidPath(sceneGuidPath.FullPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, savableComponent.guid);
 
                     if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(componentGuidPath, out var instanceSaveData))
                     {
-                        var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, unityObjectLookup, createdObjectsLookup);
+                        var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
+                            createdObjectsLookup, assetLookup, gameObjectLookup, guidComponentLookup);
                         
-                        if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
+                        if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     
                         targetSavable.OnLoad(loadDataHandler);
                     }

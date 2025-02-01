@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
 using SaveLoadSystem.Core.SerializeStrategy;
+using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.SceneManagement;

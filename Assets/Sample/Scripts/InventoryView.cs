@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.Component.SavableConverter;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using UnityEngine;
 
 namespace Sample.Scripts

@@ -1,32 +1,30 @@
-using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class InstanceSaveData
     {
-        private Dictionary<string, GuidPath> _guidPathSaveData;
-        public Dictionary<string, GuidPath> GuidPathSaveData
+        private Dictionary<string, GuidPath> _referenceSaveData;
+        public Dictionary<string, GuidPath> ReferenceSaveData
         {
             get 
             { 
-                _guidPathSaveData ??= new();
-                return _guidPathSaveData;
+                _referenceSaveData ??= new Dictionary<string, GuidPath>();
+                return _referenceSaveData;
             }
-            set => _guidPathSaveData = value;
+            set => _referenceSaveData = value;
         }
         
-        private JObject _jsonSerializableSaveData;
-        public JObject JsonSerializableSaveData
+        private JObject _valueSaveData;
+        public JObject ValueSaveData
         {
             get 
             { 
-                _jsonSerializableSaveData ??= new();
-                return _jsonSerializableSaveData;
+                _valueSaveData ??= new JObject();
+                return _valueSaveData;
             }
-            set => _jsonSerializableSaveData = value;
+            set => _valueSaveData = value;
         }
     }
 }

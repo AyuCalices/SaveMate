@@ -189,16 +189,12 @@ MonoBehaviour:
   serializeFieldSceneGuid: 
   prefabPath: Assets/Sample/Prefabs/InventoryElement.prefab
   dynamicPrefabSpawningDisabled: 0
-  serializeFieldSavableList:
-  - guid: 0f8f4a73-549a-4615-aab8-43639c7f9938
-    unityObject: {fileID: 2918653190320057826}
-  - guid: 8c144b2f-2fb1-4b42-94a2-80b3fb3a9f1b
+  savableLookup:
+  - guid: fcd0651c-4758-4509-b08a-0c7952bb3056
     unityObject: {fileID: 486862100594609039}
-  serializeFieldSavableReferenceList:
-  - guid: 43c4e9c0-5c4b-4b89-a596-3121cc7bb5a2
-    unityObject: {fileID: 777124105535506031}
-  - guid: 41e67266-69f0-4d3c-8bee-2f44a7471b38
-    unityObject: {fileID: 6037486412435023909}
+  - guid: b1767aa2-fc3d-48cd-bd6d-eccf6b6f10b4
+    unityObject: {fileID: 2918653190320057826}
+  duplicateComponentLookup: []
 --- !u!114 &2918653190320057826
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace SaveLoadSystem.Core.Component.SavableConverter
+namespace SaveLoadSystem.Core.UnityComponent.SavableConverter
 {
     public class SaveVisibility : MonoBehaviour, ISavable
     {

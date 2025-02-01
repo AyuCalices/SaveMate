@@ -5,8 +5,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
-using SaveLoadSystem.Core.Component;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -55,12 +55,6 @@ namespace SaveLoadSystem.Core
 
         public void SetCustomMetaData(string identifier, object data)
         {
-            if (!data.GetType().IsSerializable())
-            {
-                Debug.LogWarning("You attempted to save data, that is not serializable!");
-                return;
-            }
-            
             _asyncQueue.Enqueue(() =>
             {
                 _customMetaData.Add(identifier, JToken.FromObject(data));
@@ -114,7 +108,7 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var activeScene in UnityUtility.GetActiveScenes())
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
+                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out UnityComponent.SaveSceneManager saveSceneManager))
                     {
                         saveSceneManager.HandleBeforeWriteToDisk();
                     }
@@ -127,7 +121,7 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var activeScene in UnityUtility.GetActiveScenes())
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
+                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out UnityComponent.SaveSceneManager saveSceneManager))
                     {
                         saveSceneManager.HandleAfterWriteToDisk();
                     }
@@ -276,7 +270,7 @@ namespace SaveLoadSystem.Core
             {
                 foreach (var activeScene in UnityUtility.GetActiveScenes())
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
+                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out UnityComponent.SaveSceneManager saveSceneManager))
                     {
                         saveSceneManager.HandleBeforeDeleteDiskData();
                     }
@@ -289,7 +283,7 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var activeScene in UnityUtility.GetActiveScenes())
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
+                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out UnityComponent.SaveSceneManager saveSceneManager))
                     {
                         saveSceneManager.HandleAfterDeleteDiskData();
                     }
@@ -307,7 +301,7 @@ namespace SaveLoadSystem.Core
             stopwatch.Start();
             
             //get relevant scene data
-            var sceneLookup = new List<(Scene Scene, SaveSceneManager SaveSceneManager)>();
+            var sceneLookup = new List<(Scene Scene, UnityComponent.SaveSceneManager SaveSceneManager)>();
             foreach (var scene in scenesToSnapshot)
             {
                 if (!scene.isLoaded)
@@ -318,7 +312,7 @@ namespace SaveLoadSystem.Core
                 
                 if (Application.isPlaying)
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(scene, out SaveSceneManager saveSceneManager))
+                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(scene, out UnityComponent.SaveSceneManager saveSceneManager))
                     {
                         sceneLookup.Add((scene, saveSceneManager));
                     }
@@ -326,7 +320,7 @@ namespace SaveLoadSystem.Core
                 else
                 {
                     //If editor mode, SaveSceneManagers must be searched
-                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
+                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<UnityComponent.SaveSceneManager>(scene, true);
                     sceneLookup.Add((scene, saveSceneManager));
                 }
             }
@@ -361,7 +355,7 @@ namespace SaveLoadSystem.Core
             stopwatch.Start();
 
             //get relevant scene data
-            var sceneLookup = new List<(SceneSaveData SceneDataContainer, SaveSceneManager SaveSceneManager)>();
+            var sceneLookup = new List<(SceneSaveData SceneDataContainer, UnityComponent.SaveSceneManager SaveSceneManager)>();
             foreach (var scene in scenesToLoad)
             {
                 if (!scene.isLoaded)

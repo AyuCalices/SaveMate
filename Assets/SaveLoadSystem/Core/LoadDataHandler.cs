@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Core
 {
@@ -12,21 +13,27 @@ namespace SaveLoadSystem.Core
     /// The <see cref="LoadDataHandler"/> class is responsible for managing the deserialization and retrieval of
     /// serialized data, as well as handling reference building for complex object graphs.
     /// </summary>
-    //TODO: LoadDataHandler must be renamed, so it makes it clear, it is already correctly connected with the current object -> the SaveDataBuffer
     public readonly struct LoadDataHandler
     {
         private readonly InstanceSaveData _instanceSaveData;
         private readonly SceneSaveData _sceneSaveData;
-        private readonly Dictionary<string, object> _unityObjectLookup;
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
+        
+        //unity object reference lookups
+        private readonly Dictionary<string, Object> _assetLookup;
+        private readonly Dictionary<string, GameObject> _gameObjectLookup;
+        private readonly Dictionary<string, Component> _guidComponentLookup;
 
-        public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, Dictionary<string, object> unityObjectLookup, 
-            Dictionary<GuidPath, object> createdObjectsLookup)
+        public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, 
+            Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<string, Object> assetLookup, 
+            Dictionary<string, GameObject> gameObjectLookup, Dictionary<string, Component> guidComponentLookup)
         {
             _instanceSaveData = instanceSaveData;
             _sceneSaveData = sceneSaveData;
-            _unityObjectLookup = unityObjectLookup;
             _createdObjectsLookup = createdObjectsLookup;
+            _assetLookup = assetLookup;
+            _gameObjectLookup = gameObjectLookup;
+            _guidComponentLookup = guidComponentLookup;
         }
 
         public bool TryLoad<T>(string identifier, out T obj)
@@ -66,12 +73,12 @@ namespace SaveLoadSystem.Core
             return res;
         }
 
-        public bool TryLoadValue(Type type, string identifier, out object value)
+        private bool TryLoadValue(Type type, string identifier, out object value)
         {
             //unity object handling
-            if (typeof(UnityEngine.Object).IsAssignableFrom(type))
+            if (typeof(Object).IsAssignableFrom(type))
             {
-                Debug.LogError($"You can't load an object of type {typeof(UnityEngine.Object)} as a value!");
+                Debug.LogError($"You can't load an object of type {typeof(Object)} as a value!");
                 value = default;
                 return false;
             }
@@ -91,13 +98,13 @@ namespace SaveLoadSystem.Core
             }
             
             //serialization handling
-            if (_instanceSaveData.JsonSerializableSaveData[identifier] == null)
+            if (_instanceSaveData.ValueSaveData[identifier] == null)
             {
                 value = default;
                 return false;     //TODO: debug
             }
 
-            value = _instanceSaveData.JsonSerializableSaveData[identifier].ToObject(type);
+            value = _instanceSaveData.ValueSaveData[identifier].ToObject(type);
             return true;
         }
         
@@ -117,7 +124,7 @@ namespace SaveLoadSystem.Core
             return res;
         }
 
-        public bool TryLoadReference(Type type, string identifier, out object reference)
+        private bool TryLoadReference(Type type, string identifier, out object reference)
         {
             reference = default;
 
@@ -135,8 +142,16 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadValueSavable(Type type, string identifier, out object value)
         {
-            var saveDataBuffer = _instanceSaveData.JsonSerializableSaveData[identifier].ToObject<InstanceSaveData>();
-            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, _unityObjectLookup, _createdObjectsLookup);
+            if (_instanceSaveData == null || !_instanceSaveData.ValueSaveData.TryGetValue(identifier, out var saveData))
+            {
+                Debug.LogWarning("There was no matching data!");
+                value = null;
+                return false;
+            }
+            
+            var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
+            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
+                _createdObjectsLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -146,10 +161,18 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadValueWithConverter(Type type, string identifier, out object value)
         {
-            var convertable = ConverterServiceProvider.GetConverter(type);
-            var saveDataBuffer = _instanceSaveData.JsonSerializableSaveData[identifier].ToObject<InstanceSaveData>();
-            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, _unityObjectLookup, _createdObjectsLookup);
+            if (_instanceSaveData == null || !_instanceSaveData.ValueSaveData.TryGetValue(identifier, out var saveData))
+            {
+                Debug.LogWarning("There was no matching data!");
+                value = null;
+                return false;
+            }
+            
+            var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
+            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
+                _createdObjectsLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
 
+            var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
             convertable.Load(value, loadDataHandler);
             return true;
@@ -157,7 +180,7 @@ namespace SaveLoadSystem.Core
         
         private bool TryGetReferenceGuidPath(string identifier, out GuidPath guidPath)
         {
-            if (!_instanceSaveData.GuidPathSaveData.TryGetValue(identifier, out guidPath))
+            if (!_instanceSaveData.ReferenceSaveData.TryGetValue(identifier, out guidPath))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
@@ -170,11 +193,55 @@ namespace SaveLoadSystem.Core
         {
             reference = default;
 
-            //get unity object
-            if (_unityObjectLookup.TryGetValue(guidPath.ToString(), out reference))
-                return true;
-
-            //return object, if already instantiated
+            //unity type reference handling
+            if (typeof(ScriptableObject).IsAssignableFrom(type))
+            {
+                if (_assetLookup.TryGetValue(guidPath.ToString(), out var scriptableObject))
+                {
+                    reference = scriptableObject;
+                    return true;
+                }
+            }
+            else if (type == typeof(GameObject))
+            {
+                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                {
+                    reference = gameObject;
+                    return true;
+                }
+            } 
+            else if (type == typeof(Transform))
+            {
+                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                {
+                    reference = gameObject.transform;
+                    return true;
+                }
+            }
+            else if (type == typeof(RectTransform))
+            {
+                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                {
+                    reference = (RectTransform)gameObject.transform;
+                    return true;
+                }
+            }
+            else if (typeof(Component).IsAssignableFrom(type))
+            {
+                if (_guidComponentLookup.TryGetValue(guidPath.ToString(), out var duplicatedComponent))
+                {
+                    reference = duplicatedComponent;
+                    return true;
+                }
+                
+                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                {
+                    reference = gameObject.GetComponent(type);
+                    return true;
+                }
+            }
+            
+            //custom type reference handling
             if (_createdObjectsLookup.TryGetValue(guidPath, out reference))
             {
                 if (reference.GetType() != type)
@@ -199,7 +266,8 @@ namespace SaveLoadSystem.Core
                 return false;
             }
             
-            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, _unityObjectLookup, _createdObjectsLookup);
+            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
+                _createdObjectsLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))
@@ -228,7 +296,7 @@ namespace SaveLoadSystem.Core
             }
 
             //serializable handling
-            var jObject = saveDataBuffer.JsonSerializableSaveData["SerializeRef"];
+            var jObject = saveDataBuffer.ValueSaveData["SerializeRef"];
             if (jObject != null)
             {
                 reference = jObject.ToObject(type);

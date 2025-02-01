@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using SaveLoadSystem.Core.Component;
+using SaveLoadSystem.Core.UnityComponent;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
@@ -8,14 +8,14 @@ namespace SaveLoadSystem.Core
     [CreateAssetMenu]
     public class AssetRegistry : ScriptableObject
     {
-        [SerializeField] private List<ComponentsContainer> prefabSavables = new();
-        [SerializeField] private List<ComponentsContainer> scriptableObjectSavables = new();
+        [SerializeField] private List<UnityObjectIdentification> prefabSavables = new();
+        [SerializeField] private List<UnityObjectIdentification> scriptableObjectSavables = new();
         
-        public List<ComponentsContainer> PrefabSavables => prefabSavables;
-        public List<ComponentsContainer> ScriptableObjectSavables => scriptableObjectSavables;
+        public List<UnityObjectIdentification> PrefabSavables => prefabSavables;
+        public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
         
         
-        public IEnumerable<ComponentsContainer> GetSavableAssets()
+        public IEnumerable<UnityObjectIdentification> GetSavableAssets()
         {
             return prefabSavables.Concat(scriptableObjectSavables);
         }
@@ -30,7 +30,7 @@ namespace SaveLoadSystem.Core
             }
             else
             {
-                prefabSavables.Add(new ComponentsContainer(guid, savable));
+                prefabSavables.Add(new UnityObjectIdentification(guid, savable));
             }
             
             savable.SetPrefabPath(guid);
@@ -83,7 +83,7 @@ namespace SaveLoadSystem.Core
             }
             else
             {
-                scriptableObjectSavables.Add(new ComponentsContainer(guid, savable));
+                scriptableObjectSavables.Add(new UnityObjectIdentification(guid, savable));
             }
         }
         

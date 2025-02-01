@@ -1,5 +1,4 @@
-using System;
-using SaveLoadSystem.Core.Component;
+using SaveLoadSystem.Core.UnityComponent;
 using UnityEditor;
 using UnityEngine;
 
@@ -23,8 +22,8 @@ namespace SaveLoadSystem.Editor
             _sceneGuidProperty = serializedObject.FindProperty("serializeFieldSceneGuid");
             _prefabPathProperty = serializedObject.FindProperty("prefabPath");
             _customSpawningProperty = serializedObject.FindProperty("dynamicPrefabSpawningDisabled");
-            _currentSavableListProperty = serializedObject.FindProperty("serializeFieldSavableList");
-            _savableReferenceListProperty = serializedObject.FindProperty("serializeFieldSavableReferenceList");
+            _currentSavableListProperty = serializedObject.FindProperty("savableLookup");
+            _savableReferenceListProperty = serializedObject.FindProperty("duplicateComponentLookup");
         }
         
         public override void OnInspectorGUI()
@@ -42,12 +41,11 @@ namespace SaveLoadSystem.Editor
             // Display the fields
             EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
-            ComponentContainerListLayout(_currentSavableListProperty, "Current Savable List", ref _showCurrentSavableList);
+            ComponentContainerListLayout(_currentSavableListProperty, "Tracked Savables", ref _showCurrentSavableList);
+            ComponentContainerListLayout(_savableReferenceListProperty, "Duplicate Components", ref _showSavableReferenceList);
             
             // Enable editing back
             GUI.enabled = true;
-            
-            SavableReferenceListPropertyLayout(_savableReferenceListProperty, "Save References", ref _showSavableReferenceList, true);
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -82,73 +80,6 @@ namespace SaveLoadSystem.Editor
             EditorGUILayout.EndVertical();
                 
             EditorGUI.indentLevel--;
-        }
-
-        private void SavableReferenceListPropertyLayout(SerializedProperty serializedProperty, string layoutName,
-            ref bool foldout, bool componentEditable = false, bool guidEditable = false)
-        {
-            foldout = EditorGUILayout.Foldout(foldout, layoutName);
-            if (!foldout) return;
-            
-            EditorGUI.indentLevel++;
-
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-
-            // Headers
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Unity Object", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Guid", EditorStyles.boldLabel);
-            EditorGUILayout.EndHorizontal();
-
-            for (var i = 0; i < serializedProperty.arraySize; i++)
-            {
-                var elementProperty = serializedProperty.GetArrayElementAtIndex(i);
-                var componentProperty = elementProperty.FindPropertyRelative("unityObject");
-                var pathProperty = elementProperty.FindPropertyRelative("guid");
-
-                EditorGUILayout.BeginHorizontal();
-                EditableGUILayoutAction(componentEditable, () => EditorGUILayout.PropertyField(componentProperty, GUIContent.none));
-                EditableGUILayoutAction(guidEditable, () => EditorGUILayout.PropertyField(pathProperty, GUIContent.none));
-
-                //make sure the transform and gameobject cant be removed in order for the guid to not change!
-                if (componentProperty.boxedValue is not GameObject and not Transform)
-                {
-                    // Add a button to remove the element
-                    if (GUILayout.Button("Remove", GUILayout.Width(60)))
-                    {
-                        serializedProperty.DeleteArrayElementAtIndex(i);
-                    }
-                }
-
-                EditorGUILayout.EndHorizontal();
-            }
-
-            // Add button to add new element
-            if (GUILayout.Button("Add Component"))
-            {
-                var newIndex = serializedProperty.arraySize;
-                serializedProperty.InsertArrayElementAtIndex(newIndex);
-
-                var newElementProperty = serializedProperty.GetArrayElementAtIndex(newIndex);
-                var newComponentProperty = newElementProperty.FindPropertyRelative("component");
-                var newPathProperty = newElementProperty.FindPropertyRelative("guid");
-
-                // Initialize new element properties if necessary
-                if (newComponentProperty != null) newComponentProperty.objectReferenceValue = null;
-                if (newPathProperty != null) newPathProperty.stringValue = Guid.NewGuid().ToString();
-            }
-
-            EditorGUILayout.EndVertical();
-
-            EditorGUI.indentLevel--;
-        }
-
-        private void EditableGUILayoutAction(bool isEditable, Action action)
-        {
-            var currentlyEditable = GUI.enabled;
-            GUI.enabled = isEditable;
-            action.Invoke();
-            GUI.enabled = currentlyEditable;
         }
     }
 }

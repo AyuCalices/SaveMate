@@ -1,4 +1,4 @@
-namespace SaveLoadSystem.Core.Component.SavableConverter
+namespace SaveLoadSystem.Core.UnityComponent.SavableConverter
 {
     public interface ISavable
     {

@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
-using SaveLoadSystem.Core.Component.SavableConverter;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 
@@ -18,16 +18,25 @@ namespace SaveLoadSystem.Core
         private readonly InstanceSaveData _instanceSaveData;
         private readonly Dictionary<GuidPath, InstanceSaveData> _instanceSaveDataLookup;
         private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
-        private readonly Dictionary<object, GuidPath> _unityObjectLookup;
+        
+        //unity object reference lookups
+        private readonly Dictionary<Object, GuidPath> _assetLookup;
+        private readonly Dictionary<GameObject, GuidPath> _gameObjectLookup;
+        private readonly Dictionary<Component, GuidPath> _guidComponentLookup;
 
         public SaveDataHandler(GuidPath guidPath, InstanceSaveData instanceSaveData, Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, 
-            Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<object, GuidPath> unityObjectLookup)
+            Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<Object, GuidPath> assetLookup, 
+            Dictionary<GameObject, GuidPath> gameObjectLookup, Dictionary<Component, GuidPath> guidComponentLookup)
         {
             _guidPath = guidPath;
             _instanceSaveData = instanceSaveData;
             _instanceSaveDataLookup = instanceSaveDataLookup;
             _processedInstancesLookup = processedInstancesLookup;
-            _unityObjectLookup = unityObjectLookup;
+
+            //TODO: put into reference of SaveSceneManager?
+            _assetLookup = assetLookup;
+            _gameObjectLookup = gameObjectLookup;
+            _guidComponentLookup = guidComponentLookup;
         }
 
         public void Save(string uniqueIdentifier, object obj)
@@ -50,9 +59,9 @@ namespace SaveLoadSystem.Core
         /// <param name="obj">The object to be serialized and added to the buffer.</param>
         public void SaveAsValue(string uniqueIdentifier, object obj)
         {
-            if (obj is UnityEngine.Object)
+            if (obj is Object)
             {
-                Debug.LogError($"You can't save an object of type {typeof(UnityEngine.Object)} as a value!");
+                Debug.LogError($"You can't save an object of type {typeof(Object)} as a value!");
                 return;
             }
             
@@ -60,25 +69,27 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new InstanceSaveData();
-                var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, _processedInstancesLookup, _unityObjectLookup);
+                var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
+                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
                 
                 savable.OnSave(saveDataHandler);
                 
-                _instanceSaveData.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _instanceSaveData.ValueSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
             {
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new InstanceSaveData();
-                var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, _processedInstancesLookup, _unityObjectLookup);
+                var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
+                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
-                _instanceSaveData.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _instanceSaveData.ValueSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
             else
             {
-                _instanceSaveData.JsonSerializableSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
+                _instanceSaveData.ValueSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
             }
         }
 
@@ -94,7 +105,7 @@ namespace SaveLoadSystem.Core
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
         public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
-            _instanceSaveData.GuidPathSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
+            _instanceSaveData.ReferenceSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
 
         /// <summary>
@@ -112,12 +123,37 @@ namespace SaveLoadSystem.Core
                 return default;
             }
             
-            if (_unityObjectLookup.TryGetValue(objectToSave, out var guidPath)) return guidPath;
+            //search for a unity reference
+            GuidPath guidPath;
+            if (objectToSave is Component component)
+            {
+                //components with a guid must be processed because: 1. prevent ambiguity between duplicates 2. clearly identify components that inherit from ISavable
+                if (_guidComponentLookup.TryGetValue(component, out guidPath))
+                {
+                    return guidPath;
+                }
+                
+                if (_gameObjectLookup.TryGetValue(component.gameObject, out guidPath))
+                {
+                    return guidPath;
+                }
+                
+                Debug.LogError("Internal Error"); //TODO: debug
+            }
+
+            if (objectToSave is ScriptableObject scriptableObject)
+            {
+                if (_assetLookup.TryGetValue(scriptableObject, out guidPath))
+                {
+                    return guidPath;
+                }
+            }
             
+            //make sure the object gets created
             if (!_processedInstancesLookup.TryGetValue(objectToSave, out guidPath))
             {
                 guidPath = new GuidPath(_guidPath.FullPath, uniqueIdentifier);
-                ProcessAsSaveReferencable(objectToSave, guidPath, _instanceSaveDataLookup, _processedInstancesLookup, _unityObjectLookup);
+                ProcessAsSaveReferencable(objectToSave, guidPath);
             }
             
             return guidPath;
@@ -130,38 +166,39 @@ namespace SaveLoadSystem.Core
         /// When only using Component-Saving and the Type-Converter, this Method will perform saving without reflection,
         /// which heavily improves performance. You will need the exchange the ProcessSavableElement method with this one.
         /// </summary>
-        private void ProcessAsSaveReferencable(object objectToSave, GuidPath guidPath, Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, 
-            Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<object, GuidPath> unityObjectLookup)
+        private void ProcessAsSaveReferencable(object objectToSave, GuidPath guidPath)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
-            if (objectToSave.IsUnityNull() || !processedInstancesLookup.TryAdd(objectToSave, guidPath)) return;
+            if (objectToSave.IsUnityNull() || !_processedInstancesLookup.TryAdd(objectToSave, guidPath)) return;
             
             if (objectToSave is ISavable)
             {
                 var instanceSaveData = new InstanceSaveData();
                 
-                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
                 
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
             
-                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup, processedInstancesLookup, unityObjectLookup));
+                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
+                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
                 var instanceSaveData = new InstanceSaveData();
                 
-                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
                         
-                var saveDataHandler = new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup, processedInstancesLookup, unityObjectLookup);
+                var saveDataHandler = new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
+                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else
             {
                 var instanceSaveData = new InstanceSaveData();
                 
-                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
                 
-                instanceSaveData.JsonSerializableSaveData.Add("SerializeRef", JToken.FromObject(objectToSave));
+                instanceSaveData.ValueSaveData.Add("SerializeRef", JToken.FromObject(objectToSave));
             }
         }
     }

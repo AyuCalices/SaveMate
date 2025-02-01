@@ -3,40 +3,43 @@ using UnityEngine;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
-public class ItemSpawner : MonoBehaviour
+namespace Sample.Scripts
 {
-    [SerializeField] private Transform parent;
-    [SerializeField] private InputField inputField;
-    [SerializeField] private Inventory inventory;
-    [SerializeField] private List<ItemGenerator> spawnableItems;
-
-    public void SpawnInput()
+    public class ItemSpawner : MonoBehaviour
     {
-        for (int i = 0; i < int.Parse(inputField.text); i++)
+        [SerializeField] private Transform parent;
+        [SerializeField] private InputField inputField;
+        [SerializeField] private Inventory inventory;
+        [SerializeField] private List<ItemGenerator> spawnableItems;
+
+        public void SpawnInput()
         {
-            SpawnRandomItem();
+            for (int i = 0; i < int.Parse(inputField.text); i++)
+            {
+                SpawnRandomItem();
+            }
         }
-    }
 
-    public void DestroyAll()
-    {
-        for (int i = parent.childCount - 1; i >= 0; i--)
+        public void DestroyAll()
         {
-            Destroy(parent.GetChild(i).gameObject);
+            for (int i = parent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(parent.GetChild(i).gameObject);
+            }
         }
-    }
 
-    public void SpawnRandomItem()
-    {
-        int randomItemGenerator = Random.Range(0, spawnableItems.Count);
-        inventory.AddItem(spawnableItems[randomItemGenerator].GenerateItem());
-    }
+        public void SpawnRandomItem()
+        {
+            int randomItemGenerator = Random.Range(0, spawnableItems.Count);
+            inventory.AddItem(spawnableItems[randomItemGenerator].GenerateItem());
+        }
 
-    public void DestroyRandomItemFromInventory()
-    {
-        if (inventory.ItemCount == 0) return;
+        public void DestroyRandomItemFromInventory()
+        {
+            if (inventory.ItemCount == 0) return;
         
-        int randomInventoryIndex = Random.Range(0, inventory.ItemCount);
-        inventory.RemoveAtIndex(randomInventoryIndex);
+            int randomInventoryIndex = Random.Range(0, inventory.ItemCount);
+            inventory.RemoveAtIndex(randomInventoryIndex);
+        }
     }
 }

@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using SaveLoadSystem.Core.Component.SavableConverter;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveLoadSystem.Core.Component
+namespace SaveLoadSystem.Core.UnityComponent
 {
     [DisallowMultipleComponent]
     public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
@@ -17,18 +17,18 @@ namespace SaveLoadSystem.Core.Component
 
         [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
-        [SerializeField] private List<ComponentsContainer> serializeFieldSavableList = new();
-        private readonly List<ComponentsContainer> _resetBufferSavableList = new();
+        [SerializeField] private List<UnityObjectIdentification> savableLookup = new();
+        private readonly List<UnityObjectIdentification> _resetBufferSavableLookup = new();
 
-        [SerializeField] private List<ComponentsContainer> serializeFieldSavableReferenceList = new();
-        private readonly List<ComponentsContainer> _resetBufferSavableReferenceList = new();
+        [SerializeField] private List<UnityObjectIdentification> duplicateComponentLookup = new();
+        private readonly List<UnityObjectIdentification> _resetBufferDuplicateComponentLookup = new();
 
         
         public string SceneGuid => serializeFieldSceneGuid;
         public string PrefabGuid => prefabPath;
         public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
-        public List<ComponentsContainer> SavableList => serializeFieldSavableList;
-        public List<ComponentsContainer> ReferenceList => serializeFieldSavableReferenceList;
+        public List<UnityObjectIdentification> SavableLookup => savableLookup;
+        public List<UnityObjectIdentification> DuplicateComponentLookup => duplicateComponentLookup;
 
         
         private SaveSceneManager _saveSceneManager;
@@ -137,16 +137,16 @@ namespace SaveLoadSystem.Core.Component
         /// </summary>
         private void ApplySavableListResetBuffer()
         {
-            serializeFieldSavableList.Clear();
-            foreach (var savableContainer in _resetBufferSavableList)
+            savableLookup.Clear();
+            foreach (var referenceContainer in _resetBufferSavableLookup)
             {
-                serializeFieldSavableList.Add(savableContainer);
+                savableLookup.Add(referenceContainer);
             }
             
-            serializeFieldSavableReferenceList.Clear();
-            foreach (var referenceContainer in _resetBufferSavableReferenceList)
+            duplicateComponentLookup.Clear();
+            foreach (var referenceContainer in _resetBufferDuplicateComponentLookup)
             {
-                serializeFieldSavableReferenceList.Add(referenceContainer);
+                duplicateComponentLookup.Add(referenceContainer);
             }
         }
 
@@ -166,21 +166,21 @@ namespace SaveLoadSystem.Core.Component
         /// </summary>
         private void SetupSavableListResetBuffer()
         {
-            if (serializeFieldSavableList.Count != _resetBufferSavableList.Count)
+            if (savableLookup.Count != _resetBufferSavableLookup.Count)
             {
-                _resetBufferSavableList.Clear();
-                foreach (var savableContainer in serializeFieldSavableList)
+                _resetBufferSavableLookup.Clear();
+                foreach (var referenceContainer in savableLookup)
                 {
-                    _resetBufferSavableList.Add(savableContainer);
+                    _resetBufferSavableLookup.Add(referenceContainer);
                 }
             }
-
-            if (serializeFieldSavableReferenceList.Count != _resetBufferSavableReferenceList.Count)
+            
+            if (duplicateComponentLookup.Count != _resetBufferDuplicateComponentLookup.Count)
             {
-                _resetBufferSavableReferenceList.Clear();
-                foreach (var referenceContainer in serializeFieldSavableReferenceList)
+                _resetBufferDuplicateComponentLookup.Clear();
+                foreach (var referenceContainer in duplicateComponentLookup)
                 {
-                    _resetBufferSavableReferenceList.Add(referenceContainer);
+                    _resetBufferDuplicateComponentLookup.Add(referenceContainer);
                 }
             }
         }
@@ -198,7 +198,6 @@ namespace SaveLoadSystem.Core.Component
         private void SetupAll()
         {
             UpdateSavableComponents();
-            SetupDefaultSavableReferenceComponents();
             UpdateSavableReferenceComponents();
 
             if (gameObject.scene.name != null)
@@ -236,95 +235,116 @@ namespace SaveLoadSystem.Core.Component
         {
             prefabPath = newPrefabPath;
         }
-
-        private void SetSavableReferenceGuidGroup(int index, string guid)
-        {
-            serializeFieldSavableReferenceList[index].guid = guid;
-            _resetBufferSavableReferenceList[index].guid = guid;
-        }
         
         private void SetSavableGuidGroup(int index, string guid)
         {
-            serializeFieldSavableReferenceList[index].guid = guid;
-            _resetBufferSavableReferenceList[index].guid = guid;
+            savableLookup[index].guid = guid;
+            _resetBufferSavableLookup[index].guid = guid;
+        }
+        
+        private void AddToSavableGroup(UnityObjectIdentification unityObjectIdentification)
+        {
+            savableLookup.Add(unityObjectIdentification);
+            _resetBufferSavableLookup.Add(unityObjectIdentification);
         }
 
-        private void AddToSavableGroup(ComponentsContainer componentsContainer)
+        private void RemoveFromSavableGroup(UnityObjectIdentification unityObjectIdentification)
         {
-            serializeFieldSavableList.Add(componentsContainer);
-            _resetBufferSavableList.Add(componentsContainer);
-        }
-
-        private void RemoveFromSavableGroup(ComponentsContainer componentsContainer)
-        {
-            serializeFieldSavableList.Remove(componentsContainer);
-            _resetBufferSavableList.Remove(componentsContainer);
+            savableLookup.Remove(unityObjectIdentification);
+            _resetBufferSavableLookup.Remove(unityObjectIdentification);
         }
 
         private void UpdateSavableComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
-            var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, TypeUtility.ContainsInterface<ISavable>);
+            var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, TypeUtility.ContainsType<ISavable>);
             
             //update removed elements and those that are kept 
-            for (var index = serializeFieldSavableList.Count - 1; index >= 0; index--)
+            for (var index = savableLookup.Count - 1; index >= 0; index--)
             {
-                var savableContainer = serializeFieldSavableList[index];
+                var component = savableLookup[index];
                 
-                if (!foundElements.Exists(x => x == savableContainer.unityObject))
+                if (!foundElements.Exists(x => x == component.unityObject))
                 {
-                    RemoveFromSavableGroup(savableContainer);
+                    RemoveFromSavableGroup(component);
                 }
                 else
                 {
-                    if (string.IsNullOrEmpty(savableContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableList[index].guid))
+                    if (string.IsNullOrEmpty(component.guid) && string.IsNullOrEmpty(_resetBufferSavableLookup[index].guid))
                     {
                         SetSavableGuidGroup(index, Guid.NewGuid().ToString());
                     }
                     
-                    foundElements.Remove(savableContainer.unityObject);
+                    foundElements.Remove((UnityEngine.Component)component.unityObject);
                 }
             }
 
             //add new elements
-            foreach (UnityEngine.Object foundElement in foundElements) 
+            foreach (UnityEngine.Component foundElement in foundElements) 
             {
                 var guid = Guid.NewGuid().ToString();
                 
-                AddToSavableGroup(new ComponentsContainer(guid, foundElement));
+                AddToSavableGroup(new UnityObjectIdentification(guid, foundElement));
             }
         }
-
-        private void SetupDefaultSavableReferenceComponents()
+        
+        private void SetDuplicatedComponentGuidGroup(int index, string guid)
         {
-            if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == transform))
-            {
-                serializeFieldSavableReferenceList.Add(new ComponentsContainer(Guid.NewGuid().ToString(), transform));
-            }
-            
-            if (!serializeFieldSavableReferenceList.Exists(x => x.unityObject == gameObject))
-            {
-                serializeFieldSavableReferenceList.Add(new ComponentsContainer(Guid.NewGuid().ToString(), gameObject));
-            }
+            duplicateComponentLookup[index].guid = guid;
+            _resetBufferDuplicateComponentLookup[index].guid = guid;
+        }
+        
+        private void AddToDuplicatedComponentGroup(UnityObjectIdentification unityObjectIdentification)
+        {
+            duplicateComponentLookup.Add(unityObjectIdentification);
+            _resetBufferDuplicateComponentLookup.Add(unityObjectIdentification);
+        }
+
+        private void RemoveFromDuplicatedComponentGroup(UnityObjectIdentification unityObjectIdentification)
+        {
+            duplicateComponentLookup.Remove(unityObjectIdentification);
+            _resetBufferDuplicateComponentLookup.Remove(unityObjectIdentification);
         }
         
         private void UpdateSavableReferenceComponents()
         {
-            if (serializeFieldSavableReferenceList.Count == 0) return;
-            
-            var referenceContainer = serializeFieldSavableReferenceList[^1];
-            var duplicates = serializeFieldSavableReferenceList.FindAll(x => x.unityObject == referenceContainer.unityObject);
-            for (var i = 0; i < duplicates.Count - 1; i++)
+            var duplicates = UnityUtility.GetDuplicateComponents(gameObject);
+
+            //remove duplicates, that implement the savable component: all savables need an id
+            for (var index = duplicates.Count - 1; index >= 0; index--)
             {
-                var lastElement = serializeFieldSavableReferenceList.FindLast(x => x.unityObject == duplicates[i].unityObject);
-                lastElement.unityObject = null;
+                var duplicate = duplicates[index];
+                if (duplicate is ISavable)
+                {
+                    duplicates.Remove(duplicate);
+                }
+            }
+
+            for (var index = duplicateComponentLookup.Count - 1; index >= 0; index--)
+            {
+                var componentsContainer = duplicateComponentLookup[index];
+                
+                if (!duplicates.Exists(x => x == componentsContainer.unityObject))
+                {
+                    RemoveFromDuplicatedComponentGroup(componentsContainer);
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(componentsContainer.guid) && string.IsNullOrEmpty(_resetBufferDuplicateComponentLookup[index].guid))
+                    {
+                        SetDuplicatedComponentGuidGroup(index, Guid.NewGuid().ToString());
+                    }
+                    
+                    duplicates.Remove(componentsContainer.unityObject);
+                }
             }
             
-            if (referenceContainer.unityObject == null) return;
-
-            if (string.IsNullOrEmpty(referenceContainer.guid) && string.IsNullOrEmpty(_resetBufferSavableReferenceList[^1].guid))
+            //add new elements
+            foreach (UnityEngine.Object foundElement in duplicates) 
             {
-                SetSavableReferenceGuidGroup(serializeFieldSavableReferenceList.Count - 1, Guid.NewGuid().ToString());
+                var guid = Guid.NewGuid().ToString();
+                
+                AddToDuplicatedComponentGroup(new UnityObjectIdentification(guid, foundElement));
             }
         }
         
