@@ -17,8 +17,8 @@ MonoBehaviour:
   patch: 0
   defaultFileName: SimulateCrash
   savePath: 
-  extensionName: savegame
-  metaDataExtensionName: metadata
+  extensionName: json
+  metaDataExtensionName: metajson
   integrityCheckType: 1
   compressionType: 0
   encryptionType: 0

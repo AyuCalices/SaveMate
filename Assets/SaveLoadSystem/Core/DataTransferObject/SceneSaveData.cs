@@ -1,27 +1,57 @@
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class SceneSaveData
     {
-        [JsonProperty] public readonly List<(string, string)> SavablePrefabList;
+        [JsonProperty] public readonly List<SavablePrefabElement> SavePrefabs;
         
-        [JsonIgnore] public Dictionary<GuidPath, InstanceSaveData> InstanceSaveDataLookup;
-        [JsonProperty] private List<KeyValuePair<GuidPath, InstanceSaveData>> SaveObjectList
+        [JsonIgnore] public Dictionary<GuidPath, InstanceSaveData> SaveInstancesLookup;
+        [JsonProperty] private List<GuidInstanceSaveData> SaveInstances
         {
-            get => InstanceSaveDataLookup.ToList();
+            get => SaveInstancesLookup
+                .Select(kvp => new GuidInstanceSaveData(kvp.Key.TargetGuid)
+                {
+                    References = kvp.Value.References,
+                    Values = kvp.Value.Values
+                })
+                .ToList();
             set
             {
-                InstanceSaveDataLookup = value.ToDictionary(x => x.Key, x => x.Value);
+                SaveInstancesLookup = value?.ToDictionary(x => new GuidPath(x.OriginGuid), x => (InstanceSaveData)x) 
+                                         ?? new Dictionary<GuidPath, InstanceSaveData>();;
             }
         }
         
-        public SceneSaveData(Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, List<(string, string)> savablePrefabList)
+        public SceneSaveData(Dictionary<GuidPath, InstanceSaveData> saveInstancesLookup, List<SavablePrefabElement> savePrefabs)
         {
-            SavablePrefabList = savablePrefabList;
-            InstanceSaveDataLookup = instanceSaveDataLookup;
+            SavePrefabs = savePrefabs;
+            SaveInstancesLookup = saveInstancesLookup;
+        }
+    }
+
+    public class SavablePrefabElement
+    {
+        public readonly string PrefabGuid;
+        public readonly string SceneGuid;
+
+        public SavablePrefabElement(string prefabGuid, string sceneGuid)
+        {
+            PrefabGuid = prefabGuid;
+            SceneGuid = sceneGuid;
+        }
+    }
+
+    public class GuidInstanceSaveData : InstanceSaveData
+    {
+        public readonly string[] OriginGuid;
+
+        public GuidInstanceSaveData(string[] originGuid)
+        {
+            OriginGuid = originGuid;
         }
     }
 }

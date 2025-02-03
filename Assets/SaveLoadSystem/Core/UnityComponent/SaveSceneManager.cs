@@ -288,7 +288,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup = new();
             var savableComponents = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
 
-            List<(string, string)> savablePrefabList = null;
+            List<SavablePrefabElement> savablePrefabList = null;
             if (assetRegistry != null)
             {
                 savablePrefabList = CreateSavablePrefabLookup(savableComponents);
@@ -346,13 +346,13 @@ namespace SaveLoadSystem.Core.UnityComponent
                 
                 foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, unityObjectIdentification.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, unityObjectIdentification.guid);
                     guidComponentLookup.Add((Component)unityObjectIdentification.unityObject, componentGuidPath);
                 }
                 
                 foreach (var unityObjectIdentification in savable.SavableLookup)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, unityObjectIdentification.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, unityObjectIdentification.guid);
                     guidComponentLookup.Add((Component)unityObjectIdentification.unityObject, componentGuidPath);
                 }
             }
@@ -389,7 +389,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
                 foreach (var componentContainer in savable.SavableLookup)
                 {
-                    var guidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
+                    var guidPath = new GuidPath(savableGuidPath.TargetGuid, componentContainer.guid);
                     var instanceSaveData = new InstanceSaveData();
                 
                     instanceSaveDataLookup.Add(guidPath, instanceSaveData);
@@ -412,7 +412,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             var savableComponents = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
 
-            List<(string, string)> savablePrefabList = null;
+            List<SavablePrefabElement> savablePrefabList = null;
             if (assetRegistry != null)
             {
                 //instantiating needed prefabs must happen before performing the core load methods, so it doesnt miss out on their Savable Components
@@ -435,15 +435,15 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
         }
 
-        private void InstantiatePrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<(string, string)> savablePrefabList)
+        private void InstantiatePrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<SavablePrefabElement> savablePrefabList)
         {
-            var instantiatedSavables = sceneSaveData.SavablePrefabList.Except(savablePrefabList);
-            foreach (var (prefab, sceneGuid) in instantiatedSavables)
+            var instantiatedSavables = sceneSaveData.SavePrefabs.Except(savablePrefabList);
+            foreach (var savablePrefabElement in instantiatedSavables)
             {
-                if (assetRegistry.TryGetPrefab(prefab, out Savable savable))
+                if (assetRegistry.TryGetPrefab(savablePrefabElement.PrefabGuid, out Savable savable))
                 {
                     var instantiatedSavable = Instantiate(savable);
-                    instantiatedSavable.SetSceneGuidGroup(sceneGuid);
+                    instantiatedSavable.SetSceneGuidGroup(savablePrefabElement.SceneGuid);
                     savableComponents.Add(instantiatedSavable);
                 }
             }
@@ -488,13 +488,13 @@ namespace SaveLoadSystem.Core.UnityComponent
                 var savableGuidPath = new GuidPath(savable.SceneGuid);
                 foreach (var componentContainer in savable.DuplicateComponentLookup)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, componentContainer.guid);
                     guidComponentLookup.Add(componentGuidPath.ToString(), (Component)componentContainer.unityObject);
                 }
                 
                 foreach (var componentContainer in savable.SavableLookup)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, componentContainer.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, componentContainer.guid);
                     guidComponentLookup.Add(componentGuidPath.ToString(), (Component)componentContainer.unityObject);
                 }
             }
@@ -513,7 +513,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     var guidPath = new GuidPath(componentContainer.guid);
                 
-                    if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
+                    if (sceneSaveData.SaveInstancesLookup.TryGetValue(guidPath, out var instanceSaveData))
                     {
                         var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
                             createdObjectsLookup, assetLookup, gameObjectLookup, guidComponentLookup);
@@ -532,9 +532,9 @@ namespace SaveLoadSystem.Core.UnityComponent
                 
                 foreach (var savableComponent in savable.SavableLookup)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.FullPath, savableComponent.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, savableComponent.guid);
 
-                    if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(componentGuidPath, out var instanceSaveData))
+                    if (sceneSaveData.SaveInstancesLookup.TryGetValue(componentGuidPath, out var instanceSaveData))
                     {
                         var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
                             createdObjectsLookup, assetLookup, gameObjectLookup, guidComponentLookup);
@@ -547,12 +547,12 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
         }
         
-        private void DestroyPrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<(string, string)> savablePrefabList)
+        private void DestroyPrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<SavablePrefabElement> savablePrefabList)
         {
-            var destroyedSavables = savablePrefabList.Except(sceneSaveData.SavablePrefabList);
-            foreach (var (_, sceneGuid) in destroyedSavables)
+            var destroyedSavables = savablePrefabList.Except(sceneSaveData.SavePrefabs);
+            foreach (var savablePrefabElement in destroyedSavables)
             {
-                foreach (var savable in savableComponents.Where(savable => savable.SceneGuid == sceneGuid))
+                foreach (var savable in savableComponents.Where(savable => savable.SceneGuid == savablePrefabElement.SceneGuid))
                 {
                     Destroy(savable.gameObject);
                     savableComponents.Remove(savable);
@@ -567,11 +567,11 @@ namespace SaveLoadSystem.Core.UnityComponent
         #region Save and Load Helper
 
         
-        private List<(string, string)> CreateSavablePrefabLookup(List<Savable> savableComponents)
+        private List<SavablePrefabElement> CreateSavablePrefabLookup(List<Savable> savableComponents)
         {
             return (from savable in savableComponents 
                 where !savable.DynamicPrefabSpawningDisabled && assetRegistry.ContainsPrefabGuid(savable.PrefabGuid) 
-                select (savable.PrefabGuid, savable.SceneGuid)).ToList();
+                select new SavablePrefabElement(savable.PrefabGuid, savable.SceneGuid)).ToList();
         }
 
         
