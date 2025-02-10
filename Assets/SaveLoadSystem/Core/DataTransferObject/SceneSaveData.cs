@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
@@ -9,10 +8,10 @@ namespace SaveLoadSystem.Core.DataTransferObject
     {
         [JsonProperty] public readonly List<SavablePrefabElement> SavePrefabs;
         
-        [JsonIgnore] public Dictionary<GuidPath, InstanceSaveData> SaveInstancesLookup;
+        [JsonIgnore] public Dictionary<GuidPath, InstanceSaveData> InstanceSaveDataLookup;
         [JsonProperty] private List<GuidInstanceSaveData> SaveInstances
         {
-            get => SaveInstancesLookup
+            get => InstanceSaveDataLookup
                 .Select(kvp => new GuidInstanceSaveData(kvp.Key.TargetGuid)
                 {
                     References = kvp.Value.References,
@@ -21,18 +20,18 @@ namespace SaveLoadSystem.Core.DataTransferObject
                 .ToList();
             set
             {
-                SaveInstancesLookup = value?.ToDictionary(x => new GuidPath(x.OriginGuid), x => (InstanceSaveData)x) 
-                                         ?? new Dictionary<GuidPath, InstanceSaveData>();;
+                InstanceSaveDataLookup = value?.ToDictionary(x => new GuidPath(x.OriginGuid), x => (InstanceSaveData)x) 
+                                      ?? new Dictionary<GuidPath, InstanceSaveData>();;
             }
         }
         
-        public SceneSaveData(Dictionary<GuidPath, InstanceSaveData> saveInstancesLookup, List<SavablePrefabElement> savePrefabs)
+        public SceneSaveData(Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, List<SavablePrefabElement> savePrefabs)
         {
             SavePrefabs = savePrefabs;
-            SaveInstancesLookup = saveInstancesLookup;
+            InstanceSaveDataLookup = instanceSaveDataLookup;
         }
     }
-
+    
     public class SavablePrefabElement
     {
         public readonly string PrefabGuid;
@@ -44,7 +43,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
             SceneGuid = sceneGuid;
         }
     }
-
+    
     public class GuidInstanceSaveData : InstanceSaveData
     {
         public readonly string[] OriginGuid;

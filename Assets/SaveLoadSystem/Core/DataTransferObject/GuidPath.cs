@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
@@ -17,7 +16,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
         
         public GuidPath(string[] parentPath)
         {
-            TargetGuid = new string[parentPath.Length + 1];
+            TargetGuid = new string[parentPath.Length];
             Array.Copy(parentPath, TargetGuid, parentPath.Length);
         }
         

@@ -288,13 +288,13 @@ namespace SaveLoadSystem.Core.UnityComponent
             Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup = new();
             var savableComponents = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
 
-            List<SavablePrefabElement> savablePrefabList = null;
+            List<SavablePrefabElement> savePrefabs = null;
             if (assetRegistry != null)
             {
-                savablePrefabList = CreateSavablePrefabLookup(savableComponents);
+                savePrefabs = CreateSavablePrefabLookup(savableComponents);
             }
             
-            var sceneSaveData = new SceneSaveData(instanceSaveDataLookup, savablePrefabList);
+            var sceneSaveData = new SceneSaveData(instanceSaveDataLookup, savePrefabs);
             var assetLookup = BuildAssetToPathLookup();
             var gameObjectLookup = BuildGameObjectToPathLookup(savableComponents);
             var guidComponentLookup = BuildGuidComponentToPathLookup(savableComponents);
@@ -412,12 +412,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             var savableComponents = UnityUtility.FindObjectsOfTypeInScene<Savable>(gameObject.scene, true);
 
-            List<SavablePrefabElement> savablePrefabList = null;
+            List<SavablePrefabElement> savePrefabs = null;
             if (assetRegistry != null)
             {
                 //instantiating needed prefabs must happen before performing the core load methods, so it doesnt miss out on their Savable Components
-                savablePrefabList = CreateSavablePrefabLookup(savableComponents);
-                InstantiatePrefabsOnLoad(sceneSaveData, savableComponents, savablePrefabList);
+                savePrefabs = CreateSavablePrefabLookup(savableComponents);
+                InstantiatePrefabsOnLoad(sceneSaveData, savableComponents, savePrefabs);
             }
 
             //core loading
@@ -429,21 +429,21 @@ namespace SaveLoadSystem.Core.UnityComponent
                 assetLookup, gameObjectLookup, guidComponentLookup);
             
             //destroy prefabs, that are not present in the save file
-            if (savablePrefabList != null)
+            if (savePrefabs != null)
             {
-                DestroyPrefabsOnLoad(sceneSaveData, savableComponents, savablePrefabList);
+                DestroyPrefabsOnLoad(sceneSaveData, savableComponents, savePrefabs);
             }
         }
 
-        private void InstantiatePrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<SavablePrefabElement> savablePrefabList)
+        private void InstantiatePrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<SavablePrefabElement> savePrefabs)
         {
-            var instantiatedSavables = sceneSaveData.SavePrefabs.Except(savablePrefabList);
-            foreach (var savablePrefabElement in instantiatedSavables)
+            var instantiatedSavables = sceneSaveData.SavePrefabs.Except(savePrefabs);
+            foreach (var prefabsSavable in instantiatedSavables)
             {
-                if (assetRegistry.TryGetPrefab(savablePrefabElement.PrefabGuid, out Savable savable))
+                if (assetRegistry.TryGetPrefab(prefabsSavable.PrefabGuid, out Savable savable))
                 {
                     var instantiatedSavable = Instantiate(savable);
-                    instantiatedSavable.SetSceneGuidGroup(savablePrefabElement.SceneGuid);
+                    instantiatedSavable.SetSceneGuidGroup(prefabsSavable.SceneGuid);
                     savableComponents.Add(instantiatedSavable);
                 }
             }
@@ -513,7 +513,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     var guidPath = new GuidPath(componentContainer.guid);
                 
-                    if (sceneSaveData.SaveInstancesLookup.TryGetValue(guidPath, out var instanceSaveData))
+                    if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
                     {
                         var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
                             createdObjectsLookup, assetLookup, gameObjectLookup, guidComponentLookup);
@@ -534,7 +534,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, savableComponent.guid);
 
-                    if (sceneSaveData.SaveInstancesLookup.TryGetValue(componentGuidPath, out var instanceSaveData))
+                    if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(componentGuidPath, out var instanceSaveData))
                     {
                         var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
                             createdObjectsLookup, assetLookup, gameObjectLookup, guidComponentLookup);
@@ -547,12 +547,12 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
         }
         
-        private void DestroyPrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<SavablePrefabElement> savablePrefabList)
+        private void DestroyPrefabsOnLoad(SceneSaveData sceneSaveData, List<Savable> savableComponents, List<SavablePrefabElement> savePrefabs)
         {
-            var destroyedSavables = savablePrefabList.Except(sceneSaveData.SavePrefabs);
-            foreach (var savablePrefabElement in destroyedSavables)
+            var destroyedSavables = savePrefabs.Except(sceneSaveData.SavePrefabs);
+            foreach (var prefabsSavable in destroyedSavables)
             {
-                foreach (var savable in savableComponents.Where(savable => savable.SceneGuid == savablePrefabElement.SceneGuid))
+                foreach (var savable in savableComponents.Where(savable => savable.SceneGuid == prefabsSavable.SceneGuid))
                 {
                     Destroy(savable.gameObject);
                     savableComponents.Remove(savable);
