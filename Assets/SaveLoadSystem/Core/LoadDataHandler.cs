@@ -260,7 +260,7 @@ namespace SaveLoadSystem.Core
         {
             reference = null;
             
-            if (!_sceneSaveData.SaveInstancesLookup.TryGetValue(guidPath, out InstanceSaveData saveDataBuffer))
+            if (!_sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out InstanceSaveData saveDataBuffer))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
