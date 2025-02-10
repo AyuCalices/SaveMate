@@ -74,7 +74,7 @@ namespace SaveLoadSystem.Core
                 
                 savable.OnSave(saveDataHandler);
                 
-                _instanceSaveData.ValueSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _instanceSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
             {
@@ -85,11 +85,11 @@ namespace SaveLoadSystem.Core
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
-                _instanceSaveData.ValueSaveData.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _instanceSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
             else
             {
-                _instanceSaveData.ValueSaveData.Add(uniqueIdentifier, JToken.FromObject(obj));
+                _instanceSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(obj));
             }
         }
 
@@ -105,7 +105,7 @@ namespace SaveLoadSystem.Core
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
         public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
-            _instanceSaveData.ReferenceSaveData.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
+            _instanceSaveData.References.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace SaveLoadSystem.Core
             //make sure the object gets created
             if (!_processedInstancesLookup.TryGetValue(objectToSave, out guidPath))
             {
-                guidPath = new GuidPath(_guidPath.FullPath, uniqueIdentifier);
+                guidPath = new GuidPath(_guidPath.TargetGuid, uniqueIdentifier);
                 ProcessAsSaveReferencable(objectToSave, guidPath);
             }
             
@@ -198,7 +198,7 @@ namespace SaveLoadSystem.Core
                 
                 _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
                 
-                instanceSaveData.ValueSaveData.Add("SerializeRef", JToken.FromObject(objectToSave));
+                instanceSaveData.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
             }
         }
     }

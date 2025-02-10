@@ -6,22 +6,51 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class SceneSaveData
     {
-        [JsonProperty] public readonly List<(string, string)> SavablePrefabList;
+        [JsonProperty] public readonly List<SavablePrefabElement> SavePrefabs;
         
         [JsonIgnore] public Dictionary<GuidPath, InstanceSaveData> InstanceSaveDataLookup;
-        [JsonProperty] private List<KeyValuePair<GuidPath, InstanceSaveData>> SaveObjectList
+        [JsonProperty] private List<GuidInstanceSaveData> SaveInstances
         {
-            get => InstanceSaveDataLookup.ToList();
+            get => InstanceSaveDataLookup
+                .Select(kvp => new GuidInstanceSaveData(kvp.Key.TargetGuid)
+                {
+                    References = kvp.Value.References,
+                    Values = kvp.Value.Values
+                })
+                .ToList();
             set
             {
-                InstanceSaveDataLookup = value.ToDictionary(x => x.Key, x => x.Value);
+                InstanceSaveDataLookup = value?.ToDictionary(x => new GuidPath(x.OriginGuid), x => (InstanceSaveData)x) 
+                                      ?? new Dictionary<GuidPath, InstanceSaveData>();;
             }
         }
         
-        public SceneSaveData(Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, List<(string, string)> savablePrefabList)
+        public SceneSaveData(Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, List<SavablePrefabElement> savePrefabs)
         {
-            SavablePrefabList = savablePrefabList;
+            SavePrefabs = savePrefabs;
             InstanceSaveDataLookup = instanceSaveDataLookup;
+        }
+    }
+    
+    public class SavablePrefabElement
+    {
+        public readonly string PrefabGuid;
+        public readonly string SceneGuid;
+
+        public SavablePrefabElement(string prefabGuid, string sceneGuid)
+        {
+            PrefabGuid = prefabGuid;
+            SceneGuid = sceneGuid;
+        }
+    }
+    
+    public class GuidInstanceSaveData : InstanceSaveData
+    {
+        public readonly string[] OriginGuid;
+
+        public GuidInstanceSaveData(string[] originGuid)
+        {
+            OriginGuid = originGuid;
         }
     }
 }

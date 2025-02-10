@@ -98,13 +98,13 @@ namespace SaveLoadSystem.Core
             }
             
             //serialization handling
-            if (_instanceSaveData.ValueSaveData[identifier] == null)
+            if (_instanceSaveData.Values[identifier] == null)
             {
                 value = default;
                 return false;     //TODO: debug
             }
 
-            value = _instanceSaveData.ValueSaveData[identifier].ToObject(type);
+            value = _instanceSaveData.Values[identifier].ToObject(type);
             return true;
         }
         
@@ -142,7 +142,7 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadValueSavable(Type type, string identifier, out object value)
         {
-            if (_instanceSaveData == null || !_instanceSaveData.ValueSaveData.TryGetValue(identifier, out var saveData))
+            if (_instanceSaveData == null || !_instanceSaveData.Values.TryGetValue(identifier, out var saveData))
             {
                 Debug.LogWarning("There was no matching data!");
                 value = null;
@@ -161,7 +161,7 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadValueWithConverter(Type type, string identifier, out object value)
         {
-            if (_instanceSaveData == null || !_instanceSaveData.ValueSaveData.TryGetValue(identifier, out var saveData))
+            if (_instanceSaveData == null || !_instanceSaveData.Values.TryGetValue(identifier, out var saveData))
             {
                 Debug.LogWarning("There was no matching data!");
                 value = null;
@@ -180,7 +180,7 @@ namespace SaveLoadSystem.Core
         
         private bool TryGetReferenceGuidPath(string identifier, out GuidPath guidPath)
         {
-            if (!_instanceSaveData.ReferenceSaveData.TryGetValue(identifier, out guidPath))
+            if (!_instanceSaveData.References.TryGetValue(identifier, out guidPath))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
@@ -296,7 +296,7 @@ namespace SaveLoadSystem.Core
             }
 
             //serializable handling
-            var jObject = saveDataBuffer.ValueSaveData["SerializeRef"];
+            var jObject = saveDataBuffer.Values["SerializeRef"];
             if (jObject != null)
             {
                 reference = jObject.ToObject(type);

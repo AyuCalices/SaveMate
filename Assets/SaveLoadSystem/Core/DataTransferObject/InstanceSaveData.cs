@@ -5,26 +5,26 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class InstanceSaveData
     {
-        private Dictionary<string, GuidPath> _referenceSaveData;
-        public Dictionary<string, GuidPath> ReferenceSaveData
+        private Dictionary<string, GuidPath> _references;
+        public Dictionary<string, GuidPath> References
         {
             get 
             { 
-                _referenceSaveData ??= new Dictionary<string, GuidPath>();
-                return _referenceSaveData;
+                _references ??= new Dictionary<string, GuidPath>();
+                return _references;
             }
-            set => _referenceSaveData = value;
+            set => _references = value;
         }
         
-        private JObject _valueSaveData;
-        public JObject ValueSaveData
+        private JObject _values;
+        public JObject Values
         {
             get 
             { 
-                _valueSaveData ??= new JObject();
-                return _valueSaveData;
+                _values ??= new JObject();
+                return _values;
             }
-            set => _valueSaveData = value;
+            set => _values = value;
         }
     }
 }

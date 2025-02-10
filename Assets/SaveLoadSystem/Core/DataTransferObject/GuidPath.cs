@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
@@ -8,23 +7,29 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public readonly struct GuidPath : IEquatable<GuidPath>
     {
-        [JsonProperty] public readonly string[] FullPath;
+        [JsonProperty] public readonly string[] TargetGuid;
         
         public GuidPath(string guid)
         {
-            FullPath = new[] {guid};
+            TargetGuid = new[] {guid};
+        }
+        
+        public GuidPath(string[] parentPath)
+        {
+            TargetGuid = new string[parentPath.Length];
+            Array.Copy(parentPath, TargetGuid, parentPath.Length);
         }
         
         public GuidPath(string[] parentPath, string guid)
         {
-            FullPath = new string[parentPath.Length + 1];
-            Array.Copy(parentPath, FullPath, parentPath.Length);
-            FullPath[^1] = guid;
+            TargetGuid = new string[parentPath.Length + 1];
+            Array.Copy(parentPath, TargetGuid, parentPath.Length);
+            TargetGuid[^1] = guid;
         }
 
         public override string ToString()
         {
-            return string.Join(Path.DirectorySeparatorChar.ToString(), FullPath);
+            return string.Join(Path.DirectorySeparatorChar.ToString(), TargetGuid);
         }
         
         public bool Equals(GuidPath other)
@@ -41,12 +46,12 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public override int GetHashCode()
         {
-            if (FullPath == null)
+            if (TargetGuid == null)
                 return 0;
 
             // Use a hash code aggregator
             int hash = 17;
-            foreach (var path in FullPath)
+            foreach (var path in TargetGuid)
             {
                 hash = hash * 31 + (path != null ? path.GetHashCode() : 0);
             }
@@ -55,7 +60,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         private bool InternalEquals(GuidPath other)
         {
-            return FullPath.SequenceEqual(other.FullPath);
+            return TargetGuid.SequenceEqual(other.TargetGuid);
         }
     }
 }
