@@ -32,7 +32,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
         }
     }
     
-    public class SavablePrefabElement
+    public struct SavablePrefabElement
     {
         public readonly string PrefabGuid;
         public readonly string SceneGuid;
