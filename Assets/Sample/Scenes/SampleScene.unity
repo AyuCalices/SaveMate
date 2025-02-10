@@ -543,6 +543,7 @@ GameObject:
   - component: {fileID: 766951193}
   - component: {fileID: 766951192}
   - component: {fileID: 766951191}
+  - component: {fileID: 766951194}
   m_Layer: 5
   m_Name: Destroy_Button (Legacy)
   m_TagString: Untagged
@@ -664,6 +665,23 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 766951189}
   m_CullTransparentMesh: 1
+--- !u!114 &766951194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 766951189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  serializeFieldSceneGuid: d27fc508-7348-4aaf-8ad2-17764016f40f
+  prefabPath: Prefab_Destroy_Button (Legacy)_28D64
+  dynamicPrefabSpawningDisabled: 0
+  savableLookup: []
+  duplicateComponentLookup: []
 --- !u!1 &818981195
 GameObject:
   m_ObjectHideFlags: 0
@@ -820,7 +838,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
-  assetRegistry: {fileID: 11400000, guid: 9cfdd700030dba24396ea650a83be897, type: 2}
+  assetRegistry: {fileID: 11400000, guid: 00faf92c6e0f7dd4c92c7165d31a851a, type: 2}
   loadSceneOnAwake: 0
   saveSceneOnDestroy: 0
   sceneManagerEvents:
@@ -2789,7 +2807,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0.0000052452087, y: 0.00007247925}
+  m_AnchoredPosition: {x: -0.000014305115, y: 0.000022888184}
   m_SizeDelta: {x: 0.000091553, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &3962104659604066856

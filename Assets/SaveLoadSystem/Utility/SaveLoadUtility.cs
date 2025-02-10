@@ -175,5 +175,24 @@ namespace SaveLoadSystem.Utility
         }
 
         #endregion
+        
+        /// <summary>
+        /// Generates a random ID of the specified length.
+        /// </summary>
+        /// <param name="length">The length of the ID to generate. Default is 5.</param>
+        /// <returns>A random string ID.</returns>
+        public static string GenerateId(int length = 5)
+        {
+            const string allowedChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789";
+            
+            var id = new char[length];
+            for (var i = 0; i < length; i++)
+            {
+                // Random.Range with int parameters is inclusive on the lower bound and exclusive on the upper bound.
+                var index = UnityEngine.Random.Range(0, allowedChars.Length);
+                id[i] = allowedChars[index];
+            }
+            return new string(id);
+        }
     }
 }

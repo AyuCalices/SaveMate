@@ -54,8 +54,8 @@ namespace SaveLoadSystem.Core
             if (assetRegistries == null || assetRegistries.Count == 0) 
                 return;
             
-            ProcessAllPrefabs(assetRegistries);
-            ProcessAllScriptableObjects(assetRegistries);
+            //ProcessAllPrefabs(assetRegistries);
+            //ProcessAllScriptableObjects(assetRegistries);
         }
         
         private static void ProcessAllPrefabs(List<AssetRegistry> assetRegistries)
@@ -71,7 +71,7 @@ namespace SaveLoadSystem.Core
                 {
                     foreach (var registry in assetRegistries)
                     {
-                        registry.AddSavablePrefab(savablePrefab, assetPath);
+                        registry.AddSavablePrefab(savablePrefab);
                     }
                 }
             }
@@ -91,7 +91,7 @@ namespace SaveLoadSystem.Core
                 {
                     foreach (var assetRegistry in assetRegistries)
                     {
-                        assetRegistry.AddSavableScriptableObject(asset, path);
+                        assetRegistry.AddSavableScriptableObject(asset);
                     }
                 }
             }
@@ -113,16 +113,20 @@ namespace SaveLoadSystem.Core
             
             if (assetRegistries is { Count: > 0 })
             {
-                PostprocessPrefabs(assetRegistries, importedAssets, deletedAssets, movedAssets, movedFromAssetPaths);
-                PostprocessScriptableObjects(assetRegistries, importedAssets, deletedAssets, movedAssets, movedFromAssetPaths);
+                PostprocessPrefabs(assetRegistries, importedAssets);
+                PostprocessScriptableObjects(assetRegistries, importedAssets);
             }
 
             UpdateCachedAssetRegistries(assetRegistries, importedAssets);
         }
 
-        private static void PostprocessPrefabs(List<AssetRegistry> assetRegistries, string[] importedAssets, 
-            string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
+        private static void PostprocessPrefabs(List<AssetRegistry> assetRegistries, string[] importedAssets)
         {
+            foreach (var assetRegistry in assetRegistries)
+            {
+                assetRegistry.CleanupSavablePrefabs();
+            }
+            
             foreach (var importedAsset in importedAssets)
             {
                 var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(importedAsset);
@@ -130,31 +134,19 @@ namespace SaveLoadSystem.Core
                 {
                     foreach (var assetRegistry in assetRegistries)
                     {
-                        assetRegistry.AddSavablePrefab(savablePrefab, importedAsset);
+                        assetRegistry.AddSavablePrefab(savablePrefab);
                     }
-                }
-            }
-
-            foreach (var deletedAsset in deletedAssets)
-            {
-                foreach (var assetRegistry in assetRegistries)
-                {
-                    assetRegistry.RemoveSavablePrefab(deletedAsset);
-                }
-            }
-
-            for (var i = 0; i < movedAssets.Length; i++)
-            {
-                foreach (var assetRegistry in assetRegistries)
-                {
-                    assetRegistry.ChangePrefabGuid(movedFromAssetPaths[i], movedAssets[i]);
                 }
             }
         }
         
-        private static void PostprocessScriptableObjects(List<AssetRegistry> assetRegistries, string[] importedAssets, 
-            string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
+        private static void PostprocessScriptableObjects(List<AssetRegistry> assetRegistries, string[] importedAssets)
         {
+            foreach (var assetRegistry in assetRegistries)
+            {
+                assetRegistry.CleanupSavableScriptableObjects();
+            }
+            
             foreach (var importedAsset in importedAssets)
             {
                 var savablePrefab = AssetDatabase.LoadAssetAtPath<ScriptableObject>(importedAsset);
@@ -162,24 +154,8 @@ namespace SaveLoadSystem.Core
                 {
                     foreach (var assetRegistry in assetRegistries)
                     {
-                        assetRegistry.AddSavableScriptableObject(savablePrefab, importedAsset);
+                        assetRegistry.AddSavableScriptableObject(savablePrefab);
                     }
-                }
-            }
-
-            foreach (var deletedAsset in deletedAssets)
-            {
-                foreach (var assetRegistry in assetRegistries)
-                {
-                    assetRegistry.RemoveSavableScriptableObject(deletedAsset);
-                }
-            }
-
-            for (var i = 0; i < movedAssets.Length; i++)
-            {
-                foreach (var assetRegistry in assetRegistries)
-                {
-                    assetRegistry.ChangeScriptableObjectGuid(movedFromAssetPaths[i], movedAssets[i]);
                 }
             }
         }

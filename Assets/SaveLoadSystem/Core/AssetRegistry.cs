@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
+using SaveLoadSystem.Utility;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
@@ -19,40 +20,29 @@ namespace SaveLoadSystem.Core
         {
             return prefabSavables.Concat(scriptableObjectSavables);
         }
-        
 
-        internal void AddSavablePrefab(Savable savable, string guid)
+        internal void AddSavablePrefab(Savable savable)
         {
-            var savableLookup = prefabSavables.Find(x => (Savable)x.unityObject == savable);
-            if (savableLookup != null)
+            if (prefabSavables.Exists(x => (Savable)x.unityObject == savable)) return;
+
+            var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+            while (prefabSavables.Exists(x => x.guid == guid))
             {
-                savableLookup.guid = guid;
-            }
-            else
-            {
-                prefabSavables.Add(new UnityObjectIdentification(guid, savable));
+                guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
             }
             
+            prefabSavables.Add(new UnityObjectIdentification(guid, savable));
             savable.SetPrefabPath(guid);
         }
         
-        internal void RemoveSavablePrefab(string prefabPath)
+        internal void CleanupSavablePrefabs()
         {
-            var savableLookup = prefabSavables.Find(x => x.guid == prefabPath);
-            if (savableLookup != null)
+            for (var i = prefabSavables.Count - 1; i >= 0; i--)
             {
-                ((Savable)savableLookup.unityObject).SetPrefabPath(string.Empty);
-                prefabSavables.Remove(savableLookup);
-            }
-        }
-        
-        internal void ChangePrefabGuid(string oldGuid, string prefabPath)
-        {
-            var savableLookup = prefabSavables.Find(x => x.guid == oldGuid);
-            if (savableLookup != null)
-            {
-                ((Savable)savableLookup.unityObject).SetPrefabPath(prefabPath);
-                savableLookup.guid = prefabPath;
+                if (prefabSavables[i].unityObject.IsUnityNull())
+                {
+                    prefabSavables.RemoveAt(i);
+                }
             }
         }
 
@@ -74,34 +64,27 @@ namespace SaveLoadSystem.Core
             return false;
         }
         
-        internal void AddSavableScriptableObject(ScriptableObject savable, string guid)
+        internal void AddSavableScriptableObject(ScriptableObject scriptableObject)
         {
-            var savableLookup = scriptableObjectSavables.Find(x => (ScriptableObject)x.unityObject == savable);
-            if (savableLookup != null)
+            if (scriptableObjectSavables.Exists(x => (ScriptableObject)x.unityObject == scriptableObject)) return;
+
+            var guid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
+            while (scriptableObjectSavables.Exists(x => x.guid == guid))
             {
-                savableLookup.guid = guid;
+                guid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
             }
-            else
-            {
-                scriptableObjectSavables.Add(new UnityObjectIdentification(guid, savable));
-            }
+            
+            scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
         }
-        
-        internal void RemoveSavableScriptableObject(string prefabPath)
+
+        internal void CleanupSavableScriptableObjects()
         {
-            var savableLookup = scriptableObjectSavables.Find(x => x.guid == prefabPath);
-            if (savableLookup != null)
+            for (var i = scriptableObjectSavables.Count - 1; i >= 0; i--)
             {
-                scriptableObjectSavables.Remove(savableLookup);
-            }
-        }
-        
-        internal void ChangeScriptableObjectGuid(string oldGuid, string prefabPath)
-        {
-            var savableLookup = scriptableObjectSavables.Find(x => x.guid == oldGuid);
-            if (savableLookup != null)
-            {
-                savableLookup.guid = prefabPath;
+                if (scriptableObjectSavables[i].unityObject.IsUnityNull())
+                {
+                    scriptableObjectSavables.RemoveAt(i);
+                }
             }
         }
     }

@@ -12,11 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20506696f801a304baa1d0db2a9a745e, type: 3}
   m_Name: Asset Registry
   m_EditorClassIdentifier: 
-  prefabSavables:
-  - guid: Assets/Sample/Prefabs/InventoryElement.prefab
-    unityObject: {fileID: 6799004914679861805, guid: baa1d5040847f7648823ec50ac47c5a0, type: 3}
-  scriptableObjectSavables:
-  - guid: Assets/Sample/Inventory&Item Data/Inventory.asset
-    unityObject: {fileID: 11400000, guid: 4bbc194549df92441ada2df6806111f8, type: 2}
-  - guid: Assets/Sample/Sprite Lookup.asset
-    unityObject: {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}
+  prefabSavables: []
+  scriptableObjectSavables: []
