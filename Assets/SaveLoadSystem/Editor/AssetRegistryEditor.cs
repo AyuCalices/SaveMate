@@ -22,17 +22,61 @@ namespace SaveLoadSystem.Editor
         public override void OnInspectorGUI()
         {
             GUI.enabled = false;
-
-            SavableReferenceListPropertyLayout(_prefabSavablesProperty, "Prefab Savables", ref _showPrefabSavablesList);
-            SavableReferenceListPropertyLayout(_scriptableObjectSavablesProperty, "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
+            
+            PrefabLayout(_prefabSavablesProperty, "Prefab Savables", ref _showPrefabSavablesList);
+            ScriptableObjectLayout(_scriptableObjectSavablesProperty, "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
             
             serializedObject.ApplyModifiedProperties();
         }
         
-        private void SavableReferenceListPropertyLayout(SerializedProperty serializedProperty, string layoutName,
+        private void PrefabLayout(SerializedProperty serializedProperty, string layoutName,
             ref bool foldout)
         {
-            foldout = EditorGUILayout.Foldout(foldout, layoutName);
+            //draw label
+            GUI.enabled = true;
+            EditorGUILayout.BeginHorizontal();
+            foldout = EditorGUILayout.Foldout(foldout, layoutName, new GUIStyle(EditorStyles.foldout)
+            {
+                fontStyle = FontStyle.Bold
+            });
+            
+            GUI.enabled = false;
+            EditorGUILayout.TextField(serializedProperty.arraySize.ToString(), GUILayout.MaxWidth(48));
+            EditorGUILayout.EndHorizontal();
+            if (!foldout) return;
+            
+            EditorGUI.indentLevel++;
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            for (var i = 0; i < serializedProperty.arraySize; i++)
+            {
+                var elementProperty = serializedProperty.GetArrayElementAtIndex(i);
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.PropertyField(elementProperty, new GUIContent("Element " + i));
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.EndVertical();
+            
+            EditorGUI.indentLevel--;
+        }
+        
+        private void ScriptableObjectLayout(SerializedProperty serializedProperty, string layoutName,
+            ref bool foldout)
+        {
+            //draw label
+            GUI.enabled = true;
+            EditorGUILayout.BeginHorizontal();
+            foldout = EditorGUILayout.Foldout(foldout, layoutName, new GUIStyle(EditorStyles.foldout)
+            {
+                fontStyle = FontStyle.Bold
+            });
+            
+            GUI.enabled = false;
+            EditorGUILayout.TextField(serializedProperty.arraySize.ToString(), GUILayout.MaxWidth(48));
+            EditorGUILayout.EndHorizontal();
             if (!foldout) return;
             
             EditorGUI.indentLevel++;

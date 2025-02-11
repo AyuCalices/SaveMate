@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
@@ -9,29 +10,30 @@ namespace SaveLoadSystem.Core
     [CreateAssetMenu]
     public class AssetRegistry : ScriptableObject
     {
-        [SerializeField] private List<UnityObjectIdentification> prefabSavables = new();
+        [SerializeField] private List<Savable> prefabSavables = new();
         [SerializeField] private List<UnityObjectIdentification> scriptableObjectSavables = new();
         
-        public List<UnityObjectIdentification> PrefabSavables => prefabSavables;
         public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
-        
-        
+
         public IEnumerable<UnityObjectIdentification> GetSavableAssets()
         {
-            return prefabSavables.Concat(scriptableObjectSavables);
+            return prefabSavables
+                .Select(p => new UnityObjectIdentification(p.PrefabGuid, p))
+                .ToList()
+                .Concat(scriptableObjectSavables);
         }
 
         internal void AddSavablePrefab(Savable savable)
         {
-            if (prefabSavables.Exists(x => (Savable)x.unityObject == savable)) return;
+            if (prefabSavables.Exists(x => x == savable)) return;
 
             var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-            while (prefabSavables.Exists(x => x.guid == guid))
+            while (prefabSavables.Exists(x => x.PrefabGuid == guid))
             {
                 guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
             }
             
-            prefabSavables.Add(new UnityObjectIdentification(guid, savable));
+            prefabSavables.Add(savable);
             savable.SetPrefabPath(guid);
         }
         
@@ -39,7 +41,7 @@ namespace SaveLoadSystem.Core
         {
             for (var i = prefabSavables.Count - 1; i >= 0; i--)
             {
-                if (prefabSavables[i].unityObject.IsUnityNull())
+                if (prefabSavables[i].IsUnityNull())
                 {
                     prefabSavables.RemoveAt(i);
                 }
@@ -48,19 +50,19 @@ namespace SaveLoadSystem.Core
 
         public bool ContainsPrefabGuid(string prefabPath)
         {
-            return prefabSavables.Find(x => x.guid == prefabPath) != null;
+            return prefabSavables.Find(x => x.PrefabGuid == prefabPath) != null;
         }
     
-        public bool TryGetPrefab(string guid, out Savable savable)
+        public bool TryGetPrefab(string guid, out Savable match)
         {
-            var savableLookup = prefabSavables.Find(x => x.guid == guid);
-            if (savableLookup != null)
+            var savable = prefabSavables.Find(x => x.PrefabGuid == guid);
+            if (savable != null)
             {
-                savable = ((Savable)savableLookup.unityObject);
+                match = savable;
                 return true;
             }
 
-            savable = null;
+            match = null;
             return false;
         }
         

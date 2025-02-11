@@ -54,8 +54,8 @@ namespace SaveLoadSystem.Core
             if (assetRegistries == null || assetRegistries.Count == 0) 
                 return;
             
-            //ProcessAllPrefabs(assetRegistries);
-            //ProcessAllScriptableObjects(assetRegistries);
+            ProcessAllPrefabs(assetRegistries);
+            ProcessAllScriptableObjects(assetRegistries);
         }
         
         private static void ProcessAllPrefabs(List<AssetRegistry> assetRegistries)
