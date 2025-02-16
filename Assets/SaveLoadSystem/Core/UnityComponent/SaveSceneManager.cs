@@ -60,7 +60,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     {
                         if (PrefabUtility.GetPrefabInstanceStatus(savable) != PrefabInstanceStatus.Connected)
                         {
-                            savable.SetPrefabPath(null);
+                            savable.PrefabGuid = null;
                         }
                     }
                 }
@@ -148,7 +148,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 (_saveObjectLookup != null && _saveObjectLookup.TryGetValue(savable.SceneGuid, out var registeredSavable) && registeredSavable != savable))
             {
                 var id = GetUniqueID(savable);
-                savable.SetSceneGuidGroup(id);
+                savable.SceneGuid = id;
             }
 
             // Add the Savable to the lookup, ensuring it is tracked
@@ -158,7 +158,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         internal void UnregisterSavable(Savable savable)
         {
             RemoveSavable(savable.SceneGuid);
-            savable.SetSceneGuidGroup(null);
+            savable.SceneGuid = null;
         }
 
         private string GetUniqueID(Savable savable)
@@ -524,9 +524,9 @@ namespace SaveLoadSystem.Core.UnityComponent
                      * In order to use the ID that got saved, it must be applied before instantiation. Since this is done on
                      * the prefab, it must be undone on the prefab after instantiation.
                      */
-                    savable.SetSceneGuidGroup(prefabsSavable.SceneGuid);
+                    savable.SceneGuid = prefabsSavable.SceneGuid;
                     Instantiate(savable);
-                    savable.SetSceneGuidGroup(null);
+                    savable.SceneGuid = null;
                 }
             }
         }

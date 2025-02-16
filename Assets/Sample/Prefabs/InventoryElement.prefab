@@ -186,15 +186,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneGuid: 
-  prefabPath: Prefab_InventoryElement_1cOFX
+  sceneGuid:
+    value: 
+    valid: 0
+  prefabPath:
+    value: Prefab_InventoryElement_GzMgN
+    valid: 1
   dynamicPrefabSpawningDisabled: 0
   savableLookup:
-  - guid: b88d55ce-ed9f-4682-a478-9eea46c01cec
-    unityObject: {fileID: 486862100594609039}
-  - guid: 41ebb9f3-3a1d-4709-831d-4a38bf6e4063
-    unityObject: {fileID: 2918653190320057826}
-  duplicateComponentLookup: []
+    values:
+    - guid: Component_InventoryElement_Jfq2X
+      unityObject: {fileID: 486862100594609039}
+    - guid: Component_InventoryElement_8r6p8
+      unityObject: {fileID: 2918653190320057826}
+  duplicateComponentLookup:
+    values: []
 --- !u!114 &2918653190320057826
 MonoBehaviour:
   m_ObjectHideFlags: 0

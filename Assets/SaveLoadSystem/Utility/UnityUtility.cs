@@ -81,7 +81,7 @@ namespace SaveLoadSystem.Utility
         /// </summary>
         /// <param name="gameObject">The GameObject to check.</param>
         /// <returns>A flat list of all components that are added multiple times.</returns>
-        public static List<Object> GetDuplicateComponents(GameObject gameObject)
+        public static List<Component> GetDuplicateComponents(GameObject gameObject)
         {
             if (gameObject == null)
             {
@@ -111,7 +111,7 @@ namespace SaveLoadSystem.Utility
             }
 
             // Collect components that occur more than once
-            var duplicates = new List<Object>();
+            var duplicates = new List<Component>();
             foreach (var kvp in componentMap)
             {
                 if (kvp.Value.Count > 1) // More than one instance of this component type

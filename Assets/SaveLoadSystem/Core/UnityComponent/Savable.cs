@@ -1,8 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
+using SaveLoadSystem.Utility.NonReset;
+using SaveLoadSystem.Utility.PreventReset;
 using UnityEditor;
 using UnityEngine;
 
@@ -11,37 +12,36 @@ namespace SaveLoadSystem.Core.UnityComponent
     [DisallowMultipleComponent]
     public class Savable : MonoBehaviour
     {
-        [SerializeField] private string sceneGuid;
-        private string _resetBufferSceneGuid;
+        [SerializeField] private NonResetable<string> sceneGuid;
 
-        [SerializeField] private string prefabPath;
-        private string _resetBufferPrefabPath;
+        [SerializeField] private NonResetable<string> prefabPath;
 
         [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
-        [SerializeField] private List<UnityObjectIdentification> savableLookup = new();
-        private readonly List<UnityObjectIdentification> _resetBufferSavableLookup = new();
+        [SerializeField] private NonResetableList<UnityObjectIdentification> savableLookup = new();
 
-        [SerializeField] private List<UnityObjectIdentification> duplicateComponentLookup = new();
-        private readonly List<UnityObjectIdentification> _resetBufferDuplicateComponentLookup = new();
+        [SerializeField] private NonResetableList<UnityObjectIdentification> duplicateComponentLookup = new();
 
         
-        public string SceneGuid => sceneGuid;
-        public string PrefabGuid => prefabPath;
+        public string SceneGuid
+        {
+            get => sceneGuid;
+            internal set => sceneGuid = value;
+        }
+
+        public string PrefabGuid
+        {
+            get => prefabPath;
+            internal set => prefabPath = value;
+        }
+    
         public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
         public List<UnityObjectIdentification> SavableLookup => savableLookup;
         public List<UnityObjectIdentification> DuplicateComponentLookup => duplicateComponentLookup;
 
         
         private SaveSceneManager _saveSceneManager;
-        
-        
-        private void Reset()
-        {
-            ApplySavableListResetBuffer();
-            ApplySceneGuidResetBuffer();
-            ApplyPrefabPathResetBuffer();
-        }
+
 
         private void Awake()
         {
@@ -58,10 +58,6 @@ namespace SaveLoadSystem.Core.UnityComponent
             if (Application.isPlaying) return;
             
             RegisterToSceneManager();
-            
-            SetupSavableListResetBuffer();
-            SetupSceneGuidResetBuffer();
-            SetupPrefabPathResetBuffer();
             
             SetupAll();
         }
@@ -91,7 +87,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
             else
             {
-                SetSceneGuidGroup(null);
+                SceneGuid = null;
             }
         }
         
@@ -102,80 +98,6 @@ namespace SaveLoadSystem.Core.UnityComponent
                 _saveSceneManager.UnregisterSavable(this);
             }
         }
-        
-        /// <summary>
-        /// If the Component is being resetted, all Serialize Field values are lost. This method will reapply the lost values
-        /// for the Serialize Fields with the Reset Buffer. This prevents loosing the original guid.
-        /// </summary>
-        private void ApplySavableListResetBuffer()
-        {
-            savableLookup.Clear();
-            foreach (var referenceContainer in _resetBufferSavableLookup)
-            {
-                savableLookup.Add(referenceContainer);
-            }
-            
-            duplicateComponentLookup.Clear();
-            foreach (var referenceContainer in _resetBufferDuplicateComponentLookup)
-            {
-                duplicateComponentLookup.Add(referenceContainer);
-            }
-        }
-
-        /// <summary>
-        /// If a Component is being resetted, all Serialize Field values are lost. This method will reapply the lost values
-        /// for the Scene Guid. This prevents loosing the original guid.
-        /// </summary>
-        private void ApplySceneGuidResetBuffer()
-        {
-            sceneGuid = _resetBufferSceneGuid;
-        }
-        
-        private void ApplyPrefabPathResetBuffer()
-        {
-            prefabPath = _resetBufferPrefabPath;
-        }
-
-        /// <summary>
-        /// Serialize Fields will be serialized through script reloads and application restarts. The Reset Buffer values
-        /// will be lost. This method will reapply the lost values for the Reset Buffer with the Serialize Fields. This
-        /// prevents loosing the original guid.
-        /// </summary>
-        private void SetupSavableListResetBuffer()
-        {
-            if (savableLookup.Count != _resetBufferSavableLookup.Count)
-            {
-                _resetBufferSavableLookup.Clear();
-                foreach (var referenceContainer in savableLookup)
-                {
-                    _resetBufferSavableLookup.Add(referenceContainer);
-                }
-            }
-            
-            if (duplicateComponentLookup.Count != _resetBufferDuplicateComponentLookup.Count)
-            {
-                _resetBufferDuplicateComponentLookup.Clear();
-                foreach (var referenceContainer in duplicateComponentLookup)
-                {
-                    _resetBufferDuplicateComponentLookup.Add(referenceContainer);
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Serialize Fields will be serialized through script reloads and application restarts. The Reset Buffer values
-        /// will be lost. This method will reapply the lost values for the Reset Buffer with the Serialize Fields. This
-        /// prevents loosing the original guid.
-        /// </summary>
-        private void SetupSceneGuidResetBuffer()
-        {
-            _resetBufferSceneGuid = sceneGuid;
-        }
-        
-        private void SetupPrefabPathResetBuffer()
-        {
-            _resetBufferPrefabPath = prefabPath;
-        }
 
         private void SetupAll()
         {
@@ -184,36 +106,6 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             SetDirty(this);
         }
- 
-        internal void SetSceneGuidGroup(string guid)
-        {
-            sceneGuid = guid;
-            _resetBufferSceneGuid = guid;
-        }
-
-        internal void SetPrefabPath(string newPrefabPath)
-        {
-            prefabPath = newPrefabPath;
-            _resetBufferPrefabPath = newPrefabPath;
-        }
-        
-        private void SetSavableGuidGroup(int index, string guid)
-        {
-            savableLookup[index].guid = guid;
-            _resetBufferSavableLookup[index].guid = guid;
-        }
-        
-        private void AddToSavableGroup(UnityObjectIdentification unityObjectIdentification)
-        {
-            savableLookup.Add(unityObjectIdentification);
-            _resetBufferSavableLookup.Add(unityObjectIdentification);
-        }
-
-        private void RemoveFromSavableGroup(UnityObjectIdentification unityObjectIdentification)
-        {
-            savableLookup.Remove(unityObjectIdentification);
-            _resetBufferSavableLookup.Remove(unityObjectIdentification);
-        }
 
         private void UpdateSavableComponents()
         {
@@ -221,19 +113,19 @@ namespace SaveLoadSystem.Core.UnityComponent
             var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, TypeUtility.ContainsType<ISavable>);
             
             //update removed elements and those that are kept 
-            for (var index = savableLookup.Count - 1; index >= 0; index--)
+            for (var index = SavableLookup.Count - 1; index >= 0; index--)
             {
-                var objectId = savableLookup[index];
+                var objectId = SavableLookup[index];
                 
                 if (!foundElements.Exists(x => x == objectId.unityObject))
                 {
-                    RemoveFromSavableGroup(objectId);
+                    SavableLookup.Remove(objectId);
                 }
                 else
                 {
                     if (string.IsNullOrEmpty(objectId.guid))
                     {
-                        SetSavableGuidGroup(index, GetUniqueSavableID((Component)objectId.unityObject));
+                        SavableLookup[index].guid = GetUniqueSavableID((Component)objectId.unityObject);
                     }
                     
                     foundElements.Remove((Component)objectId.unityObject);
@@ -241,11 +133,11 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
 
             //add new elements
-            foreach (Component foundElement in foundElements) 
+            foreach (var foundElement in foundElements) 
             {
-                var guid = Guid.NewGuid().ToString();
+                var guid = GetUniqueSavableID(foundElement);
                 
-                AddToSavableGroup(new UnityObjectIdentification(guid, foundElement));
+                SavableLookup.Add(new UnityObjectIdentification(guid, foundElement));
             }
         }
 
@@ -253,30 +145,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             var guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
             
-            while (savableLookup != null && savableLookup.Exists(x => x.guid == guid))
+            while (SavableLookup != null && SavableLookup.Exists(x => x.guid == guid))
             {
                 guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
             }
 
             return guid;
-        }
-        
-        private void SetDuplicatedComponentGuidGroup(int index, string guid)
-        {
-            duplicateComponentLookup[index].guid = guid;
-            _resetBufferDuplicateComponentLookup[index].guid = guid;
-        }
-        
-        private void AddToDuplicatedComponentGroup(UnityObjectIdentification unityObjectIdentification)
-        {
-            duplicateComponentLookup.Add(unityObjectIdentification);
-            _resetBufferDuplicateComponentLookup.Add(unityObjectIdentification);
-        }
-
-        private void RemoveFromDuplicatedComponentGroup(UnityObjectIdentification unityObjectIdentification)
-        {
-            duplicateComponentLookup.Remove(unityObjectIdentification);
-            _resetBufferDuplicateComponentLookup.Remove(unityObjectIdentification);
         }
         
         private void UpdateSavableReferenceComponents()
@@ -293,31 +167,32 @@ namespace SaveLoadSystem.Core.UnityComponent
                 }
             }
 
-            for (var index = duplicateComponentLookup.Count - 1; index >= 0; index--)
+            for (var index = DuplicateComponentLookup.Count - 1; index >= 0; index--)
             {
-                var objectId = duplicateComponentLookup[index];
+                var objectId = DuplicateComponentLookup[index];
                 
                 if (!duplicates.Exists(x => x == objectId.unityObject))
                 {
-                    RemoveFromDuplicatedComponentGroup(objectId);
+                    DuplicateComponentLookup.Remove(objectId);
                 }
                 else
                 {
+                    
                     if (string.IsNullOrEmpty(objectId.guid))
                     {
-                        SetDuplicatedComponentGuidGroup(index, GetUniqueDuplicateID((Component)objectId.unityObject));
+                        DuplicateComponentLookup[index].guid = GetUniqueDuplicateID((Component)objectId.unityObject);
                     }
                     
-                    duplicates.Remove(objectId.unityObject);
+                    duplicates.Remove((Component)objectId.unityObject);
                 }
             }
             
             //add new elements
-            foreach (UnityEngine.Object foundElement in duplicates) 
+            foreach (var foundElement in duplicates) 
             {
-                var guid = Guid.NewGuid().ToString();
+                var guid = GetUniqueSavableID(foundElement);
                 
-                AddToDuplicatedComponentGroup(new UnityObjectIdentification(guid, foundElement));
+                DuplicateComponentLookup.Add(new UnityObjectIdentification(guid, foundElement));
             }
         }
         
@@ -325,7 +200,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             var guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
             
-            while (duplicateComponentLookup != null && duplicateComponentLookup.Exists(x => x.guid == guid))
+            while (DuplicateComponentLookup != null && DuplicateComponentLookup.Exists(x => x.guid == guid))
             {
                 guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
             }
@@ -333,7 +208,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             return guid;
         }
         
-        private void SetDirty(UnityEngine.Object obj)
+        private void SetDirty(Object obj)
         {
 #if UNITY_EDITOR
             if (!Application.isPlaying)

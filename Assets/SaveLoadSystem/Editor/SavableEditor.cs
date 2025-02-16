@@ -30,7 +30,7 @@ namespace SaveLoadSystem.Editor
         {
             serializedObject.Update();
             
-            if (_prefabPathProperty.stringValue != string.Empty)
+            if (_prefabPathProperty.FindPropertyRelative("value").stringValue != string.Empty)
             {
                 EditorGUILayout.PropertyField(_customSpawningProperty);
             }
@@ -41,8 +41,8 @@ namespace SaveLoadSystem.Editor
             // Display the fields
             EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
-            ComponentContainerListLayout(_currentSavableListProperty, "Tracked Savables", ref _showCurrentSavableList);
-            ComponentContainerListLayout(_savableReferenceListProperty, "Duplicate Components", ref _showSavableReferenceList);
+            ComponentContainerListLayout(_currentSavableListProperty.FindPropertyRelative("values"), "Tracked Savables", ref _showCurrentSavableList);
+            ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components", ref _showSavableReferenceList);
             
             // Enable editing back
             GUI.enabled = true;

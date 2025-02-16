@@ -1321,13 +1321,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneGuid: GameObject_Canvas_P6ix3
-  prefabPath: 
+  sceneGuid:
+    value: GameObject_Canvas_eYmmo
+    valid: 1
+  prefabPath:
+    value: 
+    valid: 0
   dynamicPrefabSpawningDisabled: 0
   savableLookup:
-  - guid: Component_Canvas_oVZi4
-    unityObject: {fileID: 1042050944}
-  duplicateComponentLookup: []
+    values:
+    - guid: Component_Canvas_ty9eH
+      unityObject: {fileID: 1042050944}
+  duplicateComponentLookup:
+    values: []
 --- !u!1 &1073139036
 GameObject:
   m_ObjectHideFlags: 0
@@ -2059,8 +2065,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1844078486}
   m_HandleRect: {fileID: 1844078485}
   m_Direction: 0
-  m_Value: 1
-  m_Size: 0.9999997
+  m_Value: 0
+  m_Size: 0.9999999
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2837,11 +2843,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneGuid: GameObject_Content_K7rFT
-  prefabPath: 
+  sceneGuid:
+    value: GameObject_Content_GxVzd
+    valid: 1
+  prefabPath:
+    value: 
+    valid: 0
   dynamicPrefabSpawningDisabled: 0
-  savableLookup: []
-  duplicateComponentLookup: []
+  savableLookup:
+    values: []
+  duplicateComponentLookup:
+    values: []
 --- !u!114 &9077321036707125733
 MonoBehaviour:
   m_ObjectHideFlags: 0

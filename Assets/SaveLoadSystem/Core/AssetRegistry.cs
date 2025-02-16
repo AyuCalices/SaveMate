@@ -33,7 +33,7 @@ namespace SaveLoadSystem.Core
                     guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
                 }
                 
-                savable.SetPrefabPath(guid);
+                savable.PrefabGuid = guid;
             }
 
             if (!prefabSavables.Exists(x => x == savable))
