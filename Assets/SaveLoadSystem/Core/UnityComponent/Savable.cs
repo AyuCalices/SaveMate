@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEditor;
@@ -8,12 +9,13 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.UnityComponent
 {
     [DisallowMultipleComponent]
-    public class Savable : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
+    public class Savable : MonoBehaviour
     {
-        [SerializeField] private string serializeFieldSceneGuid;
+        [SerializeField] private string sceneGuid;
         private string _resetBufferSceneGuid;
 
         [SerializeField] private string prefabPath;
+        private string _resetBufferPrefabPath;
 
         [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
@@ -24,7 +26,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         private readonly List<UnityObjectIdentification> _resetBufferDuplicateComponentLookup = new();
 
         
-        public string SceneGuid => serializeFieldSceneGuid;
+        public string SceneGuid => sceneGuid;
         public string PrefabGuid => prefabPath;
         public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
         public List<UnityObjectIdentification> SavableLookup => savableLookup;
@@ -38,14 +40,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             ApplySavableListResetBuffer();
             ApplySceneGuidResetBuffer();
-            
+            ApplyPrefabPathResetBuffer();
         }
 
         private void Awake()
         {
             RegisterToSceneManager();
-            
-            SetupSceneGuid();
         }
 
         private void OnDestroy()
@@ -61,40 +61,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             SetupSavableListResetBuffer();
             SetupSceneGuidResetBuffer();
-            SetupAll();
-        }
-        
-        public void OnCreateGameObjectHierarchy()
-        {
-            if (Application.isPlaying) return;
-            
-            SetupAll();
-        }
-        
-        public void OnChangeGameObjectStructure()
-        {
-            if (Application.isPlaying) return;
-            
-            SetupAll();
-        }
-        
-        public void OnChangeComponentProperties()
-        {
-            if (Application.isPlaying) return;
-            
-            SetupAll();
-        }
-
-        public void OnChangeGameObjectProperties()
-        {
-            if (Application.isPlaying) return;
-            
-            SetupAll();
-        }
-        
-        public void OnChangeGameObjectStructureHierarchy()
-        {
-            if (Application.isPlaying) return;
+            SetupPrefabPathResetBuffer();
             
             SetupAll();
         }
@@ -103,7 +70,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (_saveSceneManager.IsUnityNull())
             {
-                _saveSceneManager = FindObjectOfType<SaveSceneManager>();
+                var sceneManagers = FindObjectsOfType<SaveSceneManager>();
+                _saveSceneManager = sceneManagers.First(x => x.gameObject.scene == gameObject.scene);
                 
                 if (_saveSceneManager.IsUnityNull())
                 {
@@ -117,9 +85,13 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void RegisterToSceneManager()
         {
-            if (AcquireSceneManager() && gameObject.scene.IsValid())
+            if (gameObject.scene.IsValid() && AcquireSceneManager())
             {
                 _saveSceneManager.RegisterSavable(this);
+            }
+            else
+            {
+                SetSceneGuidGroup(null);
             }
         }
         
@@ -156,7 +128,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         /// </summary>
         private void ApplySceneGuidResetBuffer()
         {
-            serializeFieldSceneGuid = _resetBufferSceneGuid;
+            sceneGuid = _resetBufferSceneGuid;
+        }
+        
+        private void ApplyPrefabPathResetBuffer()
+        {
+            prefabPath = _resetBufferPrefabPath;
         }
 
         /// <summary>
@@ -192,48 +169,32 @@ namespace SaveLoadSystem.Core.UnityComponent
         /// </summary>
         private void SetupSceneGuidResetBuffer()
         {
-            _resetBufferSceneGuid = serializeFieldSceneGuid;
+            _resetBufferSceneGuid = sceneGuid;
+        }
+        
+        private void SetupPrefabPathResetBuffer()
+        {
+            _resetBufferPrefabPath = prefabPath;
         }
 
         private void SetupAll()
         {
             UpdateSavableComponents();
             UpdateSavableReferenceComponents();
-
-            if (gameObject.scene.name != null)
-            {
-                SetupSceneGuid();
-            }
-            else
-            {
-                ResetSceneGuid();
-            }
             
             SetDirty(this);
         }
-        
-        private void SetupSceneGuid()
-        {
-            if (string.IsNullOrEmpty(serializeFieldSceneGuid) && string.IsNullOrEmpty(_resetBufferSceneGuid))
-            {
-                SetSceneGuidGroup(Guid.NewGuid().ToString());
-            }
-        }
-
-        private void ResetSceneGuid()
-        {
-            SetSceneGuidGroup("");
-        }
  
-        public void SetSceneGuidGroup(string guid)
+        internal void SetSceneGuidGroup(string guid)
         {
-            serializeFieldSceneGuid = guid;
+            sceneGuid = guid;
             _resetBufferSceneGuid = guid;
         }
 
-        public void SetPrefabPath(string newPrefabPath)
+        internal void SetPrefabPath(string newPrefabPath)
         {
             prefabPath = newPrefabPath;
+            _resetBufferPrefabPath = newPrefabPath;
         }
         
         private void SetSavableGuidGroup(int index, string guid)
@@ -262,30 +223,42 @@ namespace SaveLoadSystem.Core.UnityComponent
             //update removed elements and those that are kept 
             for (var index = savableLookup.Count - 1; index >= 0; index--)
             {
-                var component = savableLookup[index];
+                var objectId = savableLookup[index];
                 
-                if (!foundElements.Exists(x => x == component.unityObject))
+                if (!foundElements.Exists(x => x == objectId.unityObject))
                 {
-                    RemoveFromSavableGroup(component);
+                    RemoveFromSavableGroup(objectId);
                 }
                 else
                 {
-                    if (string.IsNullOrEmpty(component.guid) && string.IsNullOrEmpty(_resetBufferSavableLookup[index].guid))
+                    if (string.IsNullOrEmpty(objectId.guid))
                     {
-                        SetSavableGuidGroup(index, Guid.NewGuid().ToString());
+                        SetSavableGuidGroup(index, GetUniqueSavableID((Component)objectId.unityObject));
                     }
                     
-                    foundElements.Remove((UnityEngine.Component)component.unityObject);
+                    foundElements.Remove((Component)objectId.unityObject);
                 }
             }
 
             //add new elements
-            foreach (UnityEngine.Component foundElement in foundElements) 
+            foreach (Component foundElement in foundElements) 
             {
                 var guid = Guid.NewGuid().ToString();
                 
                 AddToSavableGroup(new UnityObjectIdentification(guid, foundElement));
             }
+        }
+
+        private string GetUniqueSavableID(Component component)
+        {
+            var guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+            
+            while (savableLookup != null && savableLookup.Exists(x => x.guid == guid))
+            {
+                guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+            }
+
+            return guid;
         }
         
         private void SetDuplicatedComponentGuidGroup(int index, string guid)
@@ -322,20 +295,20 @@ namespace SaveLoadSystem.Core.UnityComponent
 
             for (var index = duplicateComponentLookup.Count - 1; index >= 0; index--)
             {
-                var componentsContainer = duplicateComponentLookup[index];
+                var objectId = duplicateComponentLookup[index];
                 
-                if (!duplicates.Exists(x => x == componentsContainer.unityObject))
+                if (!duplicates.Exists(x => x == objectId.unityObject))
                 {
-                    RemoveFromDuplicatedComponentGroup(componentsContainer);
+                    RemoveFromDuplicatedComponentGroup(objectId);
                 }
                 else
                 {
-                    if (string.IsNullOrEmpty(componentsContainer.guid) && string.IsNullOrEmpty(_resetBufferDuplicateComponentLookup[index].guid))
+                    if (string.IsNullOrEmpty(objectId.guid))
                     {
-                        SetDuplicatedComponentGuidGroup(index, Guid.NewGuid().ToString());
+                        SetDuplicatedComponentGuidGroup(index, GetUniqueDuplicateID((Component)objectId.unityObject));
                     }
                     
-                    duplicates.Remove(componentsContainer.unityObject);
+                    duplicates.Remove(objectId.unityObject);
                 }
             }
             
@@ -346,6 +319,18 @@ namespace SaveLoadSystem.Core.UnityComponent
                 
                 AddToDuplicatedComponentGroup(new UnityObjectIdentification(guid, foundElement));
             }
+        }
+        
+        private string GetUniqueDuplicateID(Component component)
+        {
+            var guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+            
+            while (duplicateComponentLookup != null && duplicateComponentLookup.Exists(x => x.guid == guid))
+            {
+                guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+            }
+
+            return guid;
         }
         
         private void SetDirty(UnityEngine.Object obj)

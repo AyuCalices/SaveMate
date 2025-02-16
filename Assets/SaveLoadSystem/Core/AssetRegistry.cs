@@ -25,16 +25,21 @@ namespace SaveLoadSystem.Core
 
         internal void AddSavablePrefab(Savable savable)
         {
-            if (prefabSavables.Exists(x => x == savable)) return;
-
-            var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-            while (prefabSavables.Exists(x => x.PrefabGuid == guid))
+            if (string.IsNullOrEmpty(savable.PrefabGuid))
             {
-                guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+                var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+                while (prefabSavables.Exists(x => x.PrefabGuid == guid))
+                {
+                    guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+                }
+                
+                savable.SetPrefabPath(guid);
             }
-            
-            prefabSavables.Add(savable);
-            savable.SetPrefabPath(guid);
+
+            if (!prefabSavables.Exists(x => x == savable))
+            {
+                prefabSavables.Add(savable);
+            }
         }
         
         internal void CleanupSavablePrefabs()

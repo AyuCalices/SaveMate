@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -21,18 +22,18 @@ namespace SaveLoadSystem.Core
         
         //unity object reference lookups
         private readonly Dictionary<string, Object> _assetLookup;
-        private readonly Dictionary<string, GameObject> _gameObjectLookup;
+        private readonly Dictionary<string, Savable> _saveObjectLookup;
         private readonly Dictionary<string, Component> _guidComponentLookup;
 
         public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, 
             Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<string, Object> assetLookup, 
-            Dictionary<string, GameObject> gameObjectLookup, Dictionary<string, Component> guidComponentLookup)
+            Dictionary<string, Savable> saveObjectLookup, Dictionary<string, Component> guidComponentLookup)
         {
             _instanceSaveData = instanceSaveData;
             _sceneSaveData = sceneSaveData;
             _createdObjectsLookup = createdObjectsLookup;
             _assetLookup = assetLookup;
-            _gameObjectLookup = gameObjectLookup;
+            _saveObjectLookup = saveObjectLookup;
             _guidComponentLookup = guidComponentLookup;
         }
 
@@ -151,7 +152,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
+                _createdObjectsLookup, _assetLookup, _saveObjectLookup, _guidComponentLookup);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -170,7 +171,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
+                _createdObjectsLookup, _assetLookup, _saveObjectLookup, _guidComponentLookup);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
@@ -204,25 +205,25 @@ namespace SaveLoadSystem.Core
             }
             else if (type == typeof(GameObject))
             {
-                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
-                    reference = gameObject;
+                    reference = savable.gameObject;
                     return true;
                 }
             } 
             else if (type == typeof(Transform))
             {
-                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
-                    reference = gameObject.transform;
+                    reference = savable.transform;
                     return true;
                 }
             }
             else if (type == typeof(RectTransform))
             {
-                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
-                    reference = (RectTransform)gameObject.transform;
+                    reference = (RectTransform)savable.transform;
                     return true;
                 }
             }
@@ -234,9 +235,9 @@ namespace SaveLoadSystem.Core
                     return true;
                 }
                 
-                if (_gameObjectLookup.TryGetValue(guidPath.ToString(), out var gameObject))
+                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
-                    reference = gameObject.GetComponent(type);
+                    reference = savable.GetComponent(type);
                     return true;
                 }
             }
@@ -267,7 +268,7 @@ namespace SaveLoadSystem.Core
             }
             
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
+                _createdObjectsLookup, _assetLookup, _saveObjectLookup, _guidComponentLookup);
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))

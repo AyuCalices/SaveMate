@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -34,24 +33,26 @@ namespace SaveLoadSystem.Utility
         
         public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive)
         {
+            //if (!scene.isLoaded) return default;
+            
             var objectsInScene = new List<T>();
-            if (!scene.isLoaded) return objectsInScene;
             
             var rootObjects = scene.GetRootGameObjects();
-            foreach (GameObject go in rootObjects)
+            foreach (var go in rootObjects)
             {
                 var children = go.GetComponentsInChildren<T>(includeInactive);
                 objectsInScene.AddRange(children);
             }
+            
             return objectsInScene;
         }
         
         public static T FindObjectOfTypeInScene<T>(Scene scene, bool includeInactive)
         {
-            if (!scene.isLoaded) return default;
+            //if (!scene.isLoaded) return default;
             
             var rootObjects = scene.GetRootGameObjects();
-            foreach (GameObject go in rootObjects)
+            foreach (var go in rootObjects)
             {
                 var component = go.GetComponentInChildren<T>(includeInactive);
                 if (component != null)
@@ -65,9 +66,9 @@ namespace SaveLoadSystem.Utility
         
         public static Scene[] GetActiveScenes()
         {
-            Scene[] activeScenes = new Scene[SceneManager.sceneCount];
+            var activeScenes = new Scene[SceneManager.sceneCount];
             
-            for (int index = 0; index < SceneManager.sceneCount; index++)
+            for (var index = 0; index < SceneManager.sceneCount; index++)
             {
                 activeScenes[index] = SceneManager.GetSceneAt(index);
             }
@@ -80,7 +81,7 @@ namespace SaveLoadSystem.Utility
         /// </summary>
         /// <param name="gameObject">The GameObject to check.</param>
         /// <returns>A flat list of all components that are added multiple times.</returns>
-        public static List<UnityEngine.Object> GetDuplicateComponents(GameObject gameObject)
+        public static List<Object> GetDuplicateComponents(GameObject gameObject)
         {
             if (gameObject == null)
             {
@@ -110,7 +111,7 @@ namespace SaveLoadSystem.Utility
             }
 
             // Collect components that occur more than once
-            var duplicates = new List<UnityEngine.Object>();
+            var duplicates = new List<Object>();
             foreach (var kvp in componentMap)
             {
                 if (kvp.Value.Count > 1) // More than one instance of this component type
