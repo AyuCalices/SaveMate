@@ -2,39 +2,37 @@ using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
-using SaveLoadSystem.Utility.NonReset;
 using SaveLoadSystem.Utility.PreventReset;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
     [DisallowMultipleComponent]
     public class Savable : MonoBehaviour
     {
-        [SerializeField] private NonResetable<string> sceneGuid;
-
-        [SerializeField] private NonResetable<string> prefabPath;
-
         [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
+        [SerializeField] private NonResetable<string> prefabGuid;
+        [SerializeField] private NonResetable<string> savableGuid;
+        
         [SerializeField] private NonResetableList<UnityObjectIdentification> savableLookup = new();
-
         [SerializeField] private NonResetableList<UnityObjectIdentification> duplicateComponentLookup = new();
 
         
-        public string SceneGuid
+        public string SavableGuid
         {
-            get => sceneGuid;
-            internal set => sceneGuid = value;
+            get => savableGuid;
+            internal set => savableGuid.value = value;
         }
 
         public string PrefabGuid
         {
-            get => prefabPath;
-            internal set => prefabPath = value;
+            get => prefabGuid;
+            internal set => prefabGuid.value = value;
         }
-    
+
         public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
         public List<UnityObjectIdentification> SavableLookup => savableLookup;
         public List<UnityObjectIdentification> DuplicateComponentLookup => duplicateComponentLookup;
@@ -59,7 +57,14 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             RegisterToSceneManager();
             
-            SetupAll();
+            /*
+             * Currently the system only supports adding savable-components during editor mode.
+             * This is by design, to prevent the necessary to save the type of the component.
+             * optional todo: find a way to save added savable-components similar to dynamic prefab spawning without saving the type.
+             */
+            UpdateSavableComponents();
+            UpdateSavableReferenceComponents();
+            SetDirty(this);
         }
 
         private bool AcquireSceneManager()
@@ -87,7 +92,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
             else
             {
-                SceneGuid = null;
+                SavableGuid = null;
             }
         }
         
@@ -97,14 +102,6 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 _saveSceneManager.UnregisterSavable(this);
             }
-        }
-
-        private void SetupAll()
-        {
-            UpdateSavableComponents();
-            UpdateSavableReferenceComponents();
-            
-            SetDirty(this);
         }
 
         private void UpdateSavableComponents()

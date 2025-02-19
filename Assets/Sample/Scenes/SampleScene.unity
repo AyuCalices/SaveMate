@@ -1321,13 +1321,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneGuid:
-    value: GameObject_Canvas_eYmmo
-    valid: 1
-  prefabPath:
-    value: 
-    valid: 0
   dynamicPrefabSpawningDisabled: 0
+  prefabGuid:
+    value: 
+    valid: 1
+  savableGuid:
+    value: GameObject_Canvas_zmKXJ
+    valid: 1
   savableLookup:
     values:
     - guid: Component_Canvas_ty9eH
@@ -2843,13 +2843,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneGuid:
-    value: GameObject_Content_GxVzd
-    valid: 1
-  prefabPath:
-    value: 
-    valid: 0
   dynamicPrefabSpawningDisabled: 0
+  prefabGuid:
+    value: 
+    valid: 1
+  savableGuid:
+    value: GameObject_Content_xKQch
+    valid: 1
   savableLookup:
     values: []
   duplicateComponentLookup:

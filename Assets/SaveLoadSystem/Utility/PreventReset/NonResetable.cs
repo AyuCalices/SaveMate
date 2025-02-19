@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace SaveLoadSystem.Utility.NonReset
+namespace SaveLoadSystem.Utility.PreventReset
 {
     [Serializable]
     public struct NonResetable<T> : ISerializationCallbackReceiver
@@ -12,7 +12,6 @@ namespace SaveLoadSystem.Utility.NonReset
         [SerializeField] [HideInInspector] private bool valid;
 
         public static implicit operator T(NonResetable<T> nonResetable) => nonResetable.value;
-        public static implicit operator NonResetable<T>(T value) => new NonResetable<T> { value = value };
 
         public void OnBeforeSerialize()
         {

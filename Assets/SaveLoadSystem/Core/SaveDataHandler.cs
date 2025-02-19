@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -19,24 +20,16 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, InstanceSaveData> _instanceSaveDataLookup;
         private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
         
-        //unity object reference lookups
-        private readonly Dictionary<Object, GuidPath> _assetLookup;
-        private readonly Dictionary<GameObject, GuidPath> _gameObjectLookup;
-        private readonly Dictionary<Component, GuidPath> _guidComponentLookup;
+        private readonly SaveSceneManager _saveSceneManager;
 
         public SaveDataHandler(GuidPath guidPath, InstanceSaveData instanceSaveData, Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, 
-            Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<Object, GuidPath> assetLookup, 
-            Dictionary<GameObject, GuidPath> gameObjectLookup, Dictionary<Component, GuidPath> guidComponentLookup)
+            Dictionary<object, GuidPath> processedInstancesLookup, SaveSceneManager saveSceneManager)
         {
             _guidPath = guidPath;
             _instanceSaveData = instanceSaveData;
             _instanceSaveDataLookup = instanceSaveDataLookup;
             _processedInstancesLookup = processedInstancesLookup;
-
-            //TODO: put into reference of SaveSceneManager?
-            _assetLookup = assetLookup;
-            _gameObjectLookup = gameObjectLookup;
-            _guidComponentLookup = guidComponentLookup;
+            _saveSceneManager = saveSceneManager;
         }
 
         public void Save(string uniqueIdentifier, object obj)
@@ -70,7 +63,7 @@ namespace SaveLoadSystem.Core
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new InstanceSaveData();
                 var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
+                    _processedInstancesLookup, _saveSceneManager);
                 
                 savable.OnSave(saveDataHandler);
                 
@@ -81,7 +74,7 @@ namespace SaveLoadSystem.Core
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new InstanceSaveData();
                 var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
+                    _processedInstancesLookup, _saveSceneManager);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
@@ -128,22 +121,22 @@ namespace SaveLoadSystem.Core
             if (objectToSave is Component component)
             {
                 //components with a guid must be processed because: 1. prevent ambiguity between duplicates 2. clearly identify components that inherit from ISavable
-                if (_guidComponentLookup.TryGetValue(component, out guidPath))
+                if (_saveSceneManager.ComponentToGuidLookup.TryGetValue(component, out guidPath))
                 {
                     return guidPath;
                 }
                 
-                if (_gameObjectLookup.TryGetValue(component.gameObject, out guidPath))
+                if (_saveSceneManager.SavableGameObjectToGuidLookup.TryGetValue(component.gameObject, out guidPath))
                 {
                     return guidPath;
                 }
                 
-                Debug.LogError("Internal Error"); //TODO: debug
+                //Debug.LogError("Internal Error!");
             }
 
             if (objectToSave is ScriptableObject scriptableObject)
             {
-                if (_assetLookup.TryGetValue(scriptableObject, out guidPath))
+                if (_saveSceneManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
                 {
                     return guidPath;
                 }
@@ -180,7 +173,7 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
             
                 targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup));
+                    _processedInstancesLookup, _saveSceneManager));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
@@ -189,7 +182,7 @@ namespace SaveLoadSystem.Core
                 _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
                         
                 var saveDataHandler = new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _assetLookup, _gameObjectLookup, _guidComponentLookup);
+                    _processedInstancesLookup, _saveSceneManager);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else

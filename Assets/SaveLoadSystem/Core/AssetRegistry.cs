@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -12,16 +10,9 @@ namespace SaveLoadSystem.Core
     {
         [SerializeField] private List<Savable> prefabSavables = new();
         [SerializeField] private List<UnityObjectIdentification> scriptableObjectSavables = new();
-        
-        public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
 
-        public IEnumerable<UnityObjectIdentification> GetSavableAssets()
-        {
-            return prefabSavables
-                .Select(p => new UnityObjectIdentification(p.PrefabGuid, p))
-                .ToList()
-                .Concat(scriptableObjectSavables);
-        }
+        public List<Savable> PrefabSavables => prefabSavables;
+        public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
 
         internal void AddSavablePrefab(Savable savable)
         {

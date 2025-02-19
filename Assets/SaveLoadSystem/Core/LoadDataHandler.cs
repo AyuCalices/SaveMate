@@ -21,20 +21,15 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
         
         //unity object reference lookups
-        private readonly Dictionary<string, Object> _assetLookup;
-        private readonly Dictionary<string, Savable> _saveObjectLookup;
-        private readonly Dictionary<string, Component> _guidComponentLookup;
+        private readonly SaveSceneManager _saveSceneManager;
 
         public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, 
-            Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<string, Object> assetLookup, 
-            Dictionary<string, Savable> saveObjectLookup, Dictionary<string, Component> guidComponentLookup)
+            Dictionary<GuidPath, object> createdObjectsLookup, SaveSceneManager saveSceneManager)
         {
             _instanceSaveData = instanceSaveData;
             _sceneSaveData = sceneSaveData;
             _createdObjectsLookup = createdObjectsLookup;
-            _assetLookup = assetLookup;
-            _saveObjectLookup = saveObjectLookup;
-            _guidComponentLookup = guidComponentLookup;
+            _saveSceneManager = saveSceneManager;
         }
 
         public bool TryLoad<T>(string identifier, out T obj)
@@ -152,7 +147,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _assetLookup, _saveObjectLookup, _guidComponentLookup);
+                _createdObjectsLookup, _saveSceneManager);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -171,7 +166,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _assetLookup, _saveObjectLookup, _guidComponentLookup);
+                _createdObjectsLookup, _saveSceneManager);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
@@ -197,7 +192,7 @@ namespace SaveLoadSystem.Core
             //unity type reference handling
             if (typeof(ScriptableObject).IsAssignableFrom(type))
             {
-                if (_assetLookup.TryGetValue(guidPath.ToString(), out var scriptableObject))
+                if (_saveSceneManager.GuidToScriptableObjectLookup.TryGetValue(guidPath.ToString(), out var scriptableObject))
                 {
                     reference = scriptableObject;
                     return true;
@@ -205,7 +200,7 @@ namespace SaveLoadSystem.Core
             }
             else if (type == typeof(GameObject))
             {
-                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = savable.gameObject;
                     return true;
@@ -213,7 +208,7 @@ namespace SaveLoadSystem.Core
             } 
             else if (type == typeof(Transform))
             {
-                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = savable.transform;
                     return true;
@@ -221,7 +216,7 @@ namespace SaveLoadSystem.Core
             }
             else if (type == typeof(RectTransform))
             {
-                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = (RectTransform)savable.transform;
                     return true;
@@ -229,13 +224,13 @@ namespace SaveLoadSystem.Core
             }
             else if (typeof(Component).IsAssignableFrom(type))
             {
-                if (_guidComponentLookup.TryGetValue(guidPath.ToString(), out var duplicatedComponent))
+                if (_saveSceneManager.GuidToComponentLookup.TryGetValue(guidPath.ToString(), out var duplicatedComponent))
                 {
                     reference = duplicatedComponent;
                     return true;
                 }
                 
-                if (_saveObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = savable.GetComponent(type);
                     return true;
@@ -268,7 +263,7 @@ namespace SaveLoadSystem.Core
             }
             
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _assetLookup, _saveObjectLookup, _guidComponentLookup);
+                _createdObjectsLookup, _saveSceneManager);
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))

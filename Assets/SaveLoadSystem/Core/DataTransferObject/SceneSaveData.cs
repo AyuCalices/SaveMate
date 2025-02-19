@@ -35,12 +35,12 @@ namespace SaveLoadSystem.Core.DataTransferObject
     public struct SavablePrefabElement
     {
         public readonly string PrefabGuid;
-        public readonly string SceneGuid;
+        public readonly string SavableGuid;
 
-        public SavablePrefabElement(string prefabGuid, string sceneGuid)
+        public SavablePrefabElement(string prefabGuid, string savableGuid)
         {
             PrefabGuid = prefabGuid;
-            SceneGuid = sceneGuid;
+            SavableGuid = savableGuid;
         }
     }
     
