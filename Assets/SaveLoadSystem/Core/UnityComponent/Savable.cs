@@ -122,7 +122,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     if (string.IsNullOrEmpty(objectId.guid))
                     {
-                        SavableLookup[index].guid = GetUniqueSavableID((Component)objectId.unityObject);
+                        SavableLookup[index].guid = GetUniqueSavableID();
                     }
                     
                     foundElements.Remove((Component)objectId.unityObject);
@@ -132,19 +132,19 @@ namespace SaveLoadSystem.Core.UnityComponent
             //add new elements
             foreach (var foundElement in foundElements) 
             {
-                var guid = GetUniqueSavableID(foundElement);
+                var guid = GetUniqueSavableID();
                 
                 SavableLookup.Add(new UnityObjectIdentification(guid, foundElement));
             }
         }
 
-        private string GetUniqueSavableID(Component component)
+        private string GetUniqueSavableID()
         {
-            var guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+            var guid = "Component_" + SaveLoadUtility.GenerateId();
             
             while (SavableLookup != null && SavableLookup.Exists(x => x.guid == guid))
             {
-                guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+                guid = "Component_" + SaveLoadUtility.GenerateId();
             }
 
             return guid;
@@ -177,7 +177,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     
                     if (string.IsNullOrEmpty(objectId.guid))
                     {
-                        DuplicateComponentLookup[index].guid = GetUniqueDuplicateID((Component)objectId.unityObject);
+                        DuplicateComponentLookup[index].guid = GetUniqueDuplicateID();
                     }
                     
                     duplicates.Remove((Component)objectId.unityObject);
@@ -187,19 +187,19 @@ namespace SaveLoadSystem.Core.UnityComponent
             //add new elements
             foreach (var foundElement in duplicates) 
             {
-                var guid = GetUniqueSavableID(foundElement);
+                var guid = GetUniqueSavableID();
                 
                 DuplicateComponentLookup.Add(new UnityObjectIdentification(guid, foundElement));
             }
         }
         
-        private string GetUniqueDuplicateID(Component component)
+        private string GetUniqueDuplicateID()
         {
-            var guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+            var guid = "Component_" + SaveLoadUtility.GenerateId();
             
             while (DuplicateComponentLookup != null && DuplicateComponentLookup.Exists(x => x.guid == guid))
             {
-                guid = "Component_" + component.name + "_" + SaveLoadUtility.GenerateId();
+                guid = "Component_" + SaveLoadUtility.GenerateId();
             }
 
             return guid;
