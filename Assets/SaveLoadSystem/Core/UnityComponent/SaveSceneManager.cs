@@ -8,6 +8,7 @@ using SaveLoadSystem.Utility;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
@@ -23,6 +24,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private static bool _isQuitting;
 
+        public Scene Scene { get; private set; }
+        
         private readonly Dictionary<string, Savable> _trackedSavables = new();
         
         internal readonly Dictionary<GameObject, GuidPath> SavableGameObjectToGuidLookup = new();
@@ -44,7 +47,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             private static void OnHierarchyChanged()
             {
-                if (Application.isPlaying) return;
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
                 
                 var saveSceneManagers = FindObjectsOfType<SaveSceneManager>();
 
@@ -97,8 +100,10 @@ namespace SaveLoadSystem.Core.UnityComponent
                     GuidToScriptableObjectLookup.Add(scriptableObjectSavable.guid, (ScriptableObject)scriptableObjectSavable.unityObject);
                 }
             }
-            
-            saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
+
+            Scene = gameObject.scene;
+            saveLoadManager.RegisterSaveSceneManager(this);
+            //Debug.Log("awake add " + saveLoadManager.TrackedSaveSceneManagers.Count);
 
             if (loadSceneOnAwake)
             {
@@ -106,23 +111,6 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
         }
         
-        private void OnEnable()
-        {
-            saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
-        }
-        
-        private void OnDisable()
-        {
-            saveLoadManager.UnregisterSaveSceneManager(gameObject.scene);
-        }
-
-        private void OnValidate()
-        {
-            if (Application.isPlaying) return;
-
-            saveLoadManager.RegisterSaveSceneManager(gameObject.scene, this);
-        }
-
         private void OnDestroy()
         {
             if (!_isQuitting)
@@ -142,7 +130,18 @@ namespace SaveLoadSystem.Core.UnityComponent
                 }
             }
             
-            saveLoadManager.UnregisterSaveSceneManager(gameObject.scene);
+            Scene = default;
+            saveLoadManager.UnregisterSaveSceneManager(this);
+            //Debug.Log("destroy remove " + saveLoadManager.TrackedSaveSceneManagers.Count);
+        }
+
+        private void OnValidate()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+            Scene = gameObject.scene;
+            saveLoadManager.RegisterSaveSceneManager(this);
+            //Debug.Log("validate add " + saveLoadManager.TrackedSaveSceneManagers.Count);
         }
 
         private void OnApplicationQuit()
@@ -269,7 +268,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Snapshot Scene")]
         public void SnapshotScene()
         {
-            saveLoadManager.SaveFocus.SnapshotScenes(gameObject.scene);
+            saveLoadManager.SaveFocus.SnapshotScenes(this);
         }
 
         [ContextMenu("Write To Disk")]
@@ -281,37 +280,37 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Save Scene")]
         public void SaveScene()
         {
-            saveLoadManager.SaveFocus.SaveScenes(gameObject.scene);
+            saveLoadManager.SaveFocus.SaveScenes(this);
         }
 
         [ContextMenu("Apply Snapshot")]
         public void ApplySnapshot()
         {
-            saveLoadManager.SaveFocus.ApplySnapshotToScenes(gameObject.scene);
+            saveLoadManager.SaveFocus.ApplySnapshotToScenes(this);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            saveLoadManager.SaveFocus.LoadScenes(gameObject.scene);
+            saveLoadManager.SaveFocus.LoadScenes(this);
         }
         
         [ContextMenu("Wipe Scene Data")]
         public void WipeSceneData()
         {
-            saveLoadManager.SaveFocus.DeleteSceneData(gameObject.scene);
+            saveLoadManager.SaveFocus.DeleteSceneData(this);
         }
         
         [ContextMenu("Delete Scene Data")]
         public void DeleteSceneData()
         {
-            saveLoadManager.SaveFocus.DeleteAll(gameObject.scene);
+            saveLoadManager.SaveFocus.DeleteAll(this);
         }
 
         [ContextMenu("Reload Then Load Scene")]
         public void ReloadThenLoadScene()
         {
-            saveLoadManager.SaveFocus.ReloadThenLoadScenes(gameObject.scene);
+            saveLoadManager.SaveFocus.ReloadThenLoadScenes(this);
         }
         
         

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
@@ -42,7 +43,7 @@ namespace SaveLoadSystem.Core
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
         public SaveVersion SaveVersion => new(major, minor, patch);
-        public Dictionary<Scene, SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
+        public List<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
         public bool HasSaveFocus => _saveFocus != null;
         public SaveFocus SaveFocus
         {
@@ -73,8 +74,7 @@ namespace SaveLoadSystem.Core
         {
             SetFocus(fileName);
 
-            var activeScenes = UnityUtility.GetActiveScenes();
-            SaveFocus.SnapshotScenes(activeScenes);
+            SaveFocus.SnapshotScenes(TrackedSaveSceneManagers.ToArray());
             SaveFocus.WriteToDisk();
         }
 
@@ -84,8 +84,7 @@ namespace SaveLoadSystem.Core
 
             if (SaveFocus.IsPersistent)
             {
-                var activeScenes = UnityUtility.GetActiveScenes();
-                SaveFocus.LoadScenes(activeScenes);
+                SaveFocus.LoadScenes(TrackedSaveSceneManagers.ToArray());
             }
             else
             {
@@ -193,14 +192,14 @@ namespace SaveLoadSystem.Core
 
         #region Internal
 
-        internal void RegisterSaveSceneManager(Scene scene, SaveSceneManager saveSceneManager)
+        internal void RegisterSaveSceneManager(SaveSceneManager saveSceneManager)
         { 
-            TrackedSaveSceneManagers[scene] = saveSceneManager;
+            TrackedSaveSceneManagers.Add(saveSceneManager);
         }
         
-        internal bool UnregisterSaveSceneManager(Scene scene)
+        internal bool UnregisterSaveSceneManager(SaveSceneManager saveSceneManager)
         {
-            return TrackedSaveSceneManagers.Remove(scene);
+            return TrackedSaveSceneManagers.Remove(saveSceneManager);
         }
         
         #endregion

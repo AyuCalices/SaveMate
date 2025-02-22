@@ -44,18 +44,21 @@ namespace SaveLoadSystem.Core.UnityComponent
         private void Awake()
         {
             RegisterToSceneManager();
+            //Debug.Log("awake register");
         }
 
         private void OnDestroy()
         {
             UnregisterFromSceneManager();
+            //Debug.Log("destroy unregister");
         }
 
         private void OnValidate()
         {
-            if (Application.isPlaying) return;
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             
             RegisterToSceneManager();
+            //Debug.Log("valdate register");
             
             /*
              * Currently the system only supports adding savable-components during editor mode.
@@ -208,7 +211,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         private void SetDirty(Object obj)
         {
 #if UNITY_EDITOR
-            if (!Application.isPlaying)
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
             {
                 EditorUtility.SetDirty(obj);
             }

@@ -64,18 +64,6 @@ namespace SaveLoadSystem.Utility
             return default;
         }
         
-        public static Scene[] GetActiveScenes()
-        {
-            var activeScenes = new Scene[SceneManager.sceneCount];
-            
-            for (var index = 0; index < SceneManager.sceneCount; index++)
-            {
-                activeScenes[index] = SceneManager.GetSceneAt(index);
-            }
-
-            return activeScenes;
-        }
-        
         /// <summary>
         /// Finds and returns all components that are attached multiple times to the given GameObject.
         /// </summary>

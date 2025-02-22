@@ -99,7 +99,7 @@ namespace SaveLoadSystem.Core
         
         private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
         {
-            if (Application.isPlaying) return;
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             
             /* Don't iterate if updating or compiling as that could cause an infinite loop
              * due to the prefabs being generated during an update, which causes the update

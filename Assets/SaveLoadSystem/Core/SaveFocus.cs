@@ -74,10 +74,10 @@ namespace SaveLoadSystem.Core
         
         public void SnapshotActiveScenes()
         {
-            SnapshotScenes(UnityUtility.GetActiveScenes());
+            SnapshotScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
         }
 
-        public void SnapshotScenes(params Scene[] scenesToSnapshot)
+        public void SnapshotScenes(params SaveSceneManager[] scenesToSnapshot)
         {
             _asyncQueue.Enqueue(() =>
             {
@@ -106,12 +106,9 @@ namespace SaveLoadSystem.Core
                     CustomData = _customMetaData
                 };
                 
-                foreach (var activeScene in UnityUtility.GetActiveScenes())
+                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
-                    {
-                        saveSceneManager.HandleBeforeWriteToDisk();
-                    }
+                    trackedSaveSceneManager.HandleBeforeWriteToDisk();
                 }
                 
                 await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, _saveData);
@@ -119,12 +116,9 @@ namespace SaveLoadSystem.Core
                 IsPersistent = true;
                 HasPendingData = false;
                 
-                foreach (var activeScene in UnityUtility.GetActiveScenes())
+                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
-                    {
-                        saveSceneManager.HandleAfterWriteToDisk();
-                    }
+                    trackedSaveSceneManager.HandleAfterWriteToDisk();
                 }
                 
                 Debug.LogWarning("Save Completed!");
@@ -137,24 +131,24 @@ namespace SaveLoadSystem.Core
             WriteToDisk();
         }
 
-        public void SaveScenes(params Scene[] scenesToSave)
+        public void SaveScenes(params SaveSceneManager[] saveSceneManagersToSave)
         {
-            SnapshotScenes(scenesToSave);
+            SnapshotScenes(saveSceneManagersToSave);
             WriteToDisk();
         }
 
         public void ApplySnapshotToActiveScenes()
         {
-            ApplySnapshotToScenes(UnityUtility.GetActiveScenes());
+            ApplySnapshotToScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
         }
 
-        public void ApplySnapshotToScenes(params Scene[] scenesToApplySnapshot)
+        public void ApplySnapshotToScenes(params SaveSceneManager[] saveSceneManagersToApplySnapshot)
         {
             _asyncQueue.Enqueue(() =>
             {
                 if (_saveData == null) return Task.CompletedTask;
                 
-                InternalLoadActiveScenes(_saveData, scenesToApplySnapshot);
+                InternalLoadActiveScenes(_saveData, saveSceneManagersToApplySnapshot);
                 return Task.CompletedTask;
             });
         }
@@ -165,10 +159,10 @@ namespace SaveLoadSystem.Core
             ApplySnapshotToActiveScenes();
         }
         
-        public void LoadScenes(params Scene[] scenesToLoad)
+        public void LoadScenes(params SaveSceneManager[] saveSceneManagersToLoad)
         {
             ReadFromDisk();
-            ApplySnapshotToScenes(scenesToLoad);
+            ApplySnapshotToScenes(saveSceneManagersToLoad);
         }
 
         public void ReadFromDisk()
@@ -188,14 +182,14 @@ namespace SaveLoadSystem.Core
         
         public void ReloadThenLoadActiveScenes()
         {
-            ReloadThenLoadScenes(UnityUtility.GetActiveScenes());
+            ReloadThenLoadScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
         }
         
         /// <summary>
         /// data will be applied after awake
         /// </summary>
         /// <param name="scenesToLoad"></param>
-        public void ReloadThenLoadScenes(params Scene[] scenesToLoad)
+        public void ReloadThenLoadScenes(params SaveSceneManager[] scenesToLoad)
         {
             _asyncQueue.Enqueue(async () =>
             {
@@ -212,20 +206,20 @@ namespace SaveLoadSystem.Core
                 var savePaths = new string[scenesToLoad.Length];
                 for (var index = 0; index < scenesToLoad.Length; index++)
                 {
-                    savePaths[index] = scenesToLoad[index].path;
+                    savePaths[index] = scenesToLoad[index].Scene.path;
                 }
 
                 //async reload scene and continue, when all are loaded
-                var loadTasks = scenesToLoad.Select(scene => LoadSceneAsync(scene.path)).ToList();
+                var loadTasks = scenesToLoad.Select(saveSceneManager => LoadSceneAsync(saveSceneManager.Scene.path)).ToList();
                 await Task.WhenAll(loadTasks);
 
                 //remap save paths to the reloaded scenes
-                List<Scene> matchingGuids = new();
-                foreach (var scene in UnityUtility.GetActiveScenes())
+                List<SaveSceneManager> matchingGuids = new();
+                foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
                 {
-                    if (savePaths.Contains(scene.path))
+                    if (savePaths.Contains(saveSceneManager.Scene.path))
                     {
-                        matchingGuids.Add(scene);
+                        matchingGuids.Add(saveSceneManager);
                     }
                 }
                 
@@ -235,18 +229,18 @@ namespace SaveLoadSystem.Core
         
         public void DeleteActiveSceneData()
         {
-            DeleteSceneData(UnityUtility.GetActiveScenes());
+            DeleteSceneData(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
         }
 
-        public void DeleteSceneData(params Scene[] scenesToWipe)
+        public void DeleteSceneData(params SaveSceneManager[] saveSceneManagersToWipe)
         {
             _asyncQueue.Enqueue(() =>
             {
                 if (_saveData == null) return Task.CompletedTask;
 
-                foreach (var scene in scenesToWipe)
+                foreach (var saveSceneManager in saveSceneManagersToWipe)
                 {
-                    _saveData.RemoveSceneData(scene);
+                    _saveData.RemoveSceneData(saveSceneManager.Scene);
                 }
                 HasPendingData = true;
 
@@ -254,11 +248,11 @@ namespace SaveLoadSystem.Core
             });
         }
         
-        public void DeleteAll(params Scene[] scenesToWipe)
+        public void DeleteAll(params SaveSceneManager[] saveSceneManagersToWipe)
         {
-            foreach (var scene in scenesToWipe)
+            foreach (var saveSceneManager in saveSceneManagersToWipe)
             {
-                DeleteSceneData(scene);
+                DeleteSceneData(saveSceneManager);
             }
 
             DeleteDiskData();
@@ -268,25 +262,18 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(async () =>
             {
-                foreach (var activeScene in UnityUtility.GetActiveScenes())
+                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
-                    {
-                        saveSceneManager.HandleBeforeDeleteDiskData();
-                    }
+                    trackedSaveSceneManager.HandleBeforeDeleteDiskData();
                 }
 
                 await SaveLoadUtility.DeleteAsync(_saveLoadManager, FileName);
 
                 IsPersistent = false;
                 
-                
-                foreach (var activeScene in UnityUtility.GetActiveScenes())
+                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
                 {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(activeScene, out SaveSceneManager saveSceneManager))
-                    {
-                        saveSceneManager.HandleAfterDeleteDiskData();
-                    }
+                    trackedSaveSceneManager.HandleAfterDeleteDiskData();
                 }
                 
                 Debug.LogWarning("Delete Completed!");
@@ -295,52 +282,45 @@ namespace SaveLoadSystem.Core
 
         #region Private Methods
 
-        private void InternalSnapshotActiveScenes(SaveData saveData, params Scene[] scenesToSnapshot)
+        private void InternalSnapshotActiveScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             
             //get relevant scene data
-            var sceneLookup = new List<(Scene Scene, SaveSceneManager SaveSceneManager)>();
-            foreach (var scene in scenesToSnapshot)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
-                if (!scene.isLoaded)
+                if (!saveSceneManager.Scene.isLoaded)
                 {
-                    Debug.LogWarning($"Tried to snapshot the unloaded scene {scene.name}!");
-                    continue;
-                }
-                
-                if (Application.isPlaying)
-                {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(scene, out SaveSceneManager saveSceneManager))
-                    {
-                        sceneLookup.Add((scene, saveSceneManager));
-                    }
-                }
-                else
-                {
-                    //If editor mode, SaveSceneManagers must be searched
-                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
-                    sceneLookup.Add((scene, saveSceneManager));
+                    Debug.LogWarning($"Tried to snapshot the unloaded scene {saveSceneManager.name}!");
                 }
             }
             
             //before event
-            foreach (var sceneLookupElement in sceneLookup)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
-                sceneLookupElement.SaveSceneManager.HandleBeforeSnapshot();
+                if (saveSceneManager.Scene.isLoaded)
+                {
+                    saveSceneManager.HandleBeforeSnapshot();
+                }
             }
             
             //perform snapshot
-            foreach (var sceneLookupElement in sceneLookup)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
-                saveData.SetSceneData(sceneLookupElement.Scene, sceneLookupElement.SaveSceneManager.CreateSnapshot());
+                if (saveSceneManager.Scene.isLoaded)
+                {
+                    saveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot());
+                }
             }
             
             //after event
-            foreach (var sceneLookupElement in sceneLookup)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
-                sceneLookupElement.SaveSceneManager.HandleAfterSnapshot();
+                if (saveSceneManager.Scene.isLoaded)
+                {
+                    saveSceneManager.HandleAfterSnapshot();
+                }
             }
             
             stopwatch.Stop();
@@ -349,92 +329,47 @@ namespace SaveLoadSystem.Core
             Debug.LogWarning("Snapshot Completed!");
         }
 
-        private void InternalLoadActiveScenes(SaveData saveData, params Scene[] scenesToLoad)
+        private void InternalLoadActiveScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
             //get relevant scene data
-            var sceneLookup = new List<(SceneSaveData SceneDataContainer, SaveSceneManager SaveSceneManager)>();
-            foreach (var scene in scenesToLoad)
+            Dictionary<SaveSceneManager, SceneSaveData> sceneDataLookup = new();
+            foreach (var saveSceneManager in saveSceneManagers)
             {
-                if (!scene.isLoaded)
+                if (!saveSceneManager.Scene.isLoaded)
                 {
-                    Debug.LogWarning($"Tried to load a save into the unloaded scene {scene.name}!");
-                    continue;
+                    Debug.LogWarning($"Tried to load a save into the unloaded scene {saveSceneManager.name}!");
                 }
-
-                if (!saveData.TryGetSceneData(scene, out SceneSaveData sceneDataContainer)) continue;
                 
-                if (Application.isPlaying)
-                {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(scene, out SaveSceneManager saveSceneManager))
-                    {
-                        sceneLookup.Add((sceneDataContainer, saveSceneManager));
-                    }
-                }
-                else
-                {
-                    //If editor mode, SaveSceneManagers must be searched
-                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
-                    sceneLookup.Add((sceneDataContainer, saveSceneManager));
-                }
+                if (!saveData.TryGetSceneData(saveSceneManager.Scene, out SceneSaveData sceneDataContainer)) continue;
+                
+                sceneDataLookup.Add(saveSceneManager, sceneDataContainer);
             }
 
             //before event
-            foreach (var scene in sceneLookup)
+            foreach (var saveSceneManager in sceneDataLookup.Keys)
             {
-                scene.SaveSceneManager.HandleBeforeLoad();
+                saveSceneManager.HandleBeforeLoad();
             }
             
             //perform load
-            foreach (var scene in sceneLookup)
+            foreach (var (saveSceneManager, sceneSaveData) in sceneDataLookup)
             {
-                scene.SaveSceneManager.LoadSnapshot(scene.SceneDataContainer);
+                saveSceneManager.LoadSnapshot(sceneSaveData);
             }
             
             //after event
-            foreach (var scene in sceneLookup)
+            foreach (var saveSceneManager in sceneDataLookup.Keys)
             {
-                scene.SaveSceneManager.HandleAfterLoad();
+                saveSceneManager.HandleAfterLoad();
             }
             
             stopwatch.Stop();
             Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
             
             Debug.LogWarning("Loading Completed!");
-        }
-
-        private List<(Scene, SceneSaveData, SaveSceneManager)> GetSceneDataLookup(SaveData saveData, params Scene[] scenes)
-        {
-            var sceneLookup = new List<(Scene Scene, SceneSaveData SceneDataContainer, SaveSceneManager SaveSceneManager)>();
-            
-            foreach (var scene in scenes)
-            {
-                if (!scene.isLoaded)
-                {
-                    Debug.LogWarning($"Tried to load a save into the unloaded scene {scene.name}!");
-                    continue;
-                }
-
-                if (!saveData.TryGetSceneData(scene, out SceneSaveData sceneDataContainer)) continue;
-                
-                if (Application.isPlaying)
-                {
-                    if (_saveLoadManager.TrackedSaveSceneManagers.TryGetValue(scene, out SaveSceneManager saveSceneManager))
-                    {
-                        sceneLookup.Add((scene, sceneDataContainer, saveSceneManager));
-                    }
-                }
-                else
-                {
-                    //If editor mode, SaveSceneManagers must be searched
-                    var saveSceneManager = UnityUtility.FindObjectOfTypeInScene<SaveSceneManager>(scene, true);
-                    sceneLookup.Add((scene, sceneDataContainer, saveSceneManager));
-                }
-            }
-
-            return sceneLookup;
         }
         
         private Task<AsyncOperation> LoadSceneAsync(string scenePath)
