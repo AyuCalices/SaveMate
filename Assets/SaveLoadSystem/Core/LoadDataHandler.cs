@@ -21,15 +21,20 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
         
         //unity object reference lookups
-        private readonly SaveSceneManager _saveSceneManager;
+        private readonly Dictionary<string, GameObject> _guidToSavableGameObjectLookup;
+        private readonly Dictionary<string, ScriptableObject> _guidToScriptableObjectLookup;
+        private readonly Dictionary<string, Component> _guidToComponentLookup;
 
         public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, 
-            Dictionary<GuidPath, object> createdObjectsLookup, SaveSceneManager saveSceneManager)
+            Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<string, GameObject> guidToSavableGameObjectLookup,
+            Dictionary<string, ScriptableObject> guidToScriptableObjectLookup, Dictionary<string, Component> guidToComponentLookup)
         {
             _instanceSaveData = instanceSaveData;
             _sceneSaveData = sceneSaveData;
             _createdObjectsLookup = createdObjectsLookup;
-            _saveSceneManager = saveSceneManager;
+            _guidToSavableGameObjectLookup = guidToSavableGameObjectLookup;
+            _guidToScriptableObjectLookup = guidToScriptableObjectLookup;
+            _guidToComponentLookup = guidToComponentLookup;
         }
 
         public bool TryLoad<T>(string identifier, out T obj)
@@ -147,7 +152,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _saveSceneManager);
+                _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -166,7 +171,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _saveSceneManager);
+                _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
@@ -192,7 +197,7 @@ namespace SaveLoadSystem.Core
             //unity type reference handling
             if (typeof(ScriptableObject).IsAssignableFrom(type))
             {
-                if (_saveSceneManager.GuidToScriptableObjectLookup.TryGetValue(guidPath.ToString(), out var scriptableObject))
+                if (_guidToScriptableObjectLookup.TryGetValue(guidPath.ToString(), out var scriptableObject))
                 {
                     reference = scriptableObject;
                     return true;
@@ -200,7 +205,7 @@ namespace SaveLoadSystem.Core
             }
             else if (type == typeof(GameObject))
             {
-                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_guidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = savable.gameObject;
                     return true;
@@ -208,7 +213,7 @@ namespace SaveLoadSystem.Core
             } 
             else if (type == typeof(Transform))
             {
-                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_guidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = savable.transform;
                     return true;
@@ -216,7 +221,7 @@ namespace SaveLoadSystem.Core
             }
             else if (type == typeof(RectTransform))
             {
-                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_guidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = (RectTransform)savable.transform;
                     return true;
@@ -224,13 +229,13 @@ namespace SaveLoadSystem.Core
             }
             else if (typeof(Component).IsAssignableFrom(type))
             {
-                if (_saveSceneManager.GuidToComponentLookup.TryGetValue(guidPath.ToString(), out var duplicatedComponent))
+                if (_guidToComponentLookup.TryGetValue(guidPath.ToString(), out var duplicatedComponent))
                 {
                     reference = duplicatedComponent;
                     return true;
                 }
                 
-                if (_saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
+                if (_guidToSavableGameObjectLookup.TryGetValue(guidPath.ToString(), out var savable))
                 {
                     reference = savable.GetComponent(type);
                     return true;
@@ -263,7 +268,7 @@ namespace SaveLoadSystem.Core
             }
             
             var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _saveSceneManager);
+                _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))

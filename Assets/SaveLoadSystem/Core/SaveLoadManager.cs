@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
@@ -8,7 +7,6 @@ using SaveLoadSystem.Core.SerializeStrategy;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core
 {

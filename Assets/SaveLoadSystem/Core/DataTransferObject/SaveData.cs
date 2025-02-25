@@ -10,27 +10,27 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public void SetSceneData(Scene scene, SceneSaveData sceneSaveData)
         {
-            SceneDataLookup[scene.path] = sceneSaveData;
+            SceneDataLookup[scene.name] = sceneSaveData;
         }
 
         public bool ContainsSceneData(Scene scene)
         {
-            return SceneDataLookup.ContainsKey(scene.path);
+            return SceneDataLookup.ContainsKey(scene.name);
         }
 
         public SceneSaveData GetSceneData(Scene scene)
         {
-            return SceneDataLookup[scene.path];
+            return SceneDataLookup[scene.name];
         }
 
         public bool TryGetSceneData(Scene scene, out SceneSaveData sceneSaveData)
         {
-            return SceneDataLookup.TryGetValue(scene.path, out sceneSaveData);
+            return SceneDataLookup.TryGetValue(scene.name, out sceneSaveData);
         }
 
         public void RemoveSceneData(Scene scene)
         {
-            SceneDataLookup.Remove(scene.path);
+            SceneDataLookup.Remove(scene.name);
         }
     }
 }

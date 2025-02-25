@@ -7,10 +7,13 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.UnityComponent;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
+using TypeUtility = SaveLoadSystem.Utility.TypeUtility;
 
 namespace SaveLoadSystem.Core
 {
@@ -304,6 +307,46 @@ namespace SaveLoadSystem.Core
                     saveSceneManager.HandleBeforeSnapshot();
                 }
             }
+
+            /*
+            HashSet<AssetRegistry> processedAssetRegistries = new();
+            Dictionary<GameObject, GuidPath> uniqueGameObjects = new();
+            Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects = new();
+            Dictionary<Component, GuidPath> uniqueComponents = new();
+            foreach (var saveSceneManager in saveSceneManagers)
+            {
+                //prevent processing of the same asset registry
+                if (!processedAssetRegistries.Add(saveSceneManager.AssetRegistry)) continue;
+                
+                foreach (var (gameObject, guidPath) in saveSceneManager.SavableGameObjectToGuidLookup)
+                {
+                    uniqueGameObjects.TryAdd(gameObject, new GuidPath(guidPath.TargetGuid, saveSceneManager.Scene.name));
+                }
+                
+                foreach (var (scriptableObject, guidPath) in saveSceneManager.ScriptableObjectToGuidLookup)
+                {
+                    uniqueScriptableObjects.TryAdd(scriptableObject, new GuidPath(guidPath.TargetGuid, saveSceneManager.Scene.name));
+                }
+                
+                foreach (var (component, guidPath) in saveSceneManager.ComponentToGuidLookup)
+                {
+                    uniqueComponents.TryAdd(component, new GuidPath(guidPath.TargetGuid, saveSceneManager.Scene.name));
+                }
+            }
+            
+            Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup = new();
+            Dictionary<object, GuidPath> processedInstancesLookup = new ();
+            foreach (var (scriptableObject, guidPath) in uniqueScriptableObjects)
+            {
+                var instanceSaveData = new InstanceSaveData();
+
+                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+
+                if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
+
+                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
+                    processedInstancesLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents));
+            }*/
             
             //perform snapshot
             foreach (var saveSceneManager in saveSceneManagers)
@@ -353,6 +396,22 @@ namespace SaveLoadSystem.Core
             {
                 saveSceneManager.HandleBeforeLoad();
             }
+            
+            /*
+            //perform scriptable object snapshot
+            foreach (var (scriptableObject, guidPath) in uniqueScriptableObjects)
+            {
+                if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
+                {
+                    var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
+                        createdObjectsLookup, this);
+                        
+                    if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
+                    
+                    targetSavable.OnLoad(loadDataHandler);
+                }
+            }
+             */
             
             //perform load
             foreach (var (saveSceneManager, sceneSaveData) in sceneDataLookup)

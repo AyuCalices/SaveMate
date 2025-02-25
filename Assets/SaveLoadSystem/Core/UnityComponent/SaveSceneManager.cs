@@ -461,20 +461,16 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             //iterate over ScriptableObjects
             //TODO: throw this out of here
-            if (assetRegistry != null)
+            foreach (var (scriptableObject, guidPath) in ScriptableObjectToGuidLookup)
             {
-                foreach (var unityObjectIdentification in assetRegistry.ScriptableObjectSavables)
-                {
-                    var guidPath = new GuidPath(unityObjectIdentification.guid);
-                    var instanceSaveData = new InstanceSaveData();
+                var instanceSaveData = new InstanceSaveData();
 
-                    instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
 
-                    if (!TypeUtility.TryConvertTo(unityObjectIdentification.unityObject, out ISavable targetSavable)) return;
+                if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
 
-                    targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
-                        processedInstancesLookup, this));
-                }
+                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
+                    processedInstancesLookup, SavableGameObjectToGuidLookup, ScriptableObjectToGuidLookup, ComponentToGuidLookup));
             }
 
             //iterate over GameObjects with savable component
@@ -491,7 +487,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
             
                     targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup, 
-                        processedInstancesLookup, this));
+                        processedInstancesLookup, SavableGameObjectToGuidLookup, ScriptableObjectToGuidLookup, ComponentToGuidLookup));
                 }
             }
         }
@@ -544,21 +540,16 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             //iterate over ScriptableObjects
             //TODO: throw this out of here
-            if (assetRegistry != null)
+            foreach (var (scriptableObject, guidPath) in ScriptableObjectToGuidLookup)
             {
-                foreach (var componentContainer in assetRegistry.ScriptableObjectSavables)
+                if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
                 {
-                    var guidPath = new GuidPath(componentContainer.guid);
-                
-                    if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
-                    {
-                        var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
-                            createdObjectsLookup, this);
+                    var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
+                        createdObjectsLookup, GuidToSavableGameObjectLookup, GuidToScriptableObjectLookup, GuidToComponentLookup);
                         
-                        if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
+                    if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
-                        targetSavable.OnLoad(loadDataHandler);
-                    }
+                    targetSavable.OnLoad(loadDataHandler);
                 }
             }
             
@@ -574,7 +565,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(componentGuidPath, out var instanceSaveData))
                     {
                         var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
-                            createdObjectsLookup, this);
+                            createdObjectsLookup, GuidToSavableGameObjectLookup, GuidToScriptableObjectLookup, GuidToComponentLookup);
                         
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     

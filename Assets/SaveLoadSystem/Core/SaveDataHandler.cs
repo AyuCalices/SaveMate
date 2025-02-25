@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
-using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -20,16 +19,21 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, InstanceSaveData> _instanceSaveDataLookup;
         private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
         
-        private readonly SaveSceneManager _saveSceneManager;
+        private readonly Dictionary<GameObject, GuidPath> _savableGameObjectToGuidLookup;
+        private readonly Dictionary<ScriptableObject, GuidPath> _scriptableObjectToGuidLookup;
+        private readonly Dictionary<Component, GuidPath> _componentToGuidLookup;
 
         public SaveDataHandler(GuidPath guidPath, InstanceSaveData instanceSaveData, Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, 
-            Dictionary<object, GuidPath> processedInstancesLookup, SaveSceneManager saveSceneManager)
+            Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup,
+            Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
             _guidPath = guidPath;
             _instanceSaveData = instanceSaveData;
             _instanceSaveDataLookup = instanceSaveDataLookup;
             _processedInstancesLookup = processedInstancesLookup;
-            _saveSceneManager = saveSceneManager;
+            _savableGameObjectToGuidLookup = savableGameObjectToGuidLookup;
+            _scriptableObjectToGuidLookup = scriptableObjectToGuidLookup;
+            _componentToGuidLookup = componentToGuidLookup;
         }
 
         public void Save(string uniqueIdentifier, object obj)
@@ -63,7 +67,7 @@ namespace SaveLoadSystem.Core
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new InstanceSaveData();
                 var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _saveSceneManager);
+                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 
                 savable.OnSave(saveDataHandler);
                 
@@ -74,7 +78,7 @@ namespace SaveLoadSystem.Core
                 var newPath = new GuidPath(uniqueIdentifier);
                 var componentDataBuffer = new InstanceSaveData();
                 var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _saveSceneManager);
+                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
@@ -121,12 +125,12 @@ namespace SaveLoadSystem.Core
             if (objectToSave is Component component)
             {
                 //components with a guid must be processed because: 1. prevent ambiguity between duplicates 2. clearly identify components that inherit from ISavable
-                if (_saveSceneManager.ComponentToGuidLookup.TryGetValue(component, out guidPath))
+                if (_componentToGuidLookup.TryGetValue(component, out guidPath))
                 {
                     return guidPath;
                 }
                 
-                if (_saveSceneManager.SavableGameObjectToGuidLookup.TryGetValue(component.gameObject, out guidPath))
+                if (_savableGameObjectToGuidLookup.TryGetValue(component.gameObject, out guidPath))
                 {
                     return guidPath;
                 }
@@ -136,7 +140,7 @@ namespace SaveLoadSystem.Core
 
             if (objectToSave is ScriptableObject scriptableObject)
             {
-                if (_saveSceneManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
+                if (_scriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
                 {
                     return guidPath;
                 }
@@ -173,7 +177,7 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
             
                 targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _saveSceneManager));
+                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
@@ -182,7 +186,7 @@ namespace SaveLoadSystem.Core
                 _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
                         
                 var saveDataHandler = new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _saveSceneManager);
+                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else
