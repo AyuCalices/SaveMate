@@ -20,11 +20,18 @@ namespace SaveLoadSystem.Core.DataTransferObject
             Array.Copy(parentPath, TargetGuid, parentPath.Length);
         }
         
-        public GuidPath(string[] parentPath, string guid)
+        public GuidPath(string guidSuffix, string[] parentPath)
+        {
+            TargetGuid = new string[parentPath.Length + 1];
+            TargetGuid[0] = guidSuffix;
+            Array.Copy(parentPath, 0, TargetGuid, 1, parentPath.Length);
+        }
+        
+        public GuidPath(string[] parentPath, string guidPrefix)
         {
             TargetGuid = new string[parentPath.Length + 1];
             Array.Copy(parentPath, TargetGuid, parentPath.Length);
-            TargetGuid[^1] = guid;
+            TargetGuid[^1] = guidPrefix;
         }
 
         public override string ToString()

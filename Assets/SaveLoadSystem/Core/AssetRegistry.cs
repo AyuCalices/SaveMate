@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
 using UnityEngine;
@@ -14,23 +16,68 @@ namespace SaveLoadSystem.Core
         public List<Savable> PrefabSavables => prefabSavables;
         public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
 
+        private void OnValidate()
+        {
+            FixMissingPrefabID();
+            FixMissingScriptableObjectID();
+
+            DetectDuplicateScriptableObjectIDs();
+        }
+
+        private void DetectDuplicateScriptableObjectIDs()
+        {
+            var assetRegistries = UnityUtility.FindAllScriptableObjects<AssetRegistry>();
+            foreach (var unityObjectIdentification in scriptableObjectSavables)
+            {
+                int count = 0;
+                
+                foreach (var assetRegistry in assetRegistries)
+                {
+                    count += assetRegistry.ScriptableObjectSavables.Count(x => x.guid == unityObjectIdentification.guid);
+                }
+                
+                if (count >= 2)
+                {
+                    Debug.LogError($"Duplicate ID '{unityObjectIdentification.guid}' detected! ScriptableObject IDs must be unique across all " +
+                                   $"Asset Registries. Please change your latest edit to ensure uniqueness.");
+                }
+            }
+        }
+
         internal void AddSavablePrefab(Savable savable)
         {
             if (string.IsNullOrEmpty(savable.PrefabGuid))
             {
-                var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-                while (prefabSavables.Exists(x => x.PrefabGuid == guid))
-                {
-                    guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-                }
-                
-                savable.PrefabGuid = guid;
+                savable.PrefabGuid = GeneratePrefabID(savable);
             }
 
             if (!prefabSavables.Exists(x => x == savable))
             {
                 prefabSavables.Add(savable);
             }
+        }
+
+        private void FixMissingPrefabID()
+        {
+            foreach (var prefabSavable in prefabSavables)
+            {
+                if (string.IsNullOrEmpty(prefabSavable.PrefabGuid))
+                {
+                    prefabSavable.PrefabGuid = GeneratePrefabID(prefabSavable);
+                }
+            }
+        }
+
+        private string GeneratePrefabID(Savable savable)
+        {
+            var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+            
+            while (prefabSavables.Exists(x => x.PrefabGuid == guid))
+            {
+                guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+            }
+
+            return guid;
         }
         
         internal void CleanupSavablePrefabs()
@@ -66,13 +113,45 @@ namespace SaveLoadSystem.Core
         {
             if (scriptableObjectSavables.Exists(x => (ScriptableObject)x.unityObject == scriptableObject)) return;
 
+            var guid = GenerateScriptableObjectID(scriptableObject);
+            
+            scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
+        }
+        
+        private void FixMissingScriptableObjectID()
+        {
+            foreach (var unityObjectIdentification in scriptableObjectSavables)
+            {
+                if (string.IsNullOrEmpty(unityObjectIdentification.guid))
+                {
+                    unityObjectIdentification.guid = GenerateScriptableObjectID((ScriptableObject)unityObjectIdentification.unityObject);
+                }
+            }
+        }
+        
+        private string GenerateScriptableObjectID(ScriptableObject scriptableObject)
+        {
             var guid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
-            while (scriptableObjectSavables.Exists(x => x.guid == guid))
+            
+            while (GuidExists(guid, UnityUtility.FindAllScriptableObjects<AssetRegistry>()))
             {
                 guid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
             }
-            
-            scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
+
+            return guid;
+        }
+
+        private bool GuidExists(string guid, AssetRegistry[] assetRegistries)
+        {
+            foreach (var assetRegistry in assetRegistries)
+            {
+                if (assetRegistry.ScriptableObjectSavables.Exists(x => x.guid == guid))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         internal void CleanupSavableScriptableObjects()

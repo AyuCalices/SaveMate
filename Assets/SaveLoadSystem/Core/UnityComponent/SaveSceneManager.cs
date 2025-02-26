@@ -25,6 +25,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         private static bool _isQuitting;
 
         public Scene Scene { get; private set; }
+        public AssetRegistry AssetRegistry => assetRegistry;
         
         private readonly Dictionary<string, Savable> _trackedSavables = new();
         

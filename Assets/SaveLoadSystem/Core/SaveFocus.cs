@@ -308,7 +308,8 @@ namespace SaveLoadSystem.Core
                 }
             }
 
-            /*
+            
+            
             HashSet<AssetRegistry> processedAssetRegistries = new();
             Dictionary<GameObject, GuidPath> uniqueGameObjects = new();
             Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects = new();
@@ -320,19 +321,20 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var (gameObject, guidPath) in saveSceneManager.SavableGameObjectToGuidLookup)
                 {
-                    uniqueGameObjects.TryAdd(gameObject, new GuidPath(guidPath.TargetGuid, saveSceneManager.Scene.name));
+                    uniqueGameObjects.TryAdd(gameObject, new GuidPath(saveSceneManager.Scene.name, guidPath.TargetGuid));
                 }
                 
                 foreach (var (scriptableObject, guidPath) in saveSceneManager.ScriptableObjectToGuidLookup)
                 {
-                    uniqueScriptableObjects.TryAdd(scriptableObject, new GuidPath(guidPath.TargetGuid, saveSceneManager.Scene.name));
+                    uniqueScriptableObjects.TryAdd(scriptableObject, new GuidPath(guidPath.TargetGuid));
                 }
                 
                 foreach (var (component, guidPath) in saveSceneManager.ComponentToGuidLookup)
                 {
-                    uniqueComponents.TryAdd(component, new GuidPath(guidPath.TargetGuid, saveSceneManager.Scene.name));
+                    uniqueComponents.TryAdd(component, new GuidPath(saveSceneManager.Scene.name, guidPath.TargetGuid));
                 }
             }
+            
             
             Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup = new();
             Dictionary<object, GuidPath> processedInstancesLookup = new ();
@@ -346,7 +348,9 @@ namespace SaveLoadSystem.Core
 
                 targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
                     processedInstancesLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents));
-            }*/
+            }
+            
+            
             
             //perform snapshot
             foreach (var saveSceneManager in saveSceneManagers)

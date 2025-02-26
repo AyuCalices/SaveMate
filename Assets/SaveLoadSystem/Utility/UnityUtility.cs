@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -29,39 +30,6 @@ namespace SaveLoadSystem.Utility
         public static bool IsUnityNull<T>(this T obj)
         {
             return obj == null || obj.Equals(null);
-        }
-        
-        public static List<T> FindObjectsOfTypeInScene<T>(Scene scene, bool includeInactive)
-        {
-            //if (!scene.isLoaded) return default;
-            
-            var objectsInScene = new List<T>();
-            
-            var rootObjects = scene.GetRootGameObjects();
-            foreach (var go in rootObjects)
-            {
-                var children = go.GetComponentsInChildren<T>(includeInactive);
-                objectsInScene.AddRange(children);
-            }
-            
-            return objectsInScene;
-        }
-        
-        public static T FindObjectOfTypeInScene<T>(Scene scene, bool includeInactive)
-        {
-            //if (!scene.isLoaded) return default;
-            
-            var rootObjects = scene.GetRootGameObjects();
-            foreach (var go in rootObjects)
-            {
-                var component = go.GetComponentInChildren<T>(includeInactive);
-                if (component != null)
-                {
-                    return component;
-                }
-            }
-            
-            return default;
         }
         
         /// <summary>
@@ -109,6 +77,20 @@ namespace SaveLoadSystem.Utility
             }
 
             return duplicates;
+        }
+        
+        public static T[] FindAllScriptableObjects<T>() where T : ScriptableObject
+        {
+            string[] guids = AssetDatabase.FindAssets($"t:{typeof(T).Name}");
+            T[] results = new T[guids.Length];
+
+            for (var index = 0; index < guids.Length; index++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[index]);
+                results[index] = AssetDatabase.LoadAssetAtPath<T>(path);
+            }
+
+            return results;
         }
     }
 }
