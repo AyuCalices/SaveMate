@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -399,6 +400,33 @@ namespace SaveLoadSystem.Core
             foreach (var saveSceneManager in sceneDataLookup.Keys)
             {
                 saveSceneManager.HandleBeforeLoad();
+            }
+            
+            
+            
+            HashSet<AssetRegistry> processedAssetRegistries = new();
+            Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
+            Dictionary<GuidPath, ScriptableObject> uniqueScriptableObjects = new();
+            Dictionary<GuidPath, Component> uniqueComponents = new();
+            foreach (var saveSceneManager in saveSceneManagers)
+            {
+                //prevent processing of the same asset registry
+                if (!processedAssetRegistries.Add(saveSceneManager.AssetRegistry)) continue;
+                
+                foreach (var (guidPath, gameObject) in saveSceneManager.GuidToSavableGameObjectLookup)
+                {
+                    uniqueGameObjects.TryAdd(new GuidPath(saveSceneManager.Scene.name, guidPath.TargetGuid), gameObject);
+                }
+                
+                foreach (var (guidPath, scriptableObject) in saveSceneManager.GuidToScriptableObjectLookup)
+                {
+                    uniqueScriptableObjects.TryAdd(new GuidPath(guidPath.TargetGuid), scriptableObject);
+                }
+                
+                foreach (var (guidPath, component) in saveSceneManager.GuidToComponentLookup)
+                {
+                    uniqueComponents.TryAdd(new GuidPath(saveSceneManager.Scene.name, guidPath.TargetGuid), component);
+                }
             }
             
             /*

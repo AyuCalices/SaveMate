@@ -33,9 +33,9 @@ namespace SaveLoadSystem.Core.UnityComponent
         internal readonly Dictionary<ScriptableObject, GuidPath> ScriptableObjectToGuidLookup = new();
         internal readonly Dictionary<Component, GuidPath> ComponentToGuidLookup = new();
         
-        internal readonly Dictionary<string, GameObject> GuidToSavableGameObjectLookup = new();
-        internal readonly Dictionary<string, ScriptableObject> GuidToScriptableObjectLookup = new();
-        internal readonly Dictionary<string, Component> GuidToComponentLookup = new();
+        internal readonly Dictionary<GuidPath, GameObject> GuidToSavableGameObjectLookup = new();
+        internal readonly Dictionary<GuidPath, ScriptableObject> GuidToScriptableObjectLookup = new();
+        internal readonly Dictionary<GuidPath, Component> GuidToComponentLookup = new();
         
 
         [InitializeOnLoad]
@@ -58,11 +58,11 @@ namespace SaveLoadSystem.Core.UnityComponent
                     
                     //remove invalid objects
                     List<string> keysToRemove = new();
-                    foreach (var (key, value) in saveSceneManager._trackedSavables)
+                    foreach (var (guidPath, savable) in saveSceneManager._trackedSavables)
                     {
-                        if (value.IsUnityNull())
+                        if (savable.IsUnityNull())
                         {
-                            keysToRemove.Add(key);
+                            keysToRemove.Add(guidPath);
                         }
                     }
 
@@ -98,7 +98,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     var guidPath = new GuidPath(scriptableObjectSavable.guid);
                     ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
-                    GuidToScriptableObjectLookup.Add(scriptableObjectSavable.guid, (ScriptableObject)scriptableObjectSavable.unityObject);
+                    GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
                 }
             }
 
@@ -200,9 +200,9 @@ namespace SaveLoadSystem.Core.UnityComponent
             //savable lookup registration
             if (!_trackedSavables.TryAdd(id, savable)) return false;
             
-            GuidToSavableGameObjectLookup.Add(id, savable.gameObject);
-            
             var savableGuid = new GuidPath(savable.SavableGuid);
+            
+            GuidToSavableGameObjectLookup.Add(savableGuid, savable.gameObject);
             SavableGameObjectToGuidLookup.TryAdd(savable.gameObject, savableGuid);
             
             //Savable-Component registration.
@@ -210,14 +210,14 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
                 ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
-                GuidToComponentLookup.TryAdd(componentGuidPath.ToString(), (Component)unityObjectIdentification.unityObject);
+                GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
             }
                 
             foreach (var unityObjectIdentification in savable.SavableLookup)
             {
                 var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
                 ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
-                GuidToComponentLookup.TryAdd(componentGuidPath.ToString(), (Component)unityObjectIdentification.unityObject);
+                GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
             }
 
             return true;
@@ -227,14 +227,15 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (!_trackedSavables.Remove(savable.SavableGuid)) return false;
             
-            GuidToSavableGameObjectLookup.Remove(savable.SavableGuid);
+            var savableGuid = new GuidPath(savable.SavableGuid);
+            
+            GuidToSavableGameObjectLookup.Remove(savableGuid);
             SavableGameObjectToGuidLookup.Remove(savable.gameObject);
             
             /*
-             * Savables can be removed safely here, because the system is currently not designed to support adding of
+             * Savables can be removed safely here, because the system is currently not designed to support adding of new
              * savable-components during runtime.
              */
-            var savableGuid = new GuidPath(savable.SavableGuid);
             if (ComponentToGuidLookup != null)
             {
                 foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
@@ -242,7 +243,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     ComponentToGuidLookup.Remove((Component)unityObjectIdentification.unityObject);
                     
                     var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
-                    GuidToComponentLookup.Remove(componentGuidPath.ToString());
+                    GuidToComponentLookup.Remove(componentGuidPath);
                 }
             }
 
@@ -253,7 +254,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     ComponentToGuidLookup.Remove((Component)unityObjectIdentification.unityObject);
                     
                     var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
-                    GuidToComponentLookup.Remove(componentGuidPath.ToString());
+                    GuidToComponentLookup.Remove(componentGuidPath);
                 }
             }
 
