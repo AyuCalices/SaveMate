@@ -23,7 +23,11 @@ namespace Sample.Scripts
     
         public void OnAfterLoad()
         {
-            Setup(ContainedItem);
+            if (ContainedItem != null)
+            {
+                Setup(ContainedItem);
+            }
+            
         }
 
         public void OnSave(SaveDataHandler saveDataHandler)

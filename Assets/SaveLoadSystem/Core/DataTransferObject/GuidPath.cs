@@ -1,13 +1,13 @@
 using System;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
+using JetBrains.Annotations;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
-    public readonly struct GuidPath : IEquatable<GuidPath>
+    public struct GuidPath : IEquatable<GuidPath>
     {
-        [JsonProperty] public readonly string[] TargetGuid;
+        [UsedImplicitly] public string[] TargetGuid { get; set; }
         
         public GuidPath(string guid)
         {

@@ -1,20 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.UnityComponent;
-using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
-using TypeUtility = SaveLoadSystem.Utility.TypeUtility;
 
 namespace SaveLoadSystem.Core
 {
@@ -87,7 +83,7 @@ namespace SaveLoadSystem.Core
             {
                 _saveData ??= new SaveData();
                 HasPendingData = true;
-                InternalSnapshotActiveScenes(_saveData, scenesToSnapshot);
+                InternalSnapshotScenes(_saveData, scenesToSnapshot);
                 
                 return Task.CompletedTask;
             });
@@ -152,7 +148,7 @@ namespace SaveLoadSystem.Core
             {
                 if (_saveData == null) return Task.CompletedTask;
                 
-                InternalLoadActiveScenes(_saveData, saveSceneManagersToApplySnapshot);
+                InternalLoadScenes(_saveData, saveSceneManagersToApplySnapshot);
                 return Task.CompletedTask;
             });
         }
@@ -227,7 +223,7 @@ namespace SaveLoadSystem.Core
                     }
                 }
                 
-                InternalLoadActiveScenes(_saveData, matchingGuids.ToArray());
+                InternalLoadScenes(_saveData, matchingGuids.ToArray());
             });
         }
         
@@ -286,31 +282,19 @@ namespace SaveLoadSystem.Core
 
         #region Private Methods
 
-        private void InternalSnapshotActiveScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
+        private void InternalSnapshotScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             
-            //get relevant scene data
-            foreach (var saveSceneManager in saveSceneManagers)
-            {
-                if (!saveSceneManager.Scene.isLoaded)
-                {
-                    Debug.LogWarning($"Tried to snapshot the unloaded scene {saveSceneManager.name}!");
-                }
-            }
-            
             //before event
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                if (saveSceneManager.Scene.isLoaded)
-                {
-                    saveSceneManager.HandleBeforeSnapshot();
-                }
+                saveSceneManager.HandleBeforeSnapshot();
             }
 
             
-            
+            /*
             HashSet<AssetRegistry> processedAssetRegistries = new();
             Dictionary<GameObject, GuidPath> uniqueGameObjects = new();
             Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects = new();
@@ -336,39 +320,32 @@ namespace SaveLoadSystem.Core
                 }
             }
             
-            
-            Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup = new();
+            var sceneSaveData = new SceneSaveData();
             Dictionary<object, GuidPath> processedInstancesLookup = new ();
             foreach (var (scriptableObject, guidPath) in uniqueScriptableObjects)
             {
-                var instanceSaveData = new InstanceSaveData();
+                var instanceSaveData = new SaveDataInstance();
 
-                instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                sceneSaveData.AddSaveData(guidPath, instanceSaveData);
 
                 if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
 
-                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, instanceSaveDataLookup,
-                    processedInstancesLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents));
-            }
+                targetSavable.OnSave(new SaveDataHandler(sceneSaveData, guidPath, instanceSaveData, processedInstancesLookup, 
+                    uniqueGameObjects, uniqueScriptableObjects, uniqueComponents));
+            }*/
             
             
             
             //perform snapshot
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                if (saveSceneManager.Scene.isLoaded)
-                {
-                    saveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot());
-                }
+                saveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot());
             }
             
             //after event
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                if (saveSceneManager.Scene.isLoaded)
-                {
-                    saveSceneManager.HandleAfterSnapshot();
-                }
+                saveSceneManager.HandleAfterSnapshot();
             }
             
             stopwatch.Stop();
@@ -377,33 +354,20 @@ namespace SaveLoadSystem.Core
             Debug.LogWarning("Snapshot Completed!");
         }
 
-        private void InternalLoadActiveScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
+        private void InternalLoadScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            //get relevant scene data
-            Dictionary<SaveSceneManager, SceneSaveData> sceneDataLookup = new();
-            foreach (var saveSceneManager in saveSceneManagers)
-            {
-                if (!saveSceneManager.Scene.isLoaded)
-                {
-                    Debug.LogWarning($"Tried to load a save into the unloaded scene {saveSceneManager.name}!");
-                }
-                
-                if (!saveData.TryGetSceneData(saveSceneManager.Scene, out SceneSaveData sceneDataContainer)) continue;
-                
-                sceneDataLookup.Add(saveSceneManager, sceneDataContainer);
-            }
-
             //before event
-            foreach (var saveSceneManager in sceneDataLookup.Keys)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
                 saveSceneManager.HandleBeforeLoad();
             }
             
             
-            
+            /*
+            //TODO: implement conditional loading -> only if required scenes for the scriptable objects are loaded
             HashSet<AssetRegistry> processedAssetRegistries = new();
             Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
             Dictionary<GuidPath, ScriptableObject> uniqueScriptableObjects = new();
@@ -429,30 +393,33 @@ namespace SaveLoadSystem.Core
                 }
             }
             
-            /*
+            
             //perform scriptable object snapshot
-            foreach (var (scriptableObject, guidPath) in uniqueScriptableObjects)
+            var createdObjectsLookup = new Dictionary<GuidPath, object>();
+            foreach (var (guidPath, scriptableObject) in uniqueScriptableObjects)
             {
-                if (sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out var instanceSaveData))
+                if (saveData.GlobalSceneDataLookup.TryGetInstanceSaveData(guidPath, out var instanceSaveData))
                 {
-                    var loadDataHandler = new LoadDataHandler(sceneSaveData, instanceSaveData, 
-                        createdObjectsLookup, this);
+                    var loadDataHandler = new LoadDataHandler(saveData.GlobalSceneDataLookup, instanceSaveData, 
+                        createdObjectsLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents);
                         
                     if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
                     targetSavable.OnLoad(loadDataHandler);
                 }
-            }
-             */
+            }*/
             
             //perform load
-            foreach (var (saveSceneManager, sceneSaveData) in sceneDataLookup)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
-                saveSceneManager.LoadSnapshot(sceneSaveData);
+                if (saveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
+                {
+                    saveSceneManager.LoadSnapshot(sceneData);
+                }
             }
             
             //after event
-            foreach (var saveSceneManager in sceneDataLookup.Keys)
+            foreach (var saveSceneManager in saveSceneManagers)
             {
                 saveSceneManager.HandleAfterLoad();
             }

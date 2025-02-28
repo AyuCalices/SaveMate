@@ -1,35 +1,41 @@
 using System.Collections.Generic;
-using Newtonsoft.Json;
+using JetBrains.Annotations;
 using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class SaveData
     {
-        [JsonProperty] public readonly Dictionary<string, SceneSaveData> SceneDataLookup = new();
+        [UsedImplicitly] public SaveDataContainer GlobalDataContainerLookup { get; set; }
+        [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; }
 
-        public void SetSceneData(Scene scene, SceneSaveData sceneSaveData)
+        public void SetGlobalSceneData(SaveDataContainer saveDataContainer)
         {
-            SceneDataLookup[scene.name] = sceneSaveData;
+            GlobalDataContainerLookup = saveDataContainer;
         }
 
-        public bool ContainsSceneData(Scene scene)
+        public void SetSceneData(Scene scene, SceneData sceneData)
         {
-            return SceneDataLookup.ContainsKey(scene.name);
+            SceneDataLookup ??= new Dictionary<string, SceneData>();
+            
+            SceneDataLookup[scene.name] = new SceneData
+            {
+                PrefabGuidGroup = sceneData.PrefabGuidGroup, 
+                SaveDataContainer = sceneData.SaveDataContainer
+            };
         }
 
-        public SceneSaveData GetSceneData(Scene scene)
+        public bool TryGetSceneData(Scene scene, out SceneData sceneData)
         {
-            return SceneDataLookup[scene.name];
-        }
-
-        public bool TryGetSceneData(Scene scene, out SceneSaveData sceneSaveData)
-        {
-            return SceneDataLookup.TryGetValue(scene.name, out sceneSaveData);
+            SceneDataLookup ??= new Dictionary<string, SceneData>();
+            
+            return SceneDataLookup.TryGetValue(scene.name, out sceneData);
         }
 
         public void RemoveSceneData(Scene scene)
         {
+            SceneDataLookup ??= new Dictionary<string, SceneData>();
+            
             SceneDataLookup.Remove(scene.name);
         }
     }

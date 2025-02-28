@@ -29,7 +29,8 @@ namespace SaveLoadSystem.Core.SerializeStrategy
                 using (StreamReader reader = new StreamReader(memoryStream, Encoding.UTF8))
                 {
                     string jsonString = await reader.ReadToEndAsync();
-                    return JsonConvert.DeserializeObject(jsonString, type);
+                    var obj = JsonConvert.DeserializeObject(jsonString, type);
+                    return obj;
                 }
             }
         }

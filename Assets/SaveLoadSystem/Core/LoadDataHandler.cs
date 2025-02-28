@@ -15,8 +15,8 @@ namespace SaveLoadSystem.Core
     /// </summary>
     public readonly struct LoadDataHandler
     {
-        private readonly InstanceSaveData _instanceSaveData;
-        private readonly SceneSaveData _sceneSaveData;
+        private readonly SaveDataInstance _saveDataInstance;
+        private readonly SaveDataContainer _saveDataContainer;
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
         
         //unity object reference lookups
@@ -24,12 +24,12 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, ScriptableObject> _guidToScriptableObjectLookup;
         private readonly Dictionary<GuidPath, Component> _guidToComponentLookup;
 
-        public LoadDataHandler(SceneSaveData sceneSaveData, InstanceSaveData instanceSaveData, 
+        public LoadDataHandler(SaveDataContainer saveDataContainer, SaveDataInstance saveDataInstance, 
             Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup,
             Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, Dictionary<GuidPath, Component> guidToComponentLookup)
         {
-            _instanceSaveData = instanceSaveData;
-            _sceneSaveData = sceneSaveData;
+            _saveDataInstance = saveDataInstance;
+            _saveDataContainer = saveDataContainer;
             _createdObjectsLookup = createdObjectsLookup;
             _guidToSavableGameObjectLookup = guidToSavableGameObjectLookup;
             _guidToScriptableObjectLookup = guidToScriptableObjectLookup;
@@ -98,13 +98,13 @@ namespace SaveLoadSystem.Core
             }
             
             //serialization handling
-            if (_instanceSaveData.Values[identifier] == null)
+            if (_saveDataInstance.Values[identifier] == null)
             {
                 value = default;
                 return false;     //TODO: debug
             }
 
-            value = _instanceSaveData.Values[identifier].ToObject(type);
+            value = _saveDataInstance.Values[identifier].ToObject(type);
             return true;
         }
         
@@ -142,15 +142,15 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadValueSavable(Type type, string identifier, out object value)
         {
-            if (_instanceSaveData == null || !_instanceSaveData.Values.TryGetValue(identifier, out var saveData))
+            if (_saveDataInstance == null || !_saveDataInstance.Values.TryGetValue(identifier, out var saveData))
             {
                 Debug.LogWarning("There was no matching data!");
                 value = null;
                 return false;
             }
             
-            var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
-            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
+            var saveDataBuffer = saveData.ToObject<SaveDataInstance>();
+            var loadDataHandler = new LoadDataHandler(_saveDataContainer, saveDataBuffer, 
                 _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
 
             value = Activator.CreateInstance(type);
@@ -161,15 +161,15 @@ namespace SaveLoadSystem.Core
         
         private bool TryLoadValueWithConverter(Type type, string identifier, out object value)
         {
-            if (_instanceSaveData == null || !_instanceSaveData.Values.TryGetValue(identifier, out var saveData))
+            if (_saveDataInstance == null || !_saveDataInstance.Values.TryGetValue(identifier, out var saveData))
             {
                 Debug.LogWarning("There was no matching data!");
                 value = null;
                 return false;
             }
             
-            var saveDataBuffer = saveData.ToObject<InstanceSaveData>();
-            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
+            var saveDataBuffer = saveData.ToObject<SaveDataInstance>();
+            var loadDataHandler = new LoadDataHandler(_saveDataContainer, saveDataBuffer, 
                 _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
@@ -180,7 +180,7 @@ namespace SaveLoadSystem.Core
         
         private bool TryGetReferenceGuidPath(string identifier, out GuidPath guidPath)
         {
-            if (!_instanceSaveData.References.TryGetValue(identifier, out guidPath))
+            if (!_saveDataInstance.References.TryGetValue(identifier, out guidPath))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
@@ -260,13 +260,13 @@ namespace SaveLoadSystem.Core
         {
             reference = null;
             
-            if (!_sceneSaveData.InstanceSaveDataLookup.TryGetValue(guidPath, out InstanceSaveData saveDataBuffer))
+            if (!_saveDataContainer.TryGetInstanceSaveData(guidPath, out SaveDataInstance saveDataInstance))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
             }
             
-            var loadDataHandler = new LoadDataHandler(_sceneSaveData, saveDataBuffer, 
+            var loadDataHandler = new LoadDataHandler(_saveDataContainer, saveDataInstance, 
                 _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
             
             //savable handling
@@ -296,7 +296,7 @@ namespace SaveLoadSystem.Core
             }
 
             //serializable handling
-            var jObject = saveDataBuffer.Values["SerializeRef"];
+            var jObject = saveDataInstance.Values["SerializeRef"];
             if (jObject != null)
             {
                 reference = jObject.ToObject(type);

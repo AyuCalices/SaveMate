@@ -15,21 +15,23 @@ namespace SaveLoadSystem.Core
     public readonly struct SaveDataHandler
     {
         private readonly GuidPath _guidPath;
-        private readonly InstanceSaveData _instanceSaveData;
-        private readonly Dictionary<GuidPath, InstanceSaveData> _instanceSaveDataLookup;
+        private readonly SaveDataInstance _saveDataInstance;
         private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
+        
+        private readonly SaveDataContainer _saveDataContainer;
         
         private readonly Dictionary<GameObject, GuidPath> _savableGameObjectToGuidLookup;
         private readonly Dictionary<ScriptableObject, GuidPath> _scriptableObjectToGuidLookup;
         private readonly Dictionary<Component, GuidPath> _componentToGuidLookup;
 
-        public SaveDataHandler(GuidPath guidPath, InstanceSaveData instanceSaveData, Dictionary<GuidPath, InstanceSaveData> instanceSaveDataLookup, 
+        public SaveDataHandler(SaveDataContainer saveDataContainer, GuidPath guidPath, SaveDataInstance saveDataInstance, 
             Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup,
             Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
+            _saveDataContainer = saveDataContainer;
+            
             _guidPath = guidPath;
-            _instanceSaveData = instanceSaveData;
-            _instanceSaveDataLookup = instanceSaveDataLookup;
+            _saveDataInstance = saveDataInstance;
             _processedInstancesLookup = processedInstancesLookup;
             _savableGameObjectToGuidLookup = savableGameObjectToGuidLookup;
             _scriptableObjectToGuidLookup = scriptableObjectToGuidLookup;
@@ -65,28 +67,28 @@ namespace SaveLoadSystem.Core
             if (obj is ISavable savable)
             {
                 var newPath = new GuidPath(uniqueIdentifier);
-                var componentDataBuffer = new InstanceSaveData();
-                var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
+                var componentDataBuffer = new SaveDataInstance();
+                var saveDataHandler = new SaveDataHandler(_saveDataContainer, newPath, componentDataBuffer, _processedInstancesLookup, 
+                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 
                 savable.OnSave(saveDataHandler);
                 
-                _instanceSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _saveDataInstance.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
             {
                 var newPath = new GuidPath(uniqueIdentifier);
-                var componentDataBuffer = new InstanceSaveData();
-                var saveDataHandler = new SaveDataHandler(newPath, componentDataBuffer, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
+                var componentDataBuffer = new SaveDataInstance();
+                var saveDataHandler = new SaveDataHandler(_saveDataContainer, newPath, componentDataBuffer, _processedInstancesLookup, 
+                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
-                _instanceSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _saveDataInstance.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
             }
             else
             {
-                _instanceSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(obj));
+                _saveDataInstance.Values.Add(uniqueIdentifier, JToken.FromObject(obj));
             }
         }
 
@@ -102,7 +104,7 @@ namespace SaveLoadSystem.Core
         /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
         public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
-            _instanceSaveData.References.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
+            _saveDataInstance.References.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
 
         /// <summary>
@@ -170,32 +172,32 @@ namespace SaveLoadSystem.Core
             
             if (objectToSave is ISavable)
             {
-                var instanceSaveData = new InstanceSaveData();
+                var saveDataInstance = new SaveDataInstance();
                 
-                _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                _saveDataContainer.AddSaveData(guidPath, saveDataInstance);
                 
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
             
-                targetSavable.OnSave(new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup));
+                targetSavable.OnSave(new SaveDataHandler(_saveDataContainer, guidPath, saveDataInstance, _processedInstancesLookup, 
+                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
-                var instanceSaveData = new InstanceSaveData();
+                var saveDataInstance = new SaveDataInstance();
                 
-                _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                _saveDataContainer.AddSaveData(guidPath, saveDataInstance);
                         
-                var saveDataHandler = new SaveDataHandler(guidPath, instanceSaveData, _instanceSaveDataLookup, 
-                    _processedInstancesLookup, _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
+                var saveDataHandler = new SaveDataHandler(_saveDataContainer, guidPath, saveDataInstance, _processedInstancesLookup, 
+                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else
             {
-                var instanceSaveData = new InstanceSaveData();
+                var saveDataInstance = new SaveDataInstance();
                 
-                _instanceSaveDataLookup.Add(guidPath, instanceSaveData);
+                _saveDataContainer.AddSaveData(guidPath, saveDataInstance);
                 
-                instanceSaveData.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
+                saveDataInstance.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
             }
         }
     }

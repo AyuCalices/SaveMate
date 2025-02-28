@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
-    public class InstanceSaveData
+    public class SaveDataInstance
     {
         private Dictionary<string, GuidPath> _references;
         public Dictionary<string, GuidPath> References
