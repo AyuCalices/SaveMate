@@ -25,7 +25,7 @@ namespace SaveLoadSystem.Core
         
         private JObject _customMetaData;
         private SaveMetaData _metaData;
-        private SaveData _saveData;
+        private RootSaveData _rootSaveData;
 
         public SaveFocus(SaveLoadManager saveLoadManager, string fileName)
         {
@@ -81,9 +81,9 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(() =>
             {
-                _saveData ??= new SaveData();
+                _rootSaveData ??= new RootSaveData();
                 HasPendingData = true;
-                InternalSnapshotScenes(_saveData, scenesToSnapshot);
+                InternalSnapshotScenes(_rootSaveData, scenesToSnapshot);
                 
                 return Task.CompletedTask;
             });
@@ -111,7 +111,7 @@ namespace SaveLoadSystem.Core
                     trackedSaveSceneManager.HandleBeforeWriteToDisk();
                 }
                 
-                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, _saveData);
+                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, _rootSaveData);
 
                 IsPersistent = true;
                 HasPendingData = false;
@@ -146,9 +146,9 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(() =>
             {
-                if (_saveData == null) return Task.CompletedTask;
+                if (_rootSaveData == null) return Task.CompletedTask;
                 
-                InternalLoadScenes(_saveData, saveSceneManagersToApplySnapshot);
+                InternalLoadScenes(_rootSaveData, saveSceneManagersToApplySnapshot);
                 return Task.CompletedTask;
             });
         }
@@ -173,9 +173,9 @@ namespace SaveLoadSystem.Core
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
                 
                 //only load saveData, if it is persistent and not initialized
-                if (IsPersistent && _saveData == null)
+                if (IsPersistent && _rootSaveData == null)
                 {
-                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
             });
         }
@@ -197,9 +197,9 @@ namespace SaveLoadSystem.Core
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
                 
                 //only load saveData, if it is persistent and not initialized
-                if (IsPersistent && _saveData == null)
+                if (IsPersistent && _rootSaveData == null)
                 {
-                    _saveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                 }
 
                 //buffer save paths, because they will be null later on the scene array
@@ -223,7 +223,7 @@ namespace SaveLoadSystem.Core
                     }
                 }
                 
-                InternalLoadScenes(_saveData, matchingGuids.ToArray());
+                InternalLoadScenes(_rootSaveData, matchingGuids.ToArray());
             });
         }
         
@@ -236,11 +236,11 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(() =>
             {
-                if (_saveData == null) return Task.CompletedTask;
+                if (_rootSaveData == null) return Task.CompletedTask;
 
                 foreach (var saveSceneManager in saveSceneManagersToWipe)
                 {
-                    _saveData.RemoveSceneData(saveSceneManager.Scene);
+                    _rootSaveData.RemoveSceneData(saveSceneManager.Scene);
                 }
                 HasPendingData = true;
 
@@ -282,7 +282,7 @@ namespace SaveLoadSystem.Core
 
         #region Private Methods
 
-        private void InternalSnapshotScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
+        private void InternalSnapshotScenes(RootSaveData rootSaveData, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -339,7 +339,7 @@ namespace SaveLoadSystem.Core
             //perform snapshot
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                saveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot());
+                rootSaveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot());
             }
             
             //after event
@@ -354,7 +354,7 @@ namespace SaveLoadSystem.Core
             Debug.LogWarning("Snapshot Completed!");
         }
 
-        private void InternalLoadScenes(SaveData saveData, params SaveSceneManager[] saveSceneManagers)
+        private void InternalLoadScenes(RootSaveData rootSaveData, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -412,7 +412,7 @@ namespace SaveLoadSystem.Core
             //perform load
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                if (saveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
+                if (rootSaveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
                 {
                     saveSceneManager.LoadSnapshot(sceneData);
                 }

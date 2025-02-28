@@ -93,7 +93,7 @@ namespace SaveLoadSystem.Utility
             return await ReadDataAsync<SaveMetaData>(saveStrategy, metaDataPath);
         }
         
-        public static async Task<SaveData> ReadSaveDataSecureAsync(ISaveStrategy saveStrategy, SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
+        public static async Task<RootSaveData> ReadSaveDataSecureAsync(ISaveStrategy saveStrategy, SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
         {
             var metaData = await ReadMetaDataAsync(saveStrategy, saveConfig, fileName);
             if (metaData == null) return null;
@@ -102,7 +102,7 @@ namespace SaveLoadSystem.Utility
             if (!IsValidVersion(metaData, saveVersion)) return null;
             
             var saveDataPath = SaveDataPath(saveConfig, fileName);
-            return await ReadDataAsync<SaveData>(saveStrategy, saveDataPath, metaData.Checksum);
+            return await ReadDataAsync<RootSaveData>(saveStrategy, saveDataPath, metaData.Checksum);
         }
 
         #endregion

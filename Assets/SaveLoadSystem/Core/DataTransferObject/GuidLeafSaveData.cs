@@ -1,6 +1,6 @@
 namespace SaveLoadSystem.Core.DataTransferObject
 {
-    public class GuidSaveDataInstance : SaveDataInstance
+    public class GuidLeafSaveData : LeafSaveData
     {
         public string[] OriginGuid { get; set; }
     }

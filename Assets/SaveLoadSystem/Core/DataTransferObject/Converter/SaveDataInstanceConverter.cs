@@ -10,23 +10,23 @@ namespace SaveLoadSystem.Core.DataTransferObject.Converter
         public override bool CanConvert(Type objectType)
         {
             // We are converting a Dictionary<GuidPath, SaveDataInstance>
-            return objectType == typeof(Dictionary<GuidPath, SaveDataInstance>);
+            return objectType == typeof(Dictionary<GuidPath, LeafSaveData>);
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
             // Cast the value to Dictionary<GuidPath, SaveDataInstance>
-            var saveDataInstanceLookup = (Dictionary<GuidPath, SaveDataInstance>)value;
+            var saveDataInstanceLookup = (Dictionary<GuidPath, LeafSaveData>)value;
 
             // Serialize the dictionary as a list of GuidSaveDataInstance objects
             var saveInstances = saveDataInstanceLookup?
-                .Select(kvp => new GuidSaveDataInstance
+                .Select(kvp => new GuidLeafSaveData
                 {
                     OriginGuid = kvp.Key.TargetGuid,
                     References = kvp.Value.References,
                     Values = kvp.Value.Values
                 })
-                .ToList() ?? new List<GuidSaveDataInstance>();
+                .ToList() ?? new List<GuidLeafSaveData>();
 
             // Write the list of GuidSaveDataInstance to the JSON output
             serializer.Serialize(writer, saveInstances);
@@ -35,11 +35,11 @@ namespace SaveLoadSystem.Core.DataTransferObject.Converter
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             // Deserialize the JSON to a list of GuidSaveDataInstance
-            var saveInstances = serializer.Deserialize<List<GuidSaveDataInstance>>(reader);
+            var saveInstances = serializer.Deserialize<List<GuidLeafSaveData>>(reader);
 
             // Convert the list of GuidSaveDataInstance back into a dictionary
             var saveDataInstanceLookup = saveInstances
-                .ToDictionary(x => new GuidPath(x.OriginGuid), x => (SaveDataInstance)x);
+                .ToDictionary(x => new GuidPath(x.OriginGuid), x => (LeafSaveData)x);
 
             return saveDataInstanceLookup;
         }

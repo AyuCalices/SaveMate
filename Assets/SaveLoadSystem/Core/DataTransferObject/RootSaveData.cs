@@ -4,14 +4,14 @@ using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {
-    public class SaveData
+    public class RootSaveData
     {
-        [UsedImplicitly] public SaveDataContainer GlobalDataContainerLookup { get; set; }
+        [UsedImplicitly] public BranchSaveData GlobalSaveData { get; set; }
         [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; }
 
-        public void SetGlobalSceneData(SaveDataContainer saveDataContainer)
+        public void SetGlobalSceneData(BranchSaveData branchSaveData)
         {
-            GlobalDataContainerLookup = saveDataContainer;
+            GlobalSaveData = branchSaveData;
         }
 
         public void SetSceneData(Scene scene, SceneData sceneData)
@@ -20,8 +20,8 @@ namespace SaveLoadSystem.Core.DataTransferObject
             
             SceneDataLookup[scene.name] = new SceneData
             {
-                PrefabGuidGroup = sceneData.PrefabGuidGroup, 
-                SaveDataContainer = sceneData.SaveDataContainer
+                ActivePrefabs = sceneData.ActivePrefabs, 
+                ActiveSaveData = sceneData.ActiveSaveData
             };
         }
 
