@@ -14,11 +14,10 @@ namespace SaveLoadSystem.Core
     /// </summary>
     public readonly struct SaveDataHandler
     {
+        private readonly BranchSaveData _branchSaveData;
         private readonly GuidPath _guidPath;
         private readonly LeafSaveData _leafSaveData;
         private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
-        
-        private readonly BranchSaveData _branchSaveData;
         
         private readonly Dictionary<GameObject, GuidPath> _savableGameObjectToGuidLookup;
         private readonly Dictionary<ScriptableObject, GuidPath> _scriptableObjectToGuidLookup;
@@ -29,7 +28,6 @@ namespace SaveLoadSystem.Core
             Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
             _branchSaveData = branchSaveData;
-            
             _guidPath = guidPath;
             _leafSaveData = leafSaveData;
             _processedInstancesLookup = processedInstancesLookup;
@@ -40,7 +38,7 @@ namespace SaveLoadSystem.Core
 
         public void Save(string uniqueIdentifier, object obj)
         {
-            if (obj.GetType().IsValueType)
+            if (obj.GetType().IsValueType || obj is string)
             {
                 SaveAsValue(uniqueIdentifier, obj);
             }

@@ -25,7 +25,7 @@ namespace Sample.Scripts
         {
             saveDataHandler.Save("spriteLookup", spriteLookup);
             saveDataHandler.Save("sprite", sprite.name);
-            saveDataHandler.SaveAsValue("itemName", itemName);
+            saveDataHandler.Save("itemName", itemName);
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
@@ -37,7 +37,7 @@ namespace Sample.Scripts
                 sprite = spriteLookup.Sprites.Find(x => x.name == spriteName);
             }
             
-            loadDataHandler.TryLoadValue("itemName", out itemName);
+            loadDataHandler.TryLoad("itemName", out itemName);
         }
     }
 }

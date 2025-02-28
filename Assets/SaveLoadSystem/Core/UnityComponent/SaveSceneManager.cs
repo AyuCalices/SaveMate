@@ -439,7 +439,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         #region Save Methods
         
         
-        internal SceneData CreateSnapshot()
+        internal SceneData CreateSnapshot(Dictionary<object, GuidPath> processedObjectLookup)
         {
             //prefabs
             PrefabGuidGroup prefabGuidGroup = default;
@@ -450,7 +450,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             //save data
             var sceneSaveData = new BranchSaveData();
-            LazySave(sceneSaveData);
+            LazySave(sceneSaveData, processedObjectLookup);
             
             return new SceneData 
             {
@@ -459,24 +459,8 @@ namespace SaveLoadSystem.Core.UnityComponent
             };
         }
         
-        private void LazySave(BranchSaveData branchSaveData)
+        private void LazySave(BranchSaveData branchSaveData, Dictionary<object, GuidPath> processedObjectLookup)
         {
-            var processedInstancesLookup = new Dictionary<object, GuidPath>();
-            
-            //iterate over ScriptableObjects
-            //TODO: throw this out of here
-            foreach (var (scriptableObject, guidPath) in ScriptableObjectToGuidLookup)
-            {
-                var instanceSaveData = new LeafSaveData();
-
-                branchSaveData.AddLeafSaveData(guidPath, instanceSaveData);
-
-                if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
-
-                targetSavable.OnSave(new SaveDataHandler(branchSaveData, guidPath, instanceSaveData, processedInstancesLookup, 
-                    SavableGameObjectToGuidLookup, ScriptableObjectToGuidLookup, ComponentToGuidLookup));
-            }
-
             //iterate over GameObjects with savable component
             foreach (var saveObject in _trackedSavables.Values)
             {
@@ -490,7 +474,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     
                     if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
             
-                    targetSavable.OnSave(new SaveDataHandler(branchSaveData, guidPath, instanceSaveData, processedInstancesLookup, 
+                    targetSavable.OnSave(new SaveDataHandler(branchSaveData, guidPath, instanceSaveData, processedObjectLookup, 
                         SavableGameObjectToGuidLookup, ScriptableObjectToGuidLookup, ComponentToGuidLookup));
                 }
             }
@@ -502,7 +486,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         #region LoadMethods
         
         
-        internal void LoadSnapshot(SceneData loadedSceneData)
+        internal void LoadSnapshot(SceneData loadedSceneData, Dictionary<GuidPath, object> globallyCreatedObjects)
         {
             PrefabGuidGroup currentSavePrefabGuidGroup = default;
             if (assetRegistry != null)
@@ -512,7 +496,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 InstantiatePrefabsOnLoad(loadedSceneData.ActivePrefabs, currentSavePrefabGuidGroup);
             }
 
-            LazyLoad(loadedSceneData.ActiveSaveData);
+            LazyLoad(loadedSceneData.ActiveSaveData, globallyCreatedObjects);
             
             //destroy prefabs, that are not present in the save file
             if (assetRegistry != null)
@@ -540,25 +524,8 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
         }
         
-        private void LazyLoad(BranchSaveData branchSaveData)
+        private void LazyLoad(BranchSaveData branchSaveData, Dictionary<GuidPath, object> globallyCreatedObjects)
         {
-            var createdObjectsLookup = new Dictionary<GuidPath, object>();
-            
-            //iterate over ScriptableObjects
-            //TODO: throw this out of here
-            foreach (var (scriptableObject, guidPath) in ScriptableObjectToGuidLookup)
-            {
-                if (branchSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData))
-                {
-                    var loadDataHandler = new LoadDataHandler(branchSaveData, instanceSaveData, 
-                        createdObjectsLookup, GuidToSavableGameObjectLookup, GuidToScriptableObjectLookup, GuidToComponentLookup);
-                        
-                    if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
-                    
-                    targetSavable.OnLoad(loadDataHandler);
-                }
-            }
-            
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
             {
@@ -571,7 +538,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     if (branchSaveData.TryGetLeafSaveData(componentGuidPath, out var instanceSaveData))
                     {
                         var loadDataHandler = new LoadDataHandler(branchSaveData, instanceSaveData, 
-                            createdObjectsLookup, GuidToSavableGameObjectLookup, GuidToScriptableObjectLookup, GuidToComponentLookup);
+                            globallyCreatedObjects, GuidToSavableGameObjectLookup, GuidToScriptableObjectLookup, GuidToComponentLookup);
                         
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     

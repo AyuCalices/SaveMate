@@ -13,12 +13,12 @@ namespace SaveLoadSystem.Core.Converter.Collections
             if (data is not Array array) throw new ArgumentException("Data must be an array.");
             
             // Save the rank (number of dimensions)
-            saveDataHandler.SaveAsValue("rank", array.Rank);
+            saveDataHandler.Save("rank", array.Rank);
             
             // Save the lengths of each dimension
             for (int i = 0; i < array.Rank; i++)
             {
-                saveDataHandler.SaveAsValue($"dimension_{i}", array.GetLength(i));
+                saveDataHandler.Save($"dimension_{i}", array.GetLength(i));
             }
 
             // Save each element of the array using its indices as a key
@@ -35,11 +35,11 @@ namespace SaveLoadSystem.Core.Converter.Collections
             if (elementType == null) throw new ArgumentException("T must be an array type.");
             
             // Load the rank and dimensions
-            loadDataHandler.TryLoadValue("rank", out int rank);
+            loadDataHandler.TryLoad("rank", out int rank);
             var dimensions = new int[rank];
             for (int i = 0; i < rank; i++)
             {
-                loadDataHandler.TryLoadValue($"dimension_{i}", out dimensions[i]);
+                loadDataHandler.TryLoad($"dimension_{i}", out dimensions[i]);
             }
 
             // Create the array with the loaded dimensions

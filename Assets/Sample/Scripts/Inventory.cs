@@ -50,6 +50,9 @@ namespace Sample.Scripts
     
         public void OnSave(SaveDataHandler saveDataHandler)
         {
+            saveDataHandler.Save("items", items);
+            
+            /*
             var test = new List<Item[]>();
             for (var index = 0; index < items.Count; index++)
             {
@@ -61,19 +64,19 @@ namespace Sample.Scripts
                     innerTest[i] = items[i];
                 }
             }
-
-            saveDataHandler.Save("items", items);
+            
             saveDataHandler.Save("test", test);
-            saveDataHandler.Save("test2", this.test);
+            saveDataHandler.Save("test2", this.test);*/
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad("items", out items);
         
+            /*
             loadDataHandler.TryLoad("test", out List<Item[]> test);
         
-            loadDataHandler.TryLoad("test3", out this.test);
+            loadDataHandler.TryLoad("test3", out this.test);*/
         }
     }
 }

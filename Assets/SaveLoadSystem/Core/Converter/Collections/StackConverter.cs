@@ -24,7 +24,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         protected override void OnLoad(Stack<T> input, LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("count", out int count);
+            loadDataHandler.TryLoad("count", out int count);
             
             for (var index = 0; index < count; index++)
             {

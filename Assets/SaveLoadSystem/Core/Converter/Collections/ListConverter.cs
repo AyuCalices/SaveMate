@@ -8,7 +8,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(List<T> data, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("count", data.Count);
+            saveDataHandler.Save("count", data.Count);
             
             for (var index = 0; index < data.Count; index++)
             {
@@ -23,7 +23,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         protected override void OnLoad(List<T> input, LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("count", out int count);
+            loadDataHandler.TryLoad("count", out int count);
             
             for (var index = 0; index < count; index++)
             {

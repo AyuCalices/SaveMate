@@ -8,7 +8,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(Queue<T> input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("count", input.Count);
+            saveDataHandler.Save("count", input.Count);
             
             var saveElements = input.ToArray();
             
@@ -25,7 +25,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
 
         protected override void OnLoad(Queue<T> input, LoadDataHandler loadDataHandler)
         {
-            loadDataHandler.TryLoadValue("count", out int count);
+            loadDataHandler.TryLoad("count", out int count);
             
             for (var index = 0; index < count; index++)
             {

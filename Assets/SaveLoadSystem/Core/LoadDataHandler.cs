@@ -15,8 +15,8 @@ namespace SaveLoadSystem.Core
     /// </summary>
     public readonly struct LoadDataHandler
     {
-        private readonly LeafSaveData _leafSaveData;
         private readonly BranchSaveData _branchSaveData;
+        private readonly LeafSaveData _leafSaveData;
         private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
         
         //unity object reference lookups
@@ -28,8 +28,8 @@ namespace SaveLoadSystem.Core
             Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup,
             Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, Dictionary<GuidPath, Component> guidToComponentLookup)
         {
-            _leafSaveData = leafSaveData;
             _branchSaveData = branchSaveData;
+            _leafSaveData = leafSaveData;
             _createdObjectsLookup = createdObjectsLookup;
             _guidToSavableGameObjectLookup = guidToSavableGameObjectLookup;
             _guidToScriptableObjectLookup = guidToScriptableObjectLookup;
@@ -54,7 +54,7 @@ namespace SaveLoadSystem.Core
         
         public bool TryLoad(Type type, string identifier, out object obj)
         {
-            return type.IsValueType ? TryLoadValue(type, identifier, out obj) : TryLoadReference(type, identifier, out obj);
+            return type.IsValueType || type ==  typeof(string) ? TryLoadValue(type, identifier, out obj) : TryLoadReference(type, identifier, out obj);
         }
 
         public bool TryLoadValue<T>(string identifier, out T value)

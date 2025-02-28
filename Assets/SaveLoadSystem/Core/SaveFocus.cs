@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.UnityComponent;
+using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -294,7 +295,6 @@ namespace SaveLoadSystem.Core
             }
 
             
-            /*
             HashSet<AssetRegistry> processedAssetRegistries = new();
             Dictionary<GameObject, GuidPath> uniqueGameObjects = new();
             Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects = new();
@@ -320,26 +320,29 @@ namespace SaveLoadSystem.Core
                 }
             }
             
-            var sceneSaveData = new SceneSaveData();
-            Dictionary<object, GuidPath> processedInstancesLookup = new ();
+            Dictionary<object, GuidPath> processedObjectLookup = new ();
+            
+            var globalSaveData = new BranchSaveData();
             foreach (var (scriptableObject, guidPath) in uniqueScriptableObjects)
             {
-                var instanceSaveData = new SaveDataInstance();
+                var leafSaveData = new LeafSaveData();
 
-                sceneSaveData.AddSaveData(guidPath, instanceSaveData);
+                globalSaveData.AddLeafSaveData(guidPath, leafSaveData);
 
                 if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
 
-                targetSavable.OnSave(new SaveDataHandler(sceneSaveData, guidPath, instanceSaveData, processedInstancesLookup, 
+                targetSavable.OnSave(new SaveDataHandler(globalSaveData, guidPath, leafSaveData, processedObjectLookup, 
                     uniqueGameObjects, uniqueScriptableObjects, uniqueComponents));
-            }*/
+            }
+            
+            rootSaveData.SetGlobalSceneData(globalSaveData);
             
             
             
             //perform snapshot
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                rootSaveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot());
+                rootSaveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot(processedObjectLookup));
             }
             
             //after event
@@ -366,7 +369,6 @@ namespace SaveLoadSystem.Core
             }
             
             
-            /*
             //TODO: implement conditional loading -> only if required scenes for the scriptable objects are loaded
             HashSet<AssetRegistry> processedAssetRegistries = new();
             Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
@@ -393,28 +395,29 @@ namespace SaveLoadSystem.Core
                 }
             }
             
+            var createdObjectsLookup = new Dictionary<GuidPath, object>();
             
             //perform scriptable object snapshot
-            var createdObjectsLookup = new Dictionary<GuidPath, object>();
             foreach (var (guidPath, scriptableObject) in uniqueScriptableObjects)
             {
-                if (saveData.GlobalSceneDataLookup.TryGetInstanceSaveData(guidPath, out var instanceSaveData))
+                if (rootSaveData.GlobalSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData))
                 {
-                    var loadDataHandler = new LoadDataHandler(saveData.GlobalSceneDataLookup, instanceSaveData, 
+                    var loadDataHandler = new LoadDataHandler(rootSaveData.GlobalSaveData, instanceSaveData, 
                         createdObjectsLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents);
                         
                     if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
                     targetSavable.OnLoad(loadDataHandler);
                 }
-            }*/
+            }
+            
             
             //perform load
             foreach (var saveSceneManager in saveSceneManagers)
             {
                 if (rootSaveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
                 {
-                    saveSceneManager.LoadSnapshot(sceneData);
+                    saveSceneManager.LoadSnapshot(sceneData, createdObjectsLookup);
                 }
             }
             

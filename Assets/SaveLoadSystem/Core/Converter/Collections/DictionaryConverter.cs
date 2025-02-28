@@ -8,7 +8,7 @@ namespace SaveLoadSystem.Core.Converter.Collections
     {
         protected override void OnSave(Dictionary<TKey, TValue> input, SaveDataHandler saveDataHandler)
         {
-            saveDataHandler.SaveAsValue("count", input.Count);
+            saveDataHandler.Save("count", input.Count);
             
             var index = 0;
             foreach (var dataKey in input.Keys)
