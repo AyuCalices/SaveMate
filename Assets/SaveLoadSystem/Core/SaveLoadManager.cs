@@ -31,7 +31,7 @@ namespace SaveLoadSystem.Core
         [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
         [SerializeField] private string defaultEncryptionIv = "abcdef9876543210";
         
-        [Header("Slot Settings")] 
+        [Header("QOL")]
         [SerializeField] private bool autoSaveOnSaveFocusSwap;
         
         public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
@@ -72,8 +72,7 @@ namespace SaveLoadSystem.Core
         {
             SetFocus(fileName);
 
-            SaveFocus.SnapshotScenes(TrackedSaveSceneManagers.ToArray());
-            SaveFocus.WriteToDisk();
+            SaveFocus.SaveActiveScenes();
         }
 
         public void SimpleLoadActiveScenes(string fileName = null)

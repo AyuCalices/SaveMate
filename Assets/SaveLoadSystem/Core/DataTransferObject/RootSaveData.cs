@@ -6,18 +6,24 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class RootSaveData
     {
-        [UsedImplicitly] public BranchSaveData GlobalSaveData { get; set; }
-        [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; }
+        public const string GlobalSaveDataName = "GLOBAL";
+        
+        [UsedImplicitly] public List<string> ActiveScenes { get; set; } = new();
+        [UsedImplicitly] public BranchSaveData GlobalSaveData { get; set; } = new();
+        [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; } = new();
 
         public void SetGlobalSceneData(BranchSaveData branchSaveData)
         {
             GlobalSaveData = branchSaveData;
         }
+        
+        public void SetActiveScenes(List<string> activeScenes)
+        {
+            ActiveScenes = activeScenes;
+        }
 
         public void SetSceneData(Scene scene, SceneData sceneData)
         {
-            SceneDataLookup ??= new Dictionary<string, SceneData>();
-            
             SceneDataLookup[scene.name] = new SceneData
             {
                 ActivePrefabs = sceneData.ActivePrefabs, 
@@ -27,15 +33,11 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public bool TryGetSceneData(Scene scene, out SceneData sceneData)
         {
-            SceneDataLookup ??= new Dictionary<string, SceneData>();
-            
             return SceneDataLookup.TryGetValue(scene.name, out sceneData);
         }
 
         public void RemoveSceneData(Scene scene)
         {
-            SceneDataLookup ??= new Dictionary<string, SceneData>();
-            
             SceneDataLookup.Remove(scene.name);
         }
     }

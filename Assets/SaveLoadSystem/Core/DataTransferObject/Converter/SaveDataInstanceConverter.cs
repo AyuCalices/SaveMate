@@ -22,7 +22,7 @@ namespace SaveLoadSystem.Core.DataTransferObject.Converter
             var saveInstances = saveDataInstanceLookup?
                 .Select(kvp => new GuidLeafSaveData
                 {
-                    OriginGuid = kvp.Key.TargetGuid,
+                    OriginGuid = kvp.Key,
                     References = kvp.Value.References,
                     Values = kvp.Value.Values
                 })
@@ -39,7 +39,7 @@ namespace SaveLoadSystem.Core.DataTransferObject.Converter
 
             // Convert the list of GuidSaveDataInstance back into a dictionary
             var saveDataInstanceLookup = saveInstances
-                .ToDictionary(x => new GuidPath(x.OriginGuid), x => (LeafSaveData)x);
+                .ToDictionary(x => x.OriginGuid, x => (LeafSaveData)x);
 
             return saveDataInstanceLookup;
         }

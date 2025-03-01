@@ -64,7 +64,7 @@ namespace SaveLoadSystem.Core
             
             if (obj is ISavable savable)
             {
-                var newPath = new GuidPath(uniqueIdentifier);
+                var newPath = new GuidPath("", uniqueIdentifier);
                 var componentDataBuffer = new LeafSaveData();
                 var saveDataHandler = new SaveDataHandler(_branchSaveData, newPath, componentDataBuffer, _processedInstancesLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
@@ -75,7 +75,7 @@ namespace SaveLoadSystem.Core
             }
             else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
             {
-                var newPath = new GuidPath(uniqueIdentifier);
+                var newPath = new GuidPath("", uniqueIdentifier);
                 var componentDataBuffer = new LeafSaveData();
                 var saveDataHandler = new SaveDataHandler(_branchSaveData, newPath, componentDataBuffer, _processedInstancesLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
@@ -149,7 +149,7 @@ namespace SaveLoadSystem.Core
             //make sure the object gets created
             if (!_processedInstancesLookup.TryGetValue(objectToSave, out guidPath))
             {
-                guidPath = new GuidPath(_guidPath.TargetGuid, uniqueIdentifier);
+                guidPath = new GuidPath(_guidPath, uniqueIdentifier);
                 ProcessAsSaveReferencable(objectToSave, guidPath);
             }
             

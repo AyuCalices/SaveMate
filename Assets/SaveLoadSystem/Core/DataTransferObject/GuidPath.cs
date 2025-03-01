@@ -7,67 +7,54 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public struct GuidPath : IEquatable<GuidPath>
     {
+        public string Scene { get; set; }
         [UsedImplicitly] public string[] TargetGuid { get; set; }
         
-        public GuidPath(string guid)
+        public GuidPath(string scene, string guid)
         {
+            Scene = scene;
             TargetGuid = new[] {guid};
         }
         
-        public GuidPath(string[] parentPath)
+        public GuidPath(GuidPath parentPath, string guidPrefix)
         {
-            TargetGuid = new string[parentPath.Length];
-            Array.Copy(parentPath, TargetGuid, parentPath.Length);
-        }
-        
-        public GuidPath(string guidSuffix, string[] parentPath)
-        {
-            TargetGuid = new string[parentPath.Length + 1];
-            TargetGuid[0] = guidSuffix;
-            Array.Copy(parentPath, 0, TargetGuid, 1, parentPath.Length);
-        }
-        
-        public GuidPath(string[] parentPath, string guidPrefix)
-        {
-            TargetGuid = new string[parentPath.Length + 1];
-            Array.Copy(parentPath, TargetGuid, parentPath.Length);
+            Scene = parentPath.Scene;
+            TargetGuid = new string[parentPath.TargetGuid.Length + 1];
+            Array.Copy(parentPath.TargetGuid, TargetGuid, parentPath.TargetGuid.Length);
             TargetGuid[^1] = guidPrefix;
         }
 
         public override string ToString()
         {
-            return string.Join(Path.DirectorySeparatorChar.ToString(), TargetGuid);
+            return Scene + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar.ToString(), TargetGuid);
         }
         
         public bool Equals(GuidPath other)
         {
-            return InternalEquals(other);
+            return Scene == other.Scene && TargetGuid.SequenceEqual(other.TargetGuid);
         }
 
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             if (obj.GetType() != GetType()) return false;
-            return InternalEquals((GuidPath)obj);
+            return Equals((GuidPath)obj);
         }
 
         public override int GetHashCode()
         {
-            if (TargetGuid == null)
-                return 0;
-
-            // Use a hash code aggregator
             int hash = 17;
-            foreach (var path in TargetGuid)
+            hash = hash * 31 + (Scene != null ? Scene.GetHashCode() : 0);
+        
+            if (TargetGuid != null)
             {
-                hash = hash * 31 + (path != null ? path.GetHashCode() : 0);
+                foreach (var path in TargetGuid)
+                {
+                    hash = hash * 31 + (path != null ? path.GetHashCode() : 0);
+                }
             }
+        
             return hash;
-        }
-
-        private bool InternalEquals(GuidPath other)
-        {
-            return TargetGuid.SequenceEqual(other.TargetGuid);
         }
     }
 }

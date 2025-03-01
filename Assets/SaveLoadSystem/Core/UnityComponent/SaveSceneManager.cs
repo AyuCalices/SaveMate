@@ -24,7 +24,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private static bool _isQuitting;
 
-        public Scene Scene { get; private set; }
+        public Scene Scene => gameObject.scene;
         public AssetRegistry AssetRegistry => assetRegistry;
         
         private readonly Dictionary<string, Savable> _trackedSavables = new();
@@ -96,15 +96,13 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 foreach (var scriptableObjectSavable in assetRegistry.ScriptableObjectSavables)
                 {
-                    var guidPath = new GuidPath(scriptableObjectSavable.guid);
+                    var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, scriptableObjectSavable.guid);
                     ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
                     GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
                 }
             }
-
-            Scene = gameObject.scene;
+            
             saveLoadManager.RegisterSaveSceneManager(this);
-            //Debug.Log("awake add " + saveLoadManager.TrackedSaveSceneManagers.Count);
 
             if (loadSceneOnAwake)
             {
@@ -131,7 +129,6 @@ namespace SaveLoadSystem.Core.UnityComponent
                 }
             }
             
-            Scene = default;
             saveLoadManager.UnregisterSaveSceneManager(this);
             //Debug.Log("destroy remove " + saveLoadManager.TrackedSaveSceneManagers.Count);
         }
@@ -140,7 +137,6 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-            Scene = gameObject.scene;
             saveLoadManager.RegisterSaveSceneManager(this);
             //Debug.Log("validate add " + saveLoadManager.TrackedSaveSceneManagers.Count);
         }
@@ -200,7 +196,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             //savable lookup registration
             if (!_trackedSavables.TryAdd(id, savable)) return false;
             
-            var savableGuid = new GuidPath(savable.SavableGuid);
+            var savableGuid = new GuidPath(Scene.name, savable.SavableGuid);
             
             GuidToSavableGameObjectLookup.Add(savableGuid, savable.gameObject);
             SavableGameObjectToGuidLookup.TryAdd(savable.gameObject, savableGuid);
@@ -208,14 +204,14 @@ namespace SaveLoadSystem.Core.UnityComponent
             //Savable-Component registration.
             foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
             {
-                var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
+                var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                 ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
                 GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
             }
                 
             foreach (var unityObjectIdentification in savable.SavableLookup)
             {
-                var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
+                var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                 ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
                 GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
             }
@@ -227,7 +223,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (!_trackedSavables.Remove(savable.SavableGuid)) return false;
             
-            var savableGuid = new GuidPath(savable.SavableGuid);
+            var savableGuid = new GuidPath(Scene.name, savable.SavableGuid);
             
             GuidToSavableGameObjectLookup.Remove(savableGuid);
             SavableGameObjectToGuidLookup.Remove(savable.gameObject);
@@ -242,7 +238,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     ComponentToGuidLookup.Remove((Component)unityObjectIdentification.unityObject);
                     
-                    var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
+                    var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                     GuidToComponentLookup.Remove(componentGuidPath);
                 }
             }
@@ -253,7 +249,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     ComponentToGuidLookup.Remove((Component)unityObjectIdentification.unityObject);
                     
-                    var componentGuidPath = new GuidPath(savableGuid.TargetGuid, unityObjectIdentification.guid);
+                    var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                     GuidToComponentLookup.Remove(componentGuidPath);
                 }
             }
@@ -464,10 +460,10 @@ namespace SaveLoadSystem.Core.UnityComponent
             //iterate over GameObjects with savable component
             foreach (var saveObject in _trackedSavables.Values)
             {
-                var savableGuidPath = new GuidPath(saveObject.SavableGuid);
+                var savableGuidPath = new GuidPath(Scene.name, saveObject.SavableGuid);
                 foreach (var componentContainer in saveObject.SavableLookup)
                 {
-                    var guidPath = new GuidPath(savableGuidPath.TargetGuid, componentContainer.guid);
+                    var guidPath = new GuidPath(savableGuidPath, componentContainer.guid);
                     var instanceSaveData = new LeafSaveData();
                 
                     branchSaveData.AddLeafSaveData(guidPath, instanceSaveData);
@@ -529,11 +525,11 @@ namespace SaveLoadSystem.Core.UnityComponent
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
             {
-                var savableGuidPath = new GuidPath(savable.SavableGuid);
+                var savableGuidPath = new GuidPath(Scene.name, savable.SavableGuid);
                 
                 foreach (var savableComponent in savable.SavableLookup)
                 {
-                    var componentGuidPath = new GuidPath(savableGuidPath.TargetGuid, savableComponent.guid);
+                    var componentGuidPath = new GuidPath(savableGuidPath, savableComponent.guid);
 
                     if (branchSaveData.TryGetLeafSaveData(componentGuidPath, out var instanceSaveData))
                     {
