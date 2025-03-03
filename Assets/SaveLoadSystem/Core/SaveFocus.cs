@@ -15,6 +15,8 @@ using Debug = UnityEngine.Debug;
 
 namespace SaveLoadSystem.Core
 {
+    public enum LoadType { Hard, Soft }
+    
     public class SaveFocus
     {
         public string FileName { get; }
@@ -26,8 +28,12 @@ namespace SaveLoadSystem.Core
         
         private JObject _customMetaData;
         private SaveMetaData _metaData;
+        
         private RootSaveData _rootSaveData;
-
+        private Dictionary<GuidPath, WeakReference<object>> _createdObjectsLookup;
+        private HashSet<ScriptableObject> _loadedScriptableObjects;
+        private HashSet<SaveSceneManager> _loadedSaveSceneManagers;
+        
         public SaveFocus(SaveLoadManager saveLoadManager, string fileName)
         {
             _asyncQueue = new AsyncOperationQueue();
@@ -83,6 +89,9 @@ namespace SaveLoadSystem.Core
             _asyncQueue.Enqueue(() =>
             {
                 _rootSaveData ??= new RootSaveData();
+                _createdObjectsLookup ??= new Dictionary<GuidPath, WeakReference<object>>();
+                _loadedScriptableObjects ??= new HashSet<ScriptableObject>();
+                _loadedSaveSceneManagers ??= new HashSet<SaveSceneManager>();
                 
                 HasPendingData = true;
                 InternalSnapshotScenes(_rootSaveData, scenesToSnapshot);
@@ -139,32 +148,32 @@ namespace SaveLoadSystem.Core
             WriteToDisk();
         }
 
-        public void ApplySnapshotToActiveScenes()
+        public void ApplySnapshotToActiveScenes(LoadType loadType)
         {
-            ApplySnapshotToScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
+            ApplySnapshotToScenes(loadType, _saveLoadManager.TrackedSaveSceneManagers.ToArray());
         }
 
-        public void ApplySnapshotToScenes(params SaveSceneManager[] saveSceneManagersToApplySnapshot)
+        public void ApplySnapshotToScenes(LoadType loadType, params SaveSceneManager[] saveSceneManagersToApplySnapshot)
         {
             _asyncQueue.Enqueue(() =>
             {
                 if (_rootSaveData == null) return Task.CompletedTask;
                 
-                InternalLoadScenes(_rootSaveData, saveSceneManagersToApplySnapshot);
+                InternalLoadScenes(_rootSaveData, loadType, saveSceneManagersToApplySnapshot);
                 return Task.CompletedTask;
             });
         }
         
-        public void LoadActiveScenes()
+        public void LoadActiveScenes(LoadType loadType)
         {
             ReadFromDisk();
-            ApplySnapshotToActiveScenes();
+            ApplySnapshotToActiveScenes(loadType);
         }
         
-        public void LoadScenes(params SaveSceneManager[] saveSceneManagersToLoad)
+        public void LoadScenes(LoadType loadType, params SaveSceneManager[] saveSceneManagersToLoad)
         {
             ReadFromDisk();
-            ApplySnapshotToScenes(saveSceneManagersToLoad);
+            ApplySnapshotToScenes(loadType, saveSceneManagersToLoad);
         }
 
         public void ReadFromDisk()
@@ -178,20 +187,24 @@ namespace SaveLoadSystem.Core
                 if (IsPersistent && _rootSaveData == null)
                 {
                     _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _createdObjectsLookup = new Dictionary<GuidPath, WeakReference<object>>();
+                    _loadedScriptableObjects = new HashSet<ScriptableObject>();
+                    _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
                 }
             });
         }
         
-        public void ReloadThenLoadActiveScenes()
+        public void ReloadThenLoadActiveScenes(LoadType loadType)
         {
-            ReloadThenLoadScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
+            ReloadThenLoadScenes(loadType, _saveLoadManager.TrackedSaveSceneManagers.ToArray());
         }
-        
+
         /// <summary>
         /// data will be applied after awake
         /// </summary>
+        /// <param name="loadType"></param>
         /// <param name="scenesToLoad"></param>
-        public void ReloadThenLoadScenes(params SaveSceneManager[] scenesToLoad)
+        public void ReloadThenLoadScenes(LoadType loadType, params SaveSceneManager[] scenesToLoad)
         {
             _asyncQueue.Enqueue(async () =>
             {
@@ -202,6 +215,9 @@ namespace SaveLoadSystem.Core
                 if (IsPersistent && _rootSaveData == null)
                 {
                     _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    _createdObjectsLookup = new Dictionary<GuidPath, WeakReference<object>>();
+                    _loadedScriptableObjects = new HashSet<ScriptableObject>();
+                    _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
                 }
 
                 //buffer save paths, because they will be null later on the scene array
@@ -225,7 +241,7 @@ namespace SaveLoadSystem.Core
                     }
                 }
                 
-                InternalLoadScenes(_rootSaveData, matchingGuids.ToArray());
+                InternalLoadScenes(_rootSaveData, loadType, matchingGuids.ToArray());
             });
         }
         
@@ -298,35 +314,31 @@ namespace SaveLoadSystem.Core
             //TODO: Prefab stuff
             //TODO: cleanup
             
-            List<string> requestedScenes = new (){ RootSaveData.GlobalSaveDataName };
-            HashSet<AssetRegistry> processedAssetRegistries = new();
-            Dictionary<GameObject, GuidPath> uniqueGameObjects = new();
-            Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjectsToGuidPath = new();   //TODO: instead of GuidPath there is a List<GuidPath> required
-            Dictionary<Component, GuidPath> uniqueComponents = new();
-            foreach (var saveSceneManager in saveSceneManagers)
+            List<string> activeSceneNames = new (){ RootSaveData.GlobalSaveDataName };
+            Dictionary<GameObject, GuidPath> gameObjects = new();
+            Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects = new();
+            Dictionary<Component, GuidPath> components = new();
+            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
             {
-                //prevent processing of the same asset registry
-                if (!processedAssetRegistries.Add(saveSceneManager.AssetRegistry)) continue;
-                
-                requestedScenes.Add(saveSceneManager.Scene.name);
+                activeSceneNames.Add(saveSceneManager.Scene.name);
                 
                 foreach (var (gameObject, guidPath) in saveSceneManager.SavableGameObjectToGuidLookup)
                 {
-                    uniqueGameObjects.TryAdd(gameObject, guidPath);
-                }
-                
-                foreach (var (scriptableObject, guidPath) in saveSceneManager.ScriptableObjectToGuidLookup)
-                {
-                    uniqueScriptableObjectsToGuidPath.TryAdd(scriptableObject, guidPath);
+                    gameObjects.Add(gameObject, guidPath);
                 }
                 
                 foreach (var (component, guidPath) in saveSceneManager.ComponentToGuidLookup)
                 {
-                    uniqueComponents.TryAdd(component, guidPath);
+                    components.Add(component, guidPath);
+                }
+                
+                foreach (var (scriptableObject, guidPath) in saveSceneManager.ScriptableObjectToGuidLookup)
+                {
+                    uniqueScriptableObjects.TryAdd(scriptableObject, guidPath);
                 }
             }
 
-            var scriptableObjectsToSave = GetScriptableObjectToSave(requestedScenes, uniqueScriptableObjectsToGuidPath, currentRootSaveData);
+            var scriptableObjectsToSave = ParseScriptableObjectWithLoadedScenes(currentRootSaveData, activeSceneNames, uniqueScriptableObjects);
             
             Dictionary<object, GuidPath> processedObjectLookup = new ();
             
@@ -340,7 +352,9 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
 
                 targetSavable.OnSave(new SaveDataHandler(globalSaveData, guidPath, leafSaveData, processedObjectLookup, 
-                    uniqueGameObjects, uniqueScriptableObjectsToGuidPath, uniqueComponents));
+                    gameObjects, uniqueScriptableObjects, components));
+                
+                _loadedScriptableObjects.Remove(scriptableObject);
             }
             
             currentRootSaveData.SetGlobalSceneData(globalSaveData);
@@ -348,7 +362,17 @@ namespace SaveLoadSystem.Core
             //perform snapshot
             foreach (var saveSceneManager in saveSceneManagers)
             {
-                currentRootSaveData.SetSceneData(saveSceneManager.Scene, saveSceneManager.CreateSnapshot(processedObjectLookup));
+                var prefabGuidGroup = saveSceneManager.CreatePrefabGuidGroup();
+                var branchSaveData = saveSceneManager.CreateBranchSaveData(processedObjectLookup, gameObjects, uniqueScriptableObjects, components);
+                
+                var sceneData = new SceneData 
+                {
+                    ActivePrefabs = prefabGuidGroup, 
+                    ActiveSaveData = branchSaveData
+                };
+                
+                currentRootSaveData.SetSceneData(saveSceneManager.Scene, sceneData);
+                _loadedSaveSceneManagers.Remove(saveSceneManager);
             }
             
             //after event
@@ -363,8 +387,8 @@ namespace SaveLoadSystem.Core
             Debug.LogWarning("Snapshot Completed!");
         }
         
-        private Dictionary<ScriptableObject, GuidPath> GetScriptableObjectToSave(List<string> requestedScenes, 
-            Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects, RootSaveData rootSaveData)
+        private Dictionary<ScriptableObject, GuidPath> ParseScriptableObjectWithLoadedScenes(RootSaveData rootSaveData, 
+            List<string> activeSceneNames, Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects)
         {
             Dictionary<ScriptableObject, GuidPath> scriptableObjectsToLoad = new();
             
@@ -379,7 +403,7 @@ namespace SaveLoadSystem.Core
                 // Check if this object already exists in stored data
                 if (rootSaveData.GlobalSaveData.Elements.TryGetValue(branchGuidPath, out LeafSaveData leafSaveData))
                 {
-                    if (ScenesForGlobalLeafSaveDataAreActive(requestedScenes, leafSaveData))
+                    if (ScenesForGlobalLeafSaveDataAreLoaded(activeSceneNames, leafSaveData))
                     {
                         scriptableObjectsToLoad.Add(scriptableObject, branchGuidPath);
                     }
@@ -397,79 +421,133 @@ namespace SaveLoadSystem.Core
             return scriptableObjectsToLoad;
         }
         
-        private void InternalLoadScenes(RootSaveData rootSaveData, params SaveSceneManager[] saveSceneManagers)
+        //TODO: implement a list that tracks already loaded scriptable objects -> additive scriptable object loading will only process unloaded ones
+        //TODO: setup of references of everything that is active -> loading of everything that is related to the parameter
+        private void InternalLoadScenes(RootSaveData rootSaveData, LoadType loadType, params SaveSceneManager[] saveSceneManagers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
-
-            //before event
+            
+            //cleanup
+            _loadedSaveSceneManagers.RemoveWhere(x => x.IsUnityNull());
+            
+            //select scenes based on hard and Soft loading
+            var scenesToLoad = new List<SaveSceneManager>();
             foreach (var saveSceneManager in saveSceneManagers)
+            {
+                if (loadType == LoadType.Hard || !_loadedSaveSceneManagers.Contains(saveSceneManager))
+                {
+                    scenesToLoad.Add(saveSceneManager);
+                }
+            }
+            
+            //on before load event
+            foreach (var saveSceneManager in scenesToLoad)
             {
                 saveSceneManager.HandleBeforeLoad();
             }
-            
-            //TODO: Prefab stuff
-            //TODO: cleanup
-            
-            HashSet<AssetRegistry> processedAssetRegistries = new();
-            List<string> requestedScenes = new (){ RootSaveData.GlobalSaveDataName };
-            Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
-            Dictionary<GuidPath, ScriptableObject> uniqueUnloadedScriptableObjects = new();
-            Dictionary<GuidPath, Component> uniqueComponents = new();
-            foreach (var saveSceneManager in saveSceneManagers)
+
+            //handle prefabs
+            foreach (var saveSceneManager in scenesToLoad)
             {
-                //prevent processing of the same asset registry
-                if (!processedAssetRegistries.Add(saveSceneManager.AssetRegistry)) continue;
+                var currentSavePrefabGuidGroup = saveSceneManager.CreatePrefabGuidGroup();
                 
-                requestedScenes.Add(saveSceneManager.Scene.name);
+                if (rootSaveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
+                {
+                    saveSceneManager.InstantiatePrefabsOnLoad(sceneData.ActivePrefabs, currentSavePrefabGuidGroup);
+                    saveSceneManager.DestroyPrefabsOnLoad(sceneData.ActivePrefabs, currentSavePrefabGuidGroup);
+                }
+            }
+            
+            //cleanup unused weak references
+            CleanupWeakReferences();
+            
+            //prepare references
+            List<string> activeSceneNames = new (){ RootSaveData.GlobalSaveDataName };
+            Dictionary<GuidPath, ScriptableObject> uniqueScriptableObjects = new();
+            Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
+            Dictionary<GuidPath, Component> uniqueComponents = new();
+            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            {
+                activeSceneNames.Add(saveSceneManager.Scene.name);
                 
                 foreach (var (guidPath, gameObject) in saveSceneManager.GuidToSavableGameObjectLookup)
                 {
                     uniqueGameObjects.TryAdd(guidPath, gameObject);
                 }
                 
-                foreach (var (guidPath, scriptableObject) in saveSceneManager.GuidToScriptableObjectLookup)
-                {
-                    uniqueUnloadedScriptableObjects.TryAdd(guidPath, scriptableObject);
-                }
-                
                 foreach (var (guidPath, component) in saveSceneManager.GuidToComponentLookup)
                 {
                     uniqueComponents.TryAdd(guidPath, component);
                 }
+                
+                foreach (var (guidPath, scriptableObject) in saveSceneManager.GuidToScriptableObjectLookup)
+                {
+                    if (loadType == LoadType.Hard || !_loadedScriptableObjects.Contains(scriptableObject))
+                    {
+                        uniqueScriptableObjects.TryAdd(guidPath, scriptableObject);
+                    }
+                }
             }
 
-            var scriptableObjectsToLoad = GetScriptableObjectToLoad(requestedScenes, uniqueUnloadedScriptableObjects, rootSaveData);
+            //throw out scriptable objects, that have references to unloaded scenes in the save files
+            var scriptableObjectsToLoad = ParseScriptableObjectWithLoadedScenes(rootSaveData, activeSceneNames, uniqueScriptableObjects);
+
+            if (loadType == LoadType.Hard)
+            {
+                var objectsToRemove = new List<GuidPath>();
+                foreach (var guidPath in _createdObjectsLookup.Keys)
+                {
+                    if (guidPath.Scene == RootSaveData.GlobalSaveDataName)
+                    {
+                        objectsToRemove.Add(guidPath);
+                        continue;
+                    }
+                    
+                    foreach (var saveSceneManager in scenesToLoad)
+                    {
+                        if (saveSceneManager.Scene.name == guidPath.Scene)
+                        {
+                            objectsToRemove.Add(guidPath);
+                            break;
+                        }
+                    }
+                }
+                
+                foreach (var guidPath in objectsToRemove)
+                {
+                    _createdObjectsLookup.Remove(guidPath);
+                }
+            }
             
-            var createdObjectsLookup = new Dictionary<GuidPath, object>();
-            
-            //perform scriptable object snapshot
-            //TODO: create snapshot comparison and throw out scriptable object branches, that have changed -> this also includes objects created by the scriptable object
-            foreach (var (guidPath, scriptableObject) in uniqueUnloadedScriptableObjects) 
+            //perform scriptable object laod
+            foreach (var (guidPath, scriptableObject) in uniqueScriptableObjects) 
             {
                 if (rootSaveData.GlobalSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData))
                 {
-                    var loadDataHandler = new LoadDataHandler(rootSaveData.GlobalSaveData, instanceSaveData, 
-                        createdObjectsLookup, uniqueGameObjects, scriptableObjectsToLoad, uniqueComponents);
-                        
                     if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
+                    var loadDataHandler = new LoadDataHandler(rootSaveData.GlobalSaveData, instanceSaveData, 
+                        _createdObjectsLookup, uniqueGameObjects, scriptableObjectsToLoad, uniqueComponents);
+                    
                     targetSavable.OnLoad(loadDataHandler);
+                    
+                    _loadedScriptableObjects.Add(scriptableObject);
                 }
             }
             
-            
             //perform load
-            foreach (var saveSceneManager in saveSceneManagers)
+            foreach (var saveSceneManager in scenesToLoad)
             {
                 if (rootSaveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
                 {
-                    saveSceneManager.LoadSnapshot(sceneData, createdObjectsLookup);
+                    saveSceneManager.LoadBranchSaveData(sceneData.ActiveSaveData, _createdObjectsLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents);
+                    _loadedSaveSceneManagers.Add(saveSceneManager);
                 }
             }
             
-            //after event
-            foreach (var saveSceneManager in saveSceneManagers)
+            //on load completed event
+            foreach (var saveSceneManager in scenesToLoad)
             {
                 saveSceneManager.HandleAfterLoad();
             }
@@ -480,8 +558,27 @@ namespace SaveLoadSystem.Core
             Debug.LogWarning("Loading Completed!");
         }
 
-        private Dictionary<GuidPath, ScriptableObject> GetScriptableObjectToLoad(List<string> requestedScenes, 
-            Dictionary<GuidPath, ScriptableObject> uniqueUnloadedScriptableObjects, RootSaveData rootSaveData)
+        private void CleanupWeakReferences()
+        {
+            List<GuidPath> keysToRemove = new();
+            foreach (var (guidPath, weakReference) in _createdObjectsLookup)
+            {
+                if (!weakReference.TryGetTarget(out _))
+                {
+                    keysToRemove.Add(guidPath);
+                }
+            }
+            
+            Debug.Log(_createdObjectsLookup.Count + " " + keysToRemove.Count);
+            
+            foreach (var key in keysToRemove)
+            {
+                _createdObjectsLookup.Remove(key);
+            }
+        }
+
+        private Dictionary<GuidPath, ScriptableObject> ParseScriptableObjectWithLoadedScenes(RootSaveData rootSaveData, 
+            List<string> requestedScenes, Dictionary<GuidPath, ScriptableObject> uniqueUnloadedScriptableObjects)
         {
             Dictionary<GuidPath, ScriptableObject> scriptableObjectsToLoad = new();
             
@@ -496,7 +593,7 @@ namespace SaveLoadSystem.Core
                 // Check if this object already exists in stored data
                 if (rootSaveData.GlobalSaveData.Elements.TryGetValue(branchGuidPath, out LeafSaveData leafSaveData))
                 {
-                    if (ScenesForGlobalLeafSaveDataAreActive(requestedScenes, leafSaveData))
+                    if (ScenesForGlobalLeafSaveDataAreLoaded(requestedScenes, leafSaveData))
                     {
                         scriptableObjectsToLoad.Add(branchGuidPath, scriptableObject);
                     }
@@ -510,7 +607,7 @@ namespace SaveLoadSystem.Core
             return scriptableObjectsToLoad;
         }
         
-        bool ScenesForGlobalLeafSaveDataAreActive(List<string> requiredScenes, LeafSaveData leafSaveData)
+        bool ScenesForGlobalLeafSaveDataAreLoaded(List<string> requiredScenes, LeafSaveData leafSaveData)
         {
             foreach (var referenceGuidPath in leafSaveData.References.Values)
             {

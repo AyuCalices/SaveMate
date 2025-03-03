@@ -17,7 +17,7 @@ namespace SaveLoadSystem.Core
     {
         private readonly BranchSaveData _branchSaveData;
         private readonly LeafSaveData _leafSaveData;
-        private readonly Dictionary<GuidPath, object> _createdObjectsLookup;
+        private readonly Dictionary<GuidPath, WeakReference<object>> _createdObjectsLookup;
         
         //unity object reference lookups
         private readonly Dictionary<GuidPath, GameObject> _guidToSavableGameObjectLookup;
@@ -25,7 +25,7 @@ namespace SaveLoadSystem.Core
         private readonly Dictionary<GuidPath, Component> _guidToComponentLookup;
 
         public LoadDataHandler(BranchSaveData branchSaveData, LeafSaveData leafSaveData, 
-            Dictionary<GuidPath, object> createdObjectsLookup, Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup,
+            Dictionary<GuidPath, WeakReference<object>> createdObjectsLookup, Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup,
             Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, Dictionary<GuidPath, Component> guidToComponentLookup)
         {
             _branchSaveData = branchSaveData;
@@ -110,7 +110,7 @@ namespace SaveLoadSystem.Core
         
         public bool TryLoadReference<T>(string identifier, out T reference)
         {
-            var res = TryLoadValue(typeof(T), identifier, out var obj);
+            var res = TryLoadReference(typeof(T), identifier, out var obj);
             
             if (res)
             {
@@ -201,6 +201,8 @@ namespace SaveLoadSystem.Core
                     reference = scriptableObject;
                     return true;
                 }
+                
+                Debug.LogWarning("Wasn't able to find the requested object in the ScriptableObject lookup.");
             }
             else if (type == typeof(GameObject))
             {
@@ -209,6 +211,8 @@ namespace SaveLoadSystem.Core
                     reference = savable.gameObject;
                     return true;
                 }
+                
+                Debug.LogWarning("Wasn't able to find the requested object in the GameObject lookup.");
             } 
             else if (type == typeof(Transform))
             {
@@ -217,6 +221,8 @@ namespace SaveLoadSystem.Core
                     reference = savable.transform;
                     return true;
                 }
+                
+                Debug.LogWarning("Wasn't able to find the requested object in the Transform lookup.");
             }
             else if (type == typeof(RectTransform))
             {
@@ -234,16 +240,22 @@ namespace SaveLoadSystem.Core
                     return true;
                 }
                 
-                if (_guidToSavableGameObjectLookup.TryGetValue(guidPath, out var savable))
+                if (_guidToSavableGameObjectLookup.TryGetValue(guidPath, out var savable))  //TODO: explain why this is happening
                 {
                     reference = savable.GetComponent(type);
                     return true;
                 }
+                
+                Debug.LogWarning("Wasn't able to find the requested object in the Component lookup.");
             }
-            
-            //custom type reference handling
-            if (_createdObjectsLookup.TryGetValue(guidPath, out reference))
+            else if (_createdObjectsLookup.TryGetValue(guidPath, out var weakReference))
             {
+                if (!weakReference.TryGetTarget(out reference))
+                {
+                    Debug.LogWarning("The requested object was lost!");
+                    return false;
+                }
+                
                 if (reference.GetType() != type)
                 {
                     Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. You tried to return it as type '{type}', which is not allowed. Please use matching types."); //TODO: debug
@@ -276,7 +288,7 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
                     return false;
 
-                _createdObjectsLookup.Add(guidPath, reference);
+                _createdObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
                 objectSavable.OnLoad(loadDataHandler);
                 return true;
             }
@@ -290,7 +302,7 @@ namespace SaveLoadSystem.Core
                 var converter = ConverterServiceProvider.GetConverter(type);
 
                 reference = converter.CreateInstanceForLoad(loadDataHandler);
-                _createdObjectsLookup.Add(guidPath, reference);
+                _createdObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
                 converter.Load(reference, loadDataHandler);
                 return true;
             }
@@ -300,7 +312,7 @@ namespace SaveLoadSystem.Core
             if (jObject != null)
             {
                 reference = jObject.ToObject(type);
-                _createdObjectsLookup.Add(guidPath, reference);
+                _createdObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
                 return true;
             }
             

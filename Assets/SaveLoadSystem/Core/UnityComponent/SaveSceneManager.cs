@@ -16,8 +16,9 @@ namespace SaveLoadSystem.Core.UnityComponent
     {
         [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private AssetRegistry assetRegistry;
-        
-        [Header("Current Scene Events")]
+
+        [Header("Current Scene Events")] 
+        [SerializeField] private LoadType loadType;
         [SerializeField] private bool loadSceneOnAwake;
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDestroy;
         [SerializeField] private SceneManagerEvents sceneManagerEvents;
@@ -31,10 +32,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         internal readonly Dictionary<GameObject, GuidPath> SavableGameObjectToGuidLookup = new();
         internal readonly Dictionary<ScriptableObject, GuidPath> ScriptableObjectToGuidLookup = new();
+        internal readonly Dictionary<Savable, GuidPath> SavablePrefabsToGuidLookup = new();
         internal readonly Dictionary<Component, GuidPath> ComponentToGuidLookup = new();
         
         internal readonly Dictionary<GuidPath, GameObject> GuidToSavableGameObjectLookup = new();
         internal readonly Dictionary<GuidPath, ScriptableObject> GuidToScriptableObjectLookup = new();
+        internal readonly Dictionary<GuidPath, Savable> GuidToSavablePrefabsLookup = new();
         internal readonly Dictionary<GuidPath, Component> GuidToComponentLookup = new();
         
 
@@ -99,6 +102,13 @@ namespace SaveLoadSystem.Core.UnityComponent
                     var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, scriptableObjectSavable.guid);
                     ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
                     GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
+                }
+
+                foreach (var prefabSavable in assetRegistry.PrefabSavables)
+                {
+                    var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, prefabSavable.PrefabGuid);
+                    SavablePrefabsToGuidLookup.Add(prefabSavable, guidPath);
+                    GuidToSavablePrefabsLookup.Add(guidPath, prefabSavable);
                 }
             }
             
@@ -284,13 +294,13 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Apply Snapshot")]
         public void ApplySnapshot()
         {
-            saveLoadManager.SaveFocus.ApplySnapshotToScenes(this);
+            saveLoadManager.SaveFocus.ApplySnapshotToScenes(loadType, this);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            saveLoadManager.SaveFocus.LoadScenes(this);
+            saveLoadManager.SaveFocus.LoadScenes(loadType, this);
         }
         
         [ContextMenu("Wipe Scene Data")]
@@ -308,7 +318,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Reload Then Load Scene")]
         public void ReloadThenLoadScene()
         {
-            saveLoadManager.SaveFocus.ReloadThenLoadScenes(this);
+            saveLoadManager.SaveFocus.ReloadThenLoadScenes(loadType, this);
         }
         
         
@@ -431,33 +441,33 @@ namespace SaveLoadSystem.Core.UnityComponent
 
         
         #endregion
+        
+        #region Save and Load Helper
+
+        
+        internal PrefabGuidGroup CreatePrefabGuidGroup()
+        {
+            return new PrefabGuidGroup
+            {
+                Guids = (from savable in _trackedSavables.Values
+                        where !savable.DynamicPrefabSpawningDisabled &&
+                              GuidToSavablePrefabsLookup.ContainsKey(new GuidPath(RootSaveData.GlobalSaveDataName, savable.PrefabGuid))
+                        select new SavablePrefabElement { PrefabGuid = savable.PrefabGuid, SavableGuid = savable.SavableGuid })
+                    .ToHashSet()
+            };
+        }
+
+        
+        #endregion
 
         #region Save Methods
         
-        
-        internal SceneData CreateSnapshot(Dictionary<object, GuidPath> processedObjectLookup)
+        internal BranchSaveData CreateBranchSaveData(Dictionary<object, GuidPath> processedObjectLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup,
+            Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
-            //prefabs
-            PrefabGuidGroup prefabGuidGroup = default;
-            if (assetRegistry != null)
-            {
-                prefabGuidGroup = CreateScenePrefabGroup();
-            }
-            
             //save data
-            var sceneSaveData = new BranchSaveData();
-            LazySave(sceneSaveData, processedObjectLookup);
+            var branchSaveData = new BranchSaveData();
             
-            return new SceneData 
-            {
-                ActivePrefabs = prefabGuidGroup, 
-                ActiveSaveData = sceneSaveData
-            };
-        }
-        
-        private void LazySave(BranchSaveData branchSaveData, Dictionary<object, GuidPath> processedObjectLookup)
-        {
-            //iterate over GameObjects with savable component
             foreach (var saveObject in _trackedSavables.Values)
             {
                 var savableGuidPath = new GuidPath(Scene.name, saveObject.SavableGuid);
@@ -465,62 +475,56 @@ namespace SaveLoadSystem.Core.UnityComponent
                 {
                     var guidPath = new GuidPath(savableGuidPath, componentContainer.guid);
                     var instanceSaveData = new LeafSaveData();
-                
+                    
+                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) continue;
+            
                     branchSaveData.AddLeafSaveData(guidPath, instanceSaveData);
                     
-                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) return;
-            
                     targetSavable.OnSave(new SaveDataHandler(branchSaveData, guidPath, instanceSaveData, processedObjectLookup, 
-                        SavableGameObjectToGuidLookup, ScriptableObjectToGuidLookup, ComponentToGuidLookup));
+                        savableGameObjectToGuidLookup, scriptableObjectToGuidLookup, componentToGuidLookup));
                 }
             }
+
+            return branchSaveData;
         }
-        
         
         #endregion
 
         #region LoadMethods
         
-        
-        internal void LoadSnapshot(SceneData loadedSceneData, Dictionary<GuidPath, object> globallyCreatedObjects)
-        {
-            PrefabGuidGroup currentSavePrefabGuidGroup = default;
-            if (assetRegistry != null)
-            {
-                //instantiating needed prefabs must happen before performing the core load methods, so it doesnt miss out on their Savable Components
-                currentSavePrefabGuidGroup = CreateScenePrefabGroup();
-                InstantiatePrefabsOnLoad(loadedSceneData.ActivePrefabs, currentSavePrefabGuidGroup);
-            }
 
-            LazyLoad(loadedSceneData.ActiveSaveData, globallyCreatedObjects);
-            
-            //destroy prefabs, that are not present in the save file
-            if (assetRegistry != null)
-            {
-                DestroyPrefabsOnLoad(loadedSceneData.ActivePrefabs, currentSavePrefabGuidGroup);
-            }
-        }
-
-        private void InstantiatePrefabsOnLoad(PrefabGuidGroup loadedPrefabGuidGroup, PrefabGuidGroup currentPrefabGuidGroup)
+        internal void InstantiatePrefabsOnLoad(PrefabGuidGroup loadedPrefabGuidGroup, PrefabGuidGroup currentPrefabGuidGroup)
         {
             var instantiatedSavables = loadedPrefabGuidGroup.Except(currentPrefabGuidGroup);
-            foreach (var prefabsSavable in instantiatedSavables)
+            foreach (var prefabSavable in instantiatedSavables)
             {
-                if (assetRegistry.TryGetPrefab(prefabsSavable.PrefabGuid, out Savable savable))
+                var prefabGuid = new GuidPath(RootSaveData.GlobalSaveDataName, prefabSavable.PrefabGuid);
+                if (GuidToSavablePrefabsLookup.TryGetValue(prefabGuid, out Savable savable))
                 {
                     /*
                      * When a savable gets instantiated, it will register itself to this SaveSceneManager and apply an ID.
                      * In order to use the ID that got saved, it must be applied before instantiation. Since this is done on
                      * the prefab, it must be undone on the prefab after instantiation.
                      */
-                    savable.SavableGuid = prefabsSavable.SavableGuid;
+                    savable.SavableGuid = prefabSavable.SavableGuid;
                     var obj = Instantiate(savable);
                     savable.SavableGuid = null;
                 }
             }
         }
         
-        private void LazyLoad(BranchSaveData branchSaveData, Dictionary<GuidPath, object> globallyCreatedObjects)
+        internal void DestroyPrefabsOnLoad(PrefabGuidGroup storedPrefabGuidGroup, PrefabGuidGroup currentPrefabGuidGroup)
+        {
+            var destroyedSavables = currentPrefabGuidGroup.Except(storedPrefabGuidGroup);
+            foreach (var prefabsSavable in destroyedSavables)
+            {
+                Destroy(_trackedSavables[prefabsSavable.SavableGuid].gameObject);
+            }
+        }
+        
+        internal void LoadBranchSaveData(BranchSaveData branchSaveData, Dictionary<GuidPath, WeakReference<object>> globallyCreatedObjects, 
+            Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup, Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, 
+            Dictionary<GuidPath, Component> guidToComponentLookup)
         {
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
@@ -533,41 +537,15 @@ namespace SaveLoadSystem.Core.UnityComponent
 
                     if (branchSaveData.TryGetLeafSaveData(componentGuidPath, out var instanceSaveData))
                     {
-                        var loadDataHandler = new LoadDataHandler(branchSaveData, instanceSaveData, 
-                            globallyCreatedObjects, GuidToSavableGameObjectLookup, GuidToScriptableObjectLookup, GuidToComponentLookup);
-                        
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     
+                        var loadDataHandler = new LoadDataHandler(branchSaveData, instanceSaveData, 
+                            globallyCreatedObjects, guidToSavableGameObjectLookup, guidToScriptableObjectLookup, guidToComponentLookup);
+                        
                         targetSavable.OnLoad(loadDataHandler);
                     }
                 }
             }
-        }
-        
-        private void DestroyPrefabsOnLoad(PrefabGuidGroup storedPrefabGuidGroup, PrefabGuidGroup currentPrefabGuidGroup)
-        {
-            var destroyedSavables = currentPrefabGuidGroup.Except(storedPrefabGuidGroup);
-            foreach (var prefabsSavable in destroyedSavables)
-            {
-                Destroy(_trackedSavables[prefabsSavable.PrefabGuid].gameObject);
-            }
-        }
-
-        
-        #endregion
-        
-        #region Save and Load Helper
-
-        
-        private PrefabGuidGroup CreateScenePrefabGroup()
-        {
-            return new PrefabGuidGroup
-            {
-                Guids = (from savable in _trackedSavables.Values 
-                    where !savable.DynamicPrefabSpawningDisabled && assetRegistry.ContainsPrefabGuid(savable.PrefabGuid) 
-                    select new SavablePrefabElement { PrefabGuid = savable.PrefabGuid, SavableGuid = savable.SavableGuid})
-                    .ToHashSet()
-            };
         }
 
         

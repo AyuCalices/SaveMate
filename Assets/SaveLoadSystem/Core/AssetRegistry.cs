@@ -90,24 +90,6 @@ namespace SaveLoadSystem.Core
                 }
             }
         }
-
-        public bool ContainsPrefabGuid(string prefabPath)
-        {
-            return prefabSavables.Find(x => x.PrefabGuid == prefabPath) != null;
-        }
-    
-        public bool TryGetPrefab(string guid, out Savable match)
-        {
-            var savable = prefabSavables.Find(x => x.PrefabGuid == guid);
-            if (savable != null)
-            {
-                match = savable;
-                return true;
-            }
-
-            match = null;
-            return false;
-        }
         
         internal void AddSavableScriptableObject(ScriptableObject scriptableObject)
         {

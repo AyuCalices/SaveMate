@@ -75,13 +75,13 @@ namespace SaveLoadSystem.Core
             SaveFocus.SaveActiveScenes();
         }
 
-        public void SimpleLoadActiveScenes(string fileName = null)
+        public void SimpleLoadActiveScenes(LoadType loadType = LoadType.Hard, string fileName = null)
         {
             SetFocus(fileName);
 
             if (SaveFocus.IsPersistent)
             {
-                SaveFocus.LoadScenes(TrackedSaveSceneManagers.ToArray());
+                SaveFocus.LoadScenes(loadType, TrackedSaveSceneManagers.ToArray());
             }
             else
             {
