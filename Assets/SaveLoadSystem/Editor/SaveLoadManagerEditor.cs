@@ -44,6 +44,16 @@ namespace SaveLoadSystem.Editor
                     Debug.LogWarning("The specified path does not exist: " + path);
                 }
             }
+            
+            if (GUILayout.Button("Simple Save"))
+            {
+                saveLoadManager.SimpleSaveActiveScenes();
+            }
+            
+            if (GUILayout.Button("Simple Load"))
+            {
+                saveLoadManager.SimpleLoadActiveScenes();
+            }
         }
     
         private void DeleteFilesAtPath(string path, string fileExtension)

@@ -78,15 +78,8 @@ namespace SaveLoadSystem.Core
         public void SimpleLoadActiveScenes(LoadType loadType = LoadType.Hard, string fileName = null)
         {
             SetFocus(fileName);
-
-            if (SaveFocus.IsPersistent)
-            {
-                SaveFocus.LoadScenes(loadType, TrackedSaveSceneManagers.ToArray());
-            }
-            else
-            {
-                Debug.LogWarning($"Couldn't load, because there is no save file with name '{fileName}.{ExtensionName}' at path '{SavePath}'");
-            }
+            
+            SaveFocus.LoadScenes(loadType, TrackedSaveSceneManagers.ToArray());
         }
 
         #endregion

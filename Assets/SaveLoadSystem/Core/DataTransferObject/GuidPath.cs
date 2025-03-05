@@ -15,6 +15,13 @@ namespace SaveLoadSystem.Core.DataTransferObject
             Scene = scene;
             TargetGuid = new[] {guid};
         }
+
+        public GuidPath(string scene, string[] guidPath)
+        {
+            Scene = scene;
+            TargetGuid = new string[guidPath.Length];
+            Array.Copy(guidPath, TargetGuid, guidPath.Length);
+        }
         
         public GuidPath(GuidPath parentPath, string guidPrefix)
         {
@@ -27,6 +34,15 @@ namespace SaveLoadSystem.Core.DataTransferObject
         public override string ToString()
         {
             return Scene + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar.ToString(), TargetGuid);
+        }
+        
+        public static GuidPath FromString(string path)
+        {
+            var parts = path.Split(Path.DirectorySeparatorChar);
+            var scene = parts[0];
+            var targetGuid = parts.Skip(1).ToArray();
+
+            return new GuidPath(scene, targetGuid);
         }
         
         public bool Equals(GuidPath other)

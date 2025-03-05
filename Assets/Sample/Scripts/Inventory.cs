@@ -50,6 +50,7 @@ namespace Sample.Scripts
     
         public void OnSave(SaveDataHandler saveDataHandler)
         {
+            items ??= new List<Item>();
             saveDataHandler.Save("items", items);
             
             /*

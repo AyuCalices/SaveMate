@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
@@ -15,22 +16,29 @@ namespace SaveLoadSystem.Core
     /// </summary>
     public readonly struct LoadDataHandler
     {
-        private readonly BranchSaveData _branchSaveData;
+        //save data container
+        private readonly RootSaveData _rootSaveData;
+        private readonly BranchSaveData _globalBranchSaveData;
         private readonly LeafSaveData _leafSaveData;
-        private readonly Dictionary<GuidPath, WeakReference<object>> _createdObjectsLookup;
         
-        //unity object reference lookups
+        //reference lookups
+        private readonly Dictionary<GuidPath, WeakReference<object>> _createdGuidToObjectsLookup;
+        private readonly ConditionalWeakTable<object, string> _createdObjectToGuidLookup;
         private readonly Dictionary<GuidPath, GameObject> _guidToSavableGameObjectLookup;
         private readonly Dictionary<GuidPath, ScriptableObject> _guidToScriptableObjectLookup;
         private readonly Dictionary<GuidPath, Component> _guidToComponentLookup;
 
-        public LoadDataHandler(BranchSaveData branchSaveData, LeafSaveData leafSaveData, 
-            Dictionary<GuidPath, WeakReference<object>> createdObjectsLookup, Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup,
-            Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, Dictionary<GuidPath, Component> guidToComponentLookup)
+        public LoadDataHandler(RootSaveData rootSaveData, BranchSaveData globalBranchSaveData, LeafSaveData leafSaveData, 
+            Dictionary<GuidPath, WeakReference<object>> createdGuidToObjectsLookup, ConditionalWeakTable<object, string> createdObjectToGuidLookup, 
+            Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup, Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, 
+            Dictionary<GuidPath, Component> guidToComponentLookup)
         {
-            _branchSaveData = branchSaveData;
+            _rootSaveData = rootSaveData;
+            _globalBranchSaveData = globalBranchSaveData;
             _leafSaveData = leafSaveData;
-            _createdObjectsLookup = createdObjectsLookup;
+            
+            _createdGuidToObjectsLookup = createdGuidToObjectsLookup;
+            _createdObjectToGuidLookup = createdObjectToGuidLookup;
             _guidToSavableGameObjectLookup = guidToSavableGameObjectLookup;
             _guidToScriptableObjectLookup = guidToScriptableObjectLookup;
             _guidToComponentLookup = guidToComponentLookup;
@@ -128,13 +136,16 @@ namespace SaveLoadSystem.Core
         {
             reference = default;
 
-            if (!TryGetReferenceGuidPath(identifier, out var guidPath))
+            if (!TryGetGuidPath(identifier, out var guidPath))
                 return false;
 
-            if (TryGetReferenceFromLookup(type, guidPath, out reference))
+            if (TryGetUnityObjectReference(type, guidPath, out reference))
+                return true;
+
+            if (TryGetCreatedObject(type, guidPath, out reference))
                 return true;
             
-            if (HandleSaveStrategy(type, guidPath, out reference))
+            if (CreateObject(type, guidPath, out reference))
                 return true;
 
             return false;
@@ -150,8 +161,8 @@ namespace SaveLoadSystem.Core
             }
             
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
-            var loadDataHandler = new LoadDataHandler(_branchSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
+            var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, saveDataBuffer, 
+                _createdGuidToObjectsLookup, _createdObjectToGuidLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -169,8 +180,8 @@ namespace SaveLoadSystem.Core
             }
             
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
-            var loadDataHandler = new LoadDataHandler(_branchSaveData, saveDataBuffer, 
-                _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
+            var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, saveDataBuffer, 
+                _createdGuidToObjectsLookup, _createdObjectToGuidLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
@@ -178,7 +189,7 @@ namespace SaveLoadSystem.Core
             return true;
         }
         
-        private bool TryGetReferenceGuidPath(string identifier, out GuidPath guidPath)
+        private bool TryGetGuidPath(string identifier, out GuidPath guidPath)
         {
             if (!_leafSaveData.References.TryGetValue(identifier, out guidPath))
             {
@@ -189,7 +200,7 @@ namespace SaveLoadSystem.Core
             return true;
         }
 
-        private bool TryGetReferenceFromLookup(Type type, GuidPath guidPath, out object reference)
+        private bool TryGetUnityObjectReference(Type type, GuidPath guidPath, out object reference)
         {
             reference = default;
 
@@ -248,7 +259,15 @@ namespace SaveLoadSystem.Core
                 
                 Debug.LogWarning("Wasn't able to find the requested object in the Component lookup.");
             }
-            else if (_createdObjectsLookup.TryGetValue(guidPath, out var weakReference))
+            
+            return false;
+        }
+
+        private bool TryGetCreatedObject(Type type, GuidPath guidPath, out object reference)
+        {
+            reference = default;
+            
+            if (_createdGuidToObjectsLookup.TryGetValue(guidPath, out var weakReference))
             {
                 if (!weakReference.TryGetTarget(out reference))
                 {
@@ -264,22 +283,23 @@ namespace SaveLoadSystem.Core
                 
                 return true;
             }
-            
+
             return false;
         }
 
-        private bool HandleSaveStrategy(Type type, GuidPath guidPath, out object reference)
+        private bool CreateObject(Type type, GuidPath guidPath, out object reference)
         {
             reference = null;
             
-            if (!_branchSaveData.TryGetLeafSaveData(guidPath, out LeafSaveData saveDataInstance))
+            if (!_globalBranchSaveData.TryGetLeafSaveData(guidPath, out LeafSaveData leafSaveData) && 
+                !_rootSaveData.GlobalSaveData.TryGetLeafSaveData(guidPath, out leafSaveData))
             {
                 Debug.LogWarning("Wasn't able to find the created object!"); //TODO: debug
                 return false;
             }
             
-            var loadDataHandler = new LoadDataHandler(_branchSaveData, saveDataInstance, 
-                _createdObjectsLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
+            var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, leafSaveData, 
+                _createdGuidToObjectsLookup, _createdObjectToGuidLookup, _guidToSavableGameObjectLookup, _guidToScriptableObjectLookup, _guidToComponentLookup);
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))
@@ -288,7 +308,8 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
                     return false;
 
-                _createdObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
+                _createdGuidToObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
+                _createdObjectToGuidLookup.Add(reference, guidPath.ToString());
                 objectSavable.OnLoad(loadDataHandler);
                 return true;
             }
@@ -302,18 +323,24 @@ namespace SaveLoadSystem.Core
                 var converter = ConverterServiceProvider.GetConverter(type);
 
                 reference = converter.CreateInstanceForLoad(loadDataHandler);
-                _createdObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
+                _createdGuidToObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
+                _createdObjectToGuidLookup.Add(reference, guidPath.ToString());
                 converter.Load(reference, loadDataHandler);
                 return true;
             }
 
             //serializable handling
-            var jObject = saveDataInstance.Values["SerializeRef"];
+            var jObject = leafSaveData.Values["SerializeRef"];
             if (jObject != null)
             {
                 reference = jObject.ToObject(type);
-                _createdObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
-                return true;
+                if (reference != null)
+                {
+                    _createdGuidToObjectsLookup.Add(guidPath, new WeakReference<object>(reference));
+                    _createdObjectToGuidLookup.Add(reference, guidPath.ToString());
+                    return true;
+                }
+                
             }
             
             //TODO: if UnityEngine.Object, then it might not be inside any registry -> create Debug.log

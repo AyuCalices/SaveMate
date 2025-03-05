@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.EventHandler;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
@@ -22,10 +23,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         [SerializeField] private bool loadSceneOnAwake;
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDestroy;
         [SerializeField] private SceneManagerEvents sceneManagerEvents;
-        
-        private static bool _isQuitting;
 
-        public Scene Scene => gameObject.scene;
+        public Scene Scene { get; private set; }
         public AssetRegistry AssetRegistry => assetRegistry;
         
         private readonly Dictionary<string, Savable> _trackedSavables = new();
@@ -39,7 +38,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         internal readonly Dictionary<GuidPath, ScriptableObject> GuidToScriptableObjectLookup = new();
         internal readonly Dictionary<GuidPath, Savable> GuidToSavablePrefabsLookup = new();
         internal readonly Dictionary<GuidPath, Component> GuidToComponentLookup = new();
-        
+
+        [ContextMenu("UnloadScene")]
+        public void UnloadSceneAsync()
+        {
+            SceneManager.UnloadSceneAsync(Scene);
+        }
 
         [InitializeOnLoad]
         private static class SaveObjectDestructionUpdater
@@ -91,6 +95,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void Awake()
         {
+            Scene = gameObject.scene;
+            
             if (assetRegistry == null)
             {
                 Debug.LogWarning($"You didn't add an {nameof(AssetRegistry)}. ScriptableObjects and Dynamic Prefab loading is not supported!");
@@ -122,21 +128,18 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void OnDestroy()
         {
-            if (!_isQuitting)
+            switch (saveSceneOnDestroy)
             {
-                switch (saveSceneOnDestroy)
-                {
-                    case SaveSceneManagerDestroyType.SnapshotScene:
-                        SnapshotScene();
-                        break;
-                    case SaveSceneManagerDestroyType.SaveScene:
-                        SaveScene();
-                        break;
-                    case SaveSceneManagerDestroyType.None:
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                case SaveSceneManagerDestroyType.SnapshotScene:
+                    SnapshotScene();
+                    break;
+                case SaveSceneManagerDestroyType.SaveScene:
+                    SaveScene();
+                    break;
+                case SaveSceneManagerDestroyType.None:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
             
             saveLoadManager.UnregisterSaveSceneManager(this);
@@ -147,13 +150,9 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-            saveLoadManager.RegisterSaveSceneManager(this);
+            Scene = gameObject.scene;
+            saveLoadManager?.RegisterSaveSceneManager(this);
             //Debug.Log("validate add " + saveLoadManager.TrackedSaveSceneManagers.Count);
-        }
-
-        private void OnApplicationQuit()
-        {
-            _isQuitting = true;
         }
 
         
@@ -331,6 +330,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeSnapshotHandlers = savable.GetComponents<ISaveMateBeforeSnapshotHandler>();
                 foreach (var beforeSnapshotHandler in beforeSnapshotHandlers)
                 {
@@ -345,6 +346,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeSnapshotHandlers = savable.GetComponents<ISaveMateAfterSnapshotHandler>();
                 foreach (var beforeSnapshotHandler in beforeSnapshotHandlers)
                 {
@@ -359,6 +362,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeLoadHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
@@ -373,6 +378,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterLoadHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
@@ -387,6 +394,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeDeleteDiskHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
@@ -401,6 +410,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterDeleteDiskHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
@@ -415,6 +426,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeWriteDiskHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
@@ -429,6 +442,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             foreach (var savable in _trackedSavables.Values)
             {
+                if (savable.IsUnityNull()) continue;
+                
                 var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterWriteDiskHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
@@ -462,7 +477,8 @@ namespace SaveLoadSystem.Core.UnityComponent
 
         #region Save Methods
         
-        internal BranchSaveData CreateBranchSaveData(Dictionary<object, GuidPath> processedObjectLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup,
+        internal BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, ConditionalWeakTable<object, string> createdObjectToGuidLookup, 
+            Dictionary<object, GuidPath> processedObjectLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, 
             Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
             //save data
@@ -473,14 +489,13 @@ namespace SaveLoadSystem.Core.UnityComponent
                 var savableGuidPath = new GuidPath(Scene.name, saveObject.SavableGuid);
                 foreach (var componentContainer in saveObject.SavableLookup)
                 {
-                    var guidPath = new GuidPath(savableGuidPath, componentContainer.guid);
-                    var instanceSaveData = new LeafSaveData();
-                    
                     if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) continue;
             
-                    branchSaveData.AddLeafSaveData(guidPath, instanceSaveData);
+                    var guidPath = new GuidPath(savableGuidPath, componentContainer.guid);
+                    var leafSaveData = new LeafSaveData();
+                    branchSaveData.AddLeafSaveData(guidPath, leafSaveData);
                     
-                    targetSavable.OnSave(new SaveDataHandler(branchSaveData, guidPath, instanceSaveData, processedObjectLookup, 
+                    targetSavable.OnSave(new SaveDataHandler(rootSaveData, leafSaveData, guidPath, createdObjectToGuidLookup, processedObjectLookup, 
                         savableGameObjectToGuidLookup, scriptableObjectToGuidLookup, componentToGuidLookup));
                 }
             }
@@ -522,7 +537,8 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
         }
         
-        internal void LoadBranchSaveData(BranchSaveData branchSaveData, Dictionary<GuidPath, WeakReference<object>> globallyCreatedObjects, 
+        internal void LoadBranchSaveData(RootSaveData rootSaveData, BranchSaveData branchSaveData, 
+            Dictionary<GuidPath, WeakReference<object>> createdGuidToObjectsLookup, ConditionalWeakTable<object, string> createdObjectsToGuidLookup, 
             Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup, Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, 
             Dictionary<GuidPath, Component> guidToComponentLookup)
         {
@@ -539,8 +555,8 @@ namespace SaveLoadSystem.Core.UnityComponent
                     {
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     
-                        var loadDataHandler = new LoadDataHandler(branchSaveData, instanceSaveData, 
-                            globallyCreatedObjects, guidToSavableGameObjectLookup, guidToScriptableObjectLookup, guidToComponentLookup);
+                        var loadDataHandler = new LoadDataHandler(rootSaveData, branchSaveData, instanceSaveData, createdGuidToObjectsLookup, 
+                            createdObjectsToGuidLookup, guidToSavableGameObjectLookup, guidToScriptableObjectLookup, guidToComponentLookup);
                         
                         targetSavable.OnLoad(loadDataHandler);
                     }

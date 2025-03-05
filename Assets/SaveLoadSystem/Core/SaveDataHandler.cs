@@ -1,10 +1,13 @@
+using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Core
 {
@@ -14,22 +17,29 @@ namespace SaveLoadSystem.Core
     /// </summary>
     public readonly struct SaveDataHandler
     {
-        private readonly BranchSaveData _branchSaveData;
-        private readonly GuidPath _guidPath;
+        private readonly RootSaveData _rootSaveData;
         private readonly LeafSaveData _leafSaveData;
+        private readonly GuidPath _guidPath;
+
+        private readonly ConditionalWeakTable<object, string> _createdObjectToGuidLookup;
+        
         private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
         
         private readonly Dictionary<GameObject, GuidPath> _savableGameObjectToGuidLookup;
         private readonly Dictionary<ScriptableObject, GuidPath> _scriptableObjectToGuidLookup;
         private readonly Dictionary<Component, GuidPath> _componentToGuidLookup;
 
-        public SaveDataHandler(BranchSaveData branchSaveData, GuidPath guidPath, LeafSaveData leafSaveData, 
-            Dictionary<object, GuidPath> processedInstancesLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup,
-            Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
+        public SaveDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, GuidPath guidPath, 
+            ConditionalWeakTable<object, string> createdObjectToGuidLookup, Dictionary<object, GuidPath> processedInstancesLookup, 
+            Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, 
+            Dictionary<Component, GuidPath> componentToGuidLookup)
         {
-            _branchSaveData = branchSaveData;
-            _guidPath = guidPath;
+            _rootSaveData = rootSaveData;
             _leafSaveData = leafSaveData;
+            _guidPath = guidPath;
+
+            _createdObjectToGuidLookup = createdObjectToGuidLookup;
+            
             _processedInstancesLookup = processedInstancesLookup;
             _savableGameObjectToGuidLookup = savableGameObjectToGuidLookup;
             _scriptableObjectToGuidLookup = scriptableObjectToGuidLookup;
@@ -65,24 +75,24 @@ namespace SaveLoadSystem.Core
             if (obj is ISavable savable)
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
-                var componentDataBuffer = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_branchSaveData, newPath, componentDataBuffer, _processedInstancesLookup, 
+                var leafSaveData = new LeafSaveData();
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectToGuidLookup, _processedInstancesLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 
                 savable.OnSave(saveDataHandler);
                 
-                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(leafSaveData));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
-                var componentDataBuffer = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_branchSaveData, newPath, componentDataBuffer, _processedInstancesLookup, 
+                var leafSaveData = new LeafSaveData();
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectToGuidLookup, _processedInstancesLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
-                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(componentDataBuffer));
+                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(leafSaveData));
             }
             else
             {
@@ -145,12 +155,17 @@ namespace SaveLoadSystem.Core
                     return guidPath;
                 }
             }
+
+            if (_createdObjectToGuidLookup.TryGetValue(objectToSave, out string stringPath))
+            {
+                return GuidPath.FromString(stringPath);
+            }
             
             //make sure the object gets created
             if (!_processedInstancesLookup.TryGetValue(objectToSave, out guidPath))
             {
                 guidPath = new GuidPath(_guidPath, uniqueIdentifier);
-                ProcessAsSaveReferencable(objectToSave, guidPath);
+                PersistAsNonUnityObject(objectToSave, guidPath);
             }
             
             return guidPath;
@@ -159,43 +174,38 @@ namespace SaveLoadSystem.Core
         //TODO: if an object is beeing loaded in two different types, there must be an error -> not allowed
         //TODO: objects must always be loaded with the same type like when saving: how to check this is the case? i cant, but i can throw an error, if at spot 1 it is A and at spot 2 it is B and it is performed in the wrong order
         
-        /// <summary>
-        /// When only using Component-Saving and the Type-Converter, this Method will perform saving without reflection,
-        /// which heavily improves performance. You will need the exchange the ProcessSavableElement method with this one.
-        /// </summary>
-        private void ProcessAsSaveReferencable(object objectToSave, GuidPath guidPath)
+        private void PersistAsNonUnityObject(object objectToSave, GuidPath guidPath)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
             if (objectToSave.IsUnityNull() || !_processedInstancesLookup.TryAdd(objectToSave, guidPath)) return;
             
             if (objectToSave is ISavable)
             {
-                var saveDataInstance = new LeafSaveData();
-                
-                _branchSaveData.AddLeafSaveData(guidPath, saveDataInstance);
-                
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
+                
+                var leafSaveData = new LeafSaveData();
+                _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
             
-                targetSavable.OnSave(new SaveDataHandler(_branchSaveData, guidPath, saveDataInstance, _processedInstancesLookup, 
+                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectToGuidLookup, _processedInstancesLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
-                var saveDataInstance = new LeafSaveData();
+                var leafSaveData = new LeafSaveData();
                 
-                _branchSaveData.AddLeafSaveData(guidPath, saveDataInstance);
+                _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
                         
-                var saveDataHandler = new SaveDataHandler(_branchSaveData, guidPath, saveDataInstance, _processedInstancesLookup, 
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectToGuidLookup, _processedInstancesLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else
             {
-                var saveDataInstance = new LeafSaveData();
+                var leafSaveData = new LeafSaveData();
                 
-                _branchSaveData.AddLeafSaveData(guidPath, saveDataInstance);
+                _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
                 
-                saveDataInstance.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
+                leafSaveData.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
             }
         }
     }
