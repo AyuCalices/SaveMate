@@ -31,8 +31,7 @@ namespace SaveLoadSystem.Core
         private SaveMetaData _metaData;
         
         private RootSaveData _rootSaveData;
-        private Dictionary<GuidPath, WeakReference<object>> _createdGuidToObjectLookup;
-        private ConditionalWeakTable<object, string> _createdObjectToGuidLookup;
+        private Dictionary<GuidPath, WeakReference<object>> _createdObjectLookup;
         private HashSet<ScriptableObject> _loadedScriptableObjects;
         private HashSet<SaveSceneManager> _loadedSaveSceneManagers;
         
@@ -91,8 +90,7 @@ namespace SaveLoadSystem.Core
             _asyncQueue.Enqueue(() =>
             {
                 _rootSaveData ??= new RootSaveData();
-                _createdGuidToObjectLookup ??= new Dictionary<GuidPath, WeakReference<object>>();
-                _createdObjectToGuidLookup ??= new ConditionalWeakTable<object, string>();
+                _createdObjectLookup ??= new Dictionary<GuidPath, WeakReference<object>>();
                 _loadedScriptableObjects ??= new HashSet<ScriptableObject>();
                 _loadedSaveSceneManagers ??= new HashSet<SaveSceneManager>();
                 
@@ -190,8 +188,7 @@ namespace SaveLoadSystem.Core
                 if (IsPersistent && _rootSaveData == null)
                 {
                     _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
-                    _createdGuidToObjectLookup = new Dictionary<GuidPath, WeakReference<object>>();
-                    _createdObjectToGuidLookup = new ConditionalWeakTable<object, string>();
+                    _createdObjectLookup = new Dictionary<GuidPath, WeakReference<object>>();
                     _loadedScriptableObjects = new HashSet<ScriptableObject>();
                     _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
                 }
@@ -219,8 +216,7 @@ namespace SaveLoadSystem.Core
                 if (IsPersistent && _rootSaveData == null)
                 {
                     _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
-                    _createdGuidToObjectLookup = new Dictionary<GuidPath, WeakReference<object>>();
-                    _createdObjectToGuidLookup = new ConditionalWeakTable<object, string>();
+                    _createdObjectLookup = new Dictionary<GuidPath, WeakReference<object>>();
                     _loadedScriptableObjects = new HashSet<ScriptableObject>();
                     _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
                 }
@@ -366,7 +362,7 @@ namespace SaveLoadSystem.Core
                 var leafSaveData = new LeafSaveData();
                 globalSaveData.AddLeafSaveData(guidPath, leafSaveData);
 
-                targetSavable.OnSave(new SaveDataHandler(currentRootSaveData, leafSaveData, guidPath, _createdObjectToGuidLookup,
+                targetSavable.OnSave(new SaveDataHandler(currentRootSaveData, leafSaveData, guidPath, _createdObjectLookup,
                     processedObjectLookup, gameObjects, uniqueScriptableObjects, components));
                 
                 _loadedScriptableObjects.Remove(scriptableObject);
@@ -376,7 +372,7 @@ namespace SaveLoadSystem.Core
             foreach (var saveSceneManager in saveSceneManagers)
             {
                 var prefabGuidGroup = saveSceneManager.CreatePrefabGuidGroup();
-                var branchSaveData = saveSceneManager.CreateBranchSaveData(currentRootSaveData, _createdObjectToGuidLookup, 
+                var branchSaveData = saveSceneManager.CreateBranchSaveData(currentRootSaveData, _createdObjectLookup, 
                     processedObjectLookup, gameObjects, uniqueScriptableObjects, components);
                 
                 var sceneData = new SceneData 
@@ -513,7 +509,7 @@ namespace SaveLoadSystem.Core
             if (loadType == LoadType.Hard)
             {
                 var objectsToRemove = new List<(GuidPath, object)>();
-                foreach (var (guidPath, obj) in _createdGuidToObjectLookup)
+                foreach (var (guidPath, obj) in _createdObjectLookup)
                 {
                     if (guidPath.Scene == RootSaveData.GlobalSaveDataName)
                     {
@@ -533,8 +529,7 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var (guidPath, obj) in objectsToRemove)
                 {
-                    _createdGuidToObjectLookup.Remove(guidPath);
-                    _createdObjectToGuidLookup.Remove(obj);
+                    _createdObjectLookup.Remove(guidPath);
                 }
             }
             
@@ -547,7 +542,7 @@ namespace SaveLoadSystem.Core
                     if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
                     var loadDataHandler = new LoadDataHandler(rootSaveData, rootSaveData.GlobalSaveData, instanceSaveData, 
-                        _createdGuidToObjectLookup, _createdObjectToGuidLookup, uniqueGameObjects, scriptableObjectsToLoad, uniqueComponents);
+                        _createdObjectLookup, uniqueGameObjects, scriptableObjectsToLoad, uniqueComponents);
                     
                     targetSavable.OnLoad(loadDataHandler);
                     
@@ -560,8 +555,8 @@ namespace SaveLoadSystem.Core
             {
                 if (rootSaveData.TryGetSceneData(saveSceneManager.Scene, out var sceneData))
                 {
-                    saveSceneManager.LoadBranchSaveData(rootSaveData, sceneData.ActiveSaveData, _createdGuidToObjectLookup, 
-                        _createdObjectToGuidLookup, uniqueGameObjects, uniqueScriptableObjects, uniqueComponents);
+                    saveSceneManager.LoadBranchSaveData(rootSaveData, sceneData.ActiveSaveData, _createdObjectLookup, 
+                        uniqueGameObjects, uniqueScriptableObjects, uniqueComponents);
                     _loadedSaveSceneManagers.Add(saveSceneManager);
                 }
             }

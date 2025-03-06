@@ -17,7 +17,7 @@ public class Reference2 : Singleton<Reference2>, ISavable
     public void Setup()
     {
         storedItem = SpawnRandomItem();
-        inventory.AddItem(storedItem);
+        //inventory.AddItem(storedItem);
         Reference1.Instance.otherItem = storedItem;
     }
     

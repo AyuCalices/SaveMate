@@ -477,7 +477,7 @@ namespace SaveLoadSystem.Core.UnityComponent
 
         #region Save Methods
         
-        internal BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, ConditionalWeakTable<object, string> createdObjectToGuidLookup, 
+        internal BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, Dictionary<GuidPath, WeakReference<object>> createdObjectLookup, 
             Dictionary<object, GuidPath> processedObjectLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, 
             Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
@@ -495,7 +495,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                     var leafSaveData = new LeafSaveData();
                     branchSaveData.AddLeafSaveData(guidPath, leafSaveData);
                     
-                    targetSavable.OnSave(new SaveDataHandler(rootSaveData, leafSaveData, guidPath, createdObjectToGuidLookup, processedObjectLookup, 
+                    targetSavable.OnSave(new SaveDataHandler(rootSaveData, leafSaveData, guidPath, createdObjectLookup, processedObjectLookup, 
                         savableGameObjectToGuidLookup, scriptableObjectToGuidLookup, componentToGuidLookup));
                 }
             }
@@ -538,9 +538,8 @@ namespace SaveLoadSystem.Core.UnityComponent
         }
         
         internal void LoadBranchSaveData(RootSaveData rootSaveData, BranchSaveData branchSaveData, 
-            Dictionary<GuidPath, WeakReference<object>> createdGuidToObjectsLookup, ConditionalWeakTable<object, string> createdObjectsToGuidLookup, 
-            Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup, Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, 
-            Dictionary<GuidPath, Component> guidToComponentLookup)
+            Dictionary<GuidPath, WeakReference<object>> createdGuidToObjectsLookup, Dictionary<GuidPath, GameObject> guidToSavableGameObjectLookup, 
+            Dictionary<GuidPath, ScriptableObject> guidToScriptableObjectLookup, Dictionary<GuidPath, Component> guidToComponentLookup)
         {
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
@@ -556,7 +555,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     
                         var loadDataHandler = new LoadDataHandler(rootSaveData, branchSaveData, instanceSaveData, createdGuidToObjectsLookup, 
-                            createdObjectsToGuidLookup, guidToSavableGameObjectLookup, guidToScriptableObjectLookup, guidToComponentLookup);
+                            guidToSavableGameObjectLookup, guidToScriptableObjectLookup, guidToComponentLookup);
                         
                         targetSavable.OnLoad(loadDataHandler);
                     }
