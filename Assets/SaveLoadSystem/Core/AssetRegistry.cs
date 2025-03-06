@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
+using UnityEditor;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
@@ -22,6 +23,8 @@ namespace SaveLoadSystem.Core
             FixMissingScriptableObjectID();
 
             DetectDuplicateScriptableObjectIDs();
+            
+            SetDirty();
         }
 
         private void DetectDuplicateScriptableObjectIDs()
@@ -55,6 +58,8 @@ namespace SaveLoadSystem.Core
             {
                 prefabSavables.Add(savable);
             }
+
+            SetDirty();
         }
 
         private void FixMissingPrefabID()
@@ -89,6 +94,8 @@ namespace SaveLoadSystem.Core
                     prefabSavables.RemoveAt(i);
                 }
             }
+            
+            SetDirty();
         }
         
         internal void AddSavableScriptableObject(ScriptableObject scriptableObject)
@@ -98,6 +105,8 @@ namespace SaveLoadSystem.Core
             var guid = GenerateScriptableObjectID(scriptableObject);
             
             scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
+            
+            SetDirty();
         }
         
         private void FixMissingScriptableObjectID()
@@ -145,6 +154,18 @@ namespace SaveLoadSystem.Core
                     scriptableObjectSavables.RemoveAt(i);
                 }
             }
+            
+            SetDirty();
+        }
+
+        private new void SetDirty()
+        {
+#if UNITY_EDITOR
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.SetDirty(this);
+            }
+#endif
         }
     }
 }

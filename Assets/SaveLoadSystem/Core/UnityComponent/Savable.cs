@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
@@ -6,6 +7,7 @@ using SaveLoadSystem.Utility.PreventReset;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
@@ -69,23 +71,6 @@ namespace SaveLoadSystem.Core.UnityComponent
             UpdateSavableReferenceComponents();
             SetDirty(this);
         }
-
-        private bool AcquireSceneManager()
-        {
-            if (_saveSceneManager.IsUnityNull())
-            {
-                var sceneManagers = FindObjectsOfType<SaveSceneManager>();
-                _saveSceneManager = sceneManagers.First(x => x.gameObject.scene == gameObject.scene);
-                
-                if (_saveSceneManager.IsUnityNull())
-                {
-                    Debug.LogWarning("[SaveMate] SaveSceneManager is missing in the current scene. Please ensure a SaveSceneManager is present to enable proper functionality.");
-                    return false;
-                }
-            }
-
-            return true;
-        }
         
         private void RegisterToSceneManager()
         {
@@ -97,6 +82,25 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 SavableGuid = null;
             }
+        }
+        
+        private bool AcquireSceneManager()
+        {
+            if (_saveSceneManager.IsUnityNull())
+            {
+                try
+                {
+                    var sceneManagers = FindObjectsOfType<SaveSceneManager>();
+                    _saveSceneManager = sceneManagers.First(x => x.gameObject.scene == gameObject.scene);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[SaveMate] Internal Error: " + e);
+                    return false;
+                }
+            }
+
+            return true;
         }
         
         private void UnregisterFromSceneManager()
@@ -140,18 +144,6 @@ namespace SaveLoadSystem.Core.UnityComponent
                 SavableLookup.Add(new UnityObjectIdentification(guid, foundElement));
             }
         }
-
-        private string GetUniqueSavableID()
-        {
-            var guid = "Component_" + SaveLoadUtility.GenerateId();
-            
-            while (SavableLookup != null && SavableLookup.Exists(x => x.guid == guid))
-            {
-                guid = "Component_" + SaveLoadUtility.GenerateId();
-            }
-
-            return guid;
-        }
         
         private void UpdateSavableReferenceComponents()
         {
@@ -194,6 +186,18 @@ namespace SaveLoadSystem.Core.UnityComponent
                 
                 DuplicateComponentLookup.Add(new UnityObjectIdentification(guid, foundElement));
             }
+        }
+        
+        private string GetUniqueSavableID()
+        {
+            var guid = "Component_" + SaveLoadUtility.GenerateId();
+            
+            while (SavableLookup != null && SavableLookup.Exists(x => x.guid == guid))
+            {
+                guid = "Component_" + SaveLoadUtility.GenerateId();
+            }
+
+            return guid;
         }
         
         private string GetUniqueDuplicateID()
