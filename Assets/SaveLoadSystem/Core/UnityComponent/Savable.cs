@@ -212,6 +212,10 @@ namespace SaveLoadSystem.Core.UnityComponent
             return guid;
         }
         
+        /// <summary>
+        /// Changes made to serialized fields via script in Edit mode are not automatically saved.
+        /// Unity only persists modifications made through the Inspector unless explicitly marked as dirty.
+        /// </summary>
         private void SetDirty(Object obj)
         {
 #if UNITY_EDITOR

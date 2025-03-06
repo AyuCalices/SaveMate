@@ -158,6 +158,10 @@ namespace SaveLoadSystem.Core
             SetDirty();
         }
 
+        /// <summary>
+        /// Changes made to serialized fields via script in Edit mode are not automatically saved.
+        /// Unity only persists modifications made through the Inspector unless explicitly marked as dirty.
+        /// </summary>
         private new void SetDirty()
         {
 #if UNITY_EDITOR
