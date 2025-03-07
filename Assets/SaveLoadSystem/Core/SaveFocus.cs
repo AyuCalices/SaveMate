@@ -32,6 +32,7 @@ namespace SaveLoadSystem.Core
         
         private RootSaveData _rootSaveData;
         private Dictionary<GuidPath, WeakReference<object>> _createdObjectLookup;
+        private ConditionalWeakTable<object, string> _processedObjectLookup;
         private HashSet<ScriptableObject> _loadedScriptableObjects;
         private HashSet<SaveSceneManager> _loadedSaveSceneManagers;
         
@@ -91,10 +92,10 @@ namespace SaveLoadSystem.Core
             {
                 _rootSaveData ??= new RootSaveData();
                 _createdObjectLookup ??= new Dictionary<GuidPath, WeakReference<object>>();
+                _processedObjectLookup ??= new ConditionalWeakTable<object, string>();
                 _loadedScriptableObjects ??= new HashSet<ScriptableObject>();
                 _loadedSaveSceneManagers ??= new HashSet<SaveSceneManager>();
                 
-                HasPendingData = true;
                 InternalSnapshotScenes(_rootSaveData, scenesToSnapshot);
                 
                 return Task.CompletedTask;
@@ -189,6 +190,7 @@ namespace SaveLoadSystem.Core
                 {
                     _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                     _createdObjectLookup = new Dictionary<GuidPath, WeakReference<object>>();
+                    _processedObjectLookup = new ConditionalWeakTable<object, string>();
                     _loadedScriptableObjects = new HashSet<ScriptableObject>();
                     _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
                 }
@@ -217,6 +219,7 @@ namespace SaveLoadSystem.Core
                 {
                     _rootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                     _createdObjectLookup = new Dictionary<GuidPath, WeakReference<object>>();
+                    _processedObjectLookup = new ConditionalWeakTable<object, string>();
                     _loadedScriptableObjects = new HashSet<ScriptableObject>();
                     _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
                 }
@@ -229,6 +232,7 @@ namespace SaveLoadSystem.Core
                 }
                 
                 InternalSnapshotScenes(_rootSaveData, scenesToLoad);
+                WriteToDisk();
 
                 //async reload scene and continue, when all are loaded
                 var loadMode = SceneManager.sceneCount == 1 ? LoadSceneMode.Single : LoadSceneMode.Additive;
@@ -351,19 +355,15 @@ namespace SaveLoadSystem.Core
 
             var scriptableObjectsToSave = ParseScriptableObjectWithLoadedScenes(currentRootSaveData, activeSceneNames, uniqueScriptableObjects);
             
-            Dictionary<object, GuidPath> processedObjectLookup = new ();
-            
-            var globalSaveData = new BranchSaveData();
-            currentRootSaveData.SetGlobalSceneData(globalSaveData);     //TODO: change: must be assigned before the scriptable object OnSave method -> otherwise it will be overwritten
             foreach (var (scriptableObject, guidPath) in scriptableObjectsToSave)
             {
                 if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                 
                 var leafSaveData = new LeafSaveData();
-                globalSaveData.AddLeafSaveData(guidPath, leafSaveData);
+                currentRootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
 
                 targetSavable.OnSave(new SaveDataHandler(currentRootSaveData, leafSaveData, guidPath, _createdObjectLookup,
-                    processedObjectLookup, gameObjects, uniqueScriptableObjects, components));
+                    _processedObjectLookup, gameObjects, uniqueScriptableObjects, components));
                 
                 _loadedScriptableObjects.Remove(scriptableObject);
             }
@@ -373,7 +373,7 @@ namespace SaveLoadSystem.Core
             {
                 var prefabGuidGroup = saveSceneManager.CreatePrefabGuidGroup();
                 var branchSaveData = saveSceneManager.CreateBranchSaveData(currentRootSaveData, _createdObjectLookup, 
-                    processedObjectLookup, gameObjects, uniqueScriptableObjects, components);
+                    _processedObjectLookup, gameObjects, uniqueScriptableObjects, components);
                 
                 var sceneData = new SceneData 
                 {
@@ -384,6 +384,8 @@ namespace SaveLoadSystem.Core
                 currentRootSaveData.SetSceneData(saveSceneManager.Scene, sceneData);
                 _loadedSaveSceneManagers.Remove(saveSceneManager);
             }
+            
+            HasPendingData = true;
             
             //after event
             foreach (var saveSceneManager in saveSceneManagers)

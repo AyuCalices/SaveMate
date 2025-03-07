@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
@@ -21,14 +23,14 @@ namespace SaveLoadSystem.Core
         private readonly GuidPath _guidPath;
 
         private readonly Dictionary<GuidPath, WeakReference<object>> _createdObjectLookup;
-        private readonly Dictionary<object, GuidPath> _processedInstancesLookup;
+        private readonly ConditionalWeakTable<object, string> _processedObjectLookup;
         
         private readonly Dictionary<GameObject, GuidPath> _savableGameObjectToGuidLookup;
         private readonly Dictionary<ScriptableObject, GuidPath> _scriptableObjectToGuidLookup;
         private readonly Dictionary<Component, GuidPath> _componentToGuidLookup;
 
         public SaveDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, GuidPath guidPath, 
-            Dictionary<GuidPath, WeakReference<object>> createdObjectLookup, Dictionary<object, GuidPath> processedInstancesLookup, 
+            Dictionary<GuidPath, WeakReference<object>> createdObjectLookup, ConditionalWeakTable<object, string> processedObjectLookup, 
             Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, 
             Dictionary<Component, GuidPath> componentToGuidLookup)
         {
@@ -37,7 +39,7 @@ namespace SaveLoadSystem.Core
             _guidPath = guidPath;
 
             _createdObjectLookup = createdObjectLookup;
-            _processedInstancesLookup = processedInstancesLookup;
+            _processedObjectLookup = processedObjectLookup;
             
             _savableGameObjectToGuidLookup = savableGameObjectToGuidLookup;
             _scriptableObjectToGuidLookup = scriptableObjectToGuidLookup;
@@ -74,7 +76,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectLookup, _processedInstancesLookup, 
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectLookup, _processedObjectLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 
                 savable.OnSave(saveDataHandler);
@@ -85,7 +87,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectLookup, _processedInstancesLookup, 
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectLookup, _processedObjectLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
@@ -155,10 +157,14 @@ namespace SaveLoadSystem.Core
             }
             
             //make sure the object gets created
-            if (!_processedInstancesLookup.TryGetValue(objectToSave, out guidPath))
+            if (!_processedObjectLookup.TryGetValue(objectToSave, out string stringPath))
             {
                 guidPath = new GuidPath(_guidPath, uniqueIdentifier);
                 PersistAsNonUnityObject(objectToSave, guidPath);
+            }
+            else
+            {
+                return GuidPath.FromString(stringPath);
             }
             
             return guidPath;
@@ -170,7 +176,9 @@ namespace SaveLoadSystem.Core
         private void PersistAsNonUnityObject(object objectToSave, GuidPath guidPath)
         {
             //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
-            if (objectToSave.IsUnityNull() || !_processedInstancesLookup.TryAdd(objectToSave, guidPath)) return;
+            if (objectToSave.IsUnityNull()) return;
+            
+            _processedObjectLookup.Add(objectToSave, guidPath.ToString());
             
             if (objectToSave is ISavable)
             {
@@ -180,7 +188,7 @@ namespace SaveLoadSystem.Core
                 _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
                 _createdObjectLookup[guidPath] = new WeakReference<object>(objectToSave);
             
-                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectLookup, _processedInstancesLookup, 
+                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectLookup, _processedObjectLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
@@ -190,7 +198,7 @@ namespace SaveLoadSystem.Core
                 _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
                 _createdObjectLookup[guidPath] = new WeakReference<object>(objectToSave);
                         
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectLookup, _processedInstancesLookup, 
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectLookup, _processedObjectLookup, 
                     _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }

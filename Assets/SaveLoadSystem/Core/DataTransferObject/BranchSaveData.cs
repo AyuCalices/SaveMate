@@ -17,7 +17,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public void AddLeafSaveData(GuidPath guidPath, LeafSaveData leafSaveData)
         {
-            Elements.Add(guidPath, leafSaveData);
+            Elements[guidPath] = leafSaveData;
         }
     }
 }

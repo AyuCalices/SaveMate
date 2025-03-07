@@ -478,7 +478,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         #region Save Methods
         
         internal BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, Dictionary<GuidPath, WeakReference<object>> createdObjectLookup, 
-            Dictionary<object, GuidPath> processedObjectLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, 
+            ConditionalWeakTable<object, string> processedObjectLookup, Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, 
             Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, Dictionary<Component, GuidPath> componentToGuidLookup)
         {
             //save data
