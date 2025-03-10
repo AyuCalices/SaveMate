@@ -91,7 +91,7 @@ namespace SaveLoadSystem.Core
             if (string.IsNullOrEmpty(fileName))
             {
                 fileName = defaultFileName;
-                Debug.LogWarning("Initialized the save system with the default file Name.");
+                Debug.Log("Initialized the save system with the default file Name.");
             }
             
             if (HasSaveFocus)

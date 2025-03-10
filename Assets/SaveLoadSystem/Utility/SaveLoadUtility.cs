@@ -151,11 +151,7 @@ namespace SaveLoadSystem.Utility
 
                     if (checksum != null)
                     {
-                        if (checksum == saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedData))
-                        {
-                            Debug.LogWarning("Integrity Check Successful!");
-                        }
-                        else
+                        if (checksum != saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedData))
                         {
                             Debug.LogError("The save data didn't pass the data integrity check!");
                             return null;

@@ -81,6 +81,18 @@ namespace SaveLoadSystem.Core
             return _customMetaData[identifier].ToObject<T>();
         }
         
+        public void SaveActiveScenes()
+        {
+            SnapshotActiveScenes();
+            WriteToDisk();
+        }
+
+        public void SaveScenes(params SaveSceneManager[] saveSceneManagersToSave)
+        {
+            SnapshotScenes(saveSceneManagersToSave);
+            WriteToDisk();
+        }
+        
         public void SnapshotActiveScenes()
         {
             SnapshotScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
@@ -90,6 +102,14 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(() =>
             {
+                foreach (var saveSceneManager in scenesToSnapshot)
+                {
+                    if (!SceneManager.GetSceneByName(saveSceneManager.SceneName).isLoaded)
+                    {
+                        Debug.LogWarning("Tried to create a snapshot to an unloaded scene!");
+                    }
+                }
+                
                 _rootSaveData ??= new RootSaveData();
                 _createdObjectLookup ??= new Dictionary<GuidPath, WeakReference<object>>();
                 _processedObjectLookup ??= new ConditionalWeakTable<object, string>();
@@ -134,35 +154,7 @@ namespace SaveLoadSystem.Core
                     trackedSaveSceneManager.HandleAfterWriteToDisk();
                 }
                 
-                Debug.LogWarning("Save Completed!");
-            });
-        }
-        
-        public void SaveActiveScenes()
-        {
-            SnapshotActiveScenes();
-            WriteToDisk();
-        }
-
-        public void SaveScenes(params SaveSceneManager[] saveSceneManagersToSave)
-        {
-            SnapshotScenes(saveSceneManagersToSave);
-            WriteToDisk();
-        }
-
-        public void ApplySnapshotToActiveScenes(LoadType loadType)
-        {
-            ApplySnapshotToScenes(loadType, _saveLoadManager.TrackedSaveSceneManagers.ToArray());
-        }
-
-        public void ApplySnapshotToScenes(LoadType loadType, params SaveSceneManager[] saveSceneManagersToApplySnapshot)
-        {
-            _asyncQueue.Enqueue(() =>
-            {
-                if (_rootSaveData == null) return Task.CompletedTask;
-                
-                InternalLoadScenes(_rootSaveData, loadType, saveSceneManagersToApplySnapshot);
-                return Task.CompletedTask;
+                Debug.Log("Write to disk completed!");
             });
         }
         
@@ -176,6 +168,30 @@ namespace SaveLoadSystem.Core
         {
             ReadFromDisk();
             ApplySnapshotToScenes(loadType, saveSceneManagersToLoad);
+        }
+
+        public void ApplySnapshotToActiveScenes(LoadType loadType)
+        {
+            ApplySnapshotToScenes(loadType, _saveLoadManager.TrackedSaveSceneManagers.ToArray());
+        }
+
+        public void ApplySnapshotToScenes(LoadType loadType, params SaveSceneManager[] saveSceneManagersToApplySnapshot)
+        {
+            _asyncQueue.Enqueue(() =>
+            {
+                if (_rootSaveData == null) return Task.CompletedTask;
+                
+                foreach (var saveSceneManager in saveSceneManagersToApplySnapshot)
+                {
+                    if (!SceneManager.GetSceneByName(saveSceneManager.SceneName).isLoaded)
+                    {
+                        Debug.LogWarning("Tried to apply a snapshot to an unloaded scene!");
+                    }
+                }
+                
+                InternalLoadScenes(_rootSaveData, loadType, saveSceneManagersToApplySnapshot);
+                return Task.CompletedTask;
+            });
         }
 
         public void ReadFromDisk()
@@ -193,6 +209,8 @@ namespace SaveLoadSystem.Core
                     _processedObjectLookup = new ConditionalWeakTable<object, string>();
                     _loadedScriptableObjects = new HashSet<ScriptableObject>();
                     _loadedSaveSceneManagers = new HashSet<SaveSceneManager>();
+                    
+                    Debug.Log("Read from disk completed");
                 }
             });
         }
@@ -280,7 +298,7 @@ namespace SaveLoadSystem.Core
                     trackedSaveSceneManager.HandleAfterDeleteDiskData();
                 }
                 
-                Debug.LogWarning("Delete Completed!");
+                Debug.Log("Delete Completed!");
             });
         }
 
@@ -365,9 +383,18 @@ namespace SaveLoadSystem.Core
             }
             
             stopwatch.Stop();
-            Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
-            
-            Debug.LogWarning("Snapshot Completed!");
+            if (saveSceneManagers.Length == 0)
+            {
+                Debug.Log($"Performed Snapshotting for no scene!");
+            }
+            else if (saveSceneManagers.Length == 1)
+            {
+                Debug.Log($"Snapshotting Completed for scene {saveSceneManagers[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+            }
+            else
+            {
+                Debug.Log($"Snapshotting Completed for {saveSceneManagers.Length} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+            }
         }
         
         private Dictionary<ScriptableObject, GuidPath> ParseScriptableObjectWithLoadedScenes(RootSaveData rootSaveData, 
@@ -541,9 +568,18 @@ namespace SaveLoadSystem.Core
             }
             
             stopwatch.Stop();
-            Debug.LogWarning("Time taken: " + stopwatch.ElapsedMilliseconds + " ms");
-            
-            Debug.LogWarning("Loading Completed!");
+            if (scenesToLoad.Count == 0)
+            {
+                Debug.Log($"Performed Loading for no scene!");
+            }
+            else if (scenesToLoad.Count == 1)
+            {
+                Debug.Log($"Loading Completed for scene {scenesToLoad[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+            }
+            else
+            {
+                Debug.Log($"Loading Completed for {scenesToLoad.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+            }
         }
         
         private void CleanupWeakReferences()
