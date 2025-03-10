@@ -18,16 +18,20 @@ namespace SaveLoadSystem.Core.UnityComponent
         [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private AssetRegistry assetRegistry;
 
-        [Header("Current Scene Events")] 
-        [SerializeField] private LoadType loadType;
+        [Header("Unity Lifecycle Events")] 
+        [SerializeField] private LoadType defaultLoadType;
         [SerializeField] private bool loadSceneOnAwake;
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDestroy;
+        [SerializeField] private bool saveActiveScenesOnApplicationQuit;
+        
+        [Header("Save Events")]
         [SerializeField] private SceneManagerEvents sceneManagerEvents;
 
-        public Scene Scene { get; private set; }
+        public string SceneName { get; private set; }
         public AssetRegistry AssetRegistry => assetRegistry;
         
         private readonly Dictionary<string, Savable> _trackedSavables = new();
+        private static bool _hasSavedActiveScenesThisFrame;
         
         internal readonly Dictionary<GameObject, GuidPath> SavableGameObjectToGuidLookup = new();
         internal readonly Dictionary<ScriptableObject, GuidPath> ScriptableObjectToGuidLookup = new();
@@ -42,7 +46,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("UnloadScene")]
         public void UnloadSceneAsync()
         {
-            SceneManager.UnloadSceneAsync(Scene);
+            SceneManager.UnloadSceneAsync(SceneName);
         }
 
         [InitializeOnLoad]
@@ -95,7 +99,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void Awake()
         {
-            Scene = gameObject.scene;
+            SceneName = gameObject.scene.name;
             
             if (assetRegistry == null)
             {
@@ -130,11 +134,15 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             switch (saveSceneOnDestroy)
             {
-                case SaveSceneManagerDestroyType.SnapshotScene:
+                case SaveSceneManagerDestroyType.SnapshotSingleScene:
                     SnapshotScene();
                     break;
-                case SaveSceneManagerDestroyType.SaveScene:
-                    SaveScene();
+                case SaveSceneManagerDestroyType.SaveActiveScenes:
+                    if (!_hasSavedActiveScenesThisFrame)
+                    {
+                        saveLoadManager.SaveFocus.SaveActiveScenes();
+                        _hasSavedActiveScenesThisFrame = true;
+                    }
                     break;
                 case SaveSceneManagerDestroyType.None:
                     break;
@@ -143,19 +151,33 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
             
             saveLoadManager.UnregisterSaveSceneManager(this);
-            //Debug.Log("destroy remove " + saveLoadManager.TrackedSaveSceneManagers.Count);
+        }
+
+        private void OnApplicationQuit()
+        {
+            if (saveActiveScenesOnApplicationQuit && !_hasSavedActiveScenesThisFrame)
+            {
+                saveLoadManager.SaveFocus.SaveActiveScenes();
+                _hasSavedActiveScenesThisFrame = true;
+            }
         }
 
         private void OnValidate()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-            Scene = gameObject.scene;
+            SceneName = gameObject.scene.name;
             saveLoadManager?.RegisterSaveSceneManager(this);
-            //Debug.Log("validate add " + saveLoadManager.TrackedSaveSceneManagers.Count);
         }
 
-        
+        private void Update()
+        {
+            if (_hasSavedActiveScenesThisFrame)
+            {
+                _hasSavedActiveScenesThisFrame = false;
+            }
+        }
+
         #endregion
         
         #region Savable Registration
@@ -205,7 +227,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             //savable lookup registration
             if (!_trackedSavables.TryAdd(id, savable)) return false;
             
-            var savableGuid = new GuidPath(Scene.name, savable.SavableGuid);
+            var savableGuid = new GuidPath(SceneName, savable.SavableGuid);
             
             GuidToSavableGameObjectLookup.Add(savableGuid, savable.gameObject);
             SavableGameObjectToGuidLookup.TryAdd(savable.gameObject, savableGuid);
@@ -232,7 +254,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (!_trackedSavables.Remove(savable.SavableGuid)) return false;
             
-            var savableGuid = new GuidPath(Scene.name, savable.SavableGuid);
+            var savableGuid = new GuidPath(SceneName, savable.SavableGuid);
             
             GuidToSavableGameObjectLookup.Remove(savableGuid);
             SavableGameObjectToGuidLookup.Remove(savable.gameObject);
@@ -293,13 +315,13 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Apply Snapshot")]
         public void ApplySnapshot()
         {
-            saveLoadManager.SaveFocus.ApplySnapshotToScenes(loadType, this);
+            saveLoadManager.SaveFocus.ApplySnapshotToScenes(defaultLoadType, this);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            saveLoadManager.SaveFocus.LoadScenes(loadType, this);
+            saveLoadManager.SaveFocus.LoadScenes(defaultLoadType, this);
         }
         
         [ContextMenu("Wipe Scene Data")]
@@ -314,10 +336,10 @@ namespace SaveLoadSystem.Core.UnityComponent
             saveLoadManager.SaveFocus.DeleteAll(this);
         }
 
-        [ContextMenu("Reload Then Load Scene")]
-        public void ReloadThenLoadScene()
+        [ContextMenu("Reload Scene")]
+        public void ReloadScene()
         {
-            saveLoadManager.SaveFocus.ReloadThenLoadScenes(loadType, this);
+            saveLoadManager.SaveFocus.ReloadScenes(this);
         }
         
         
@@ -486,7 +508,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             
             foreach (var saveObject in _trackedSavables.Values)
             {
-                var savableGuidPath = new GuidPath(Scene.name, saveObject.SavableGuid);
+                var savableGuidPath = new GuidPath(SceneName, saveObject.SavableGuid);
                 foreach (var componentContainer in saveObject.SavableLookup)
                 {
                     if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) continue;
@@ -544,7 +566,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
             {
-                var savableGuidPath = new GuidPath(Scene.name, savable.SavableGuid);
+                var savableGuidPath = new GuidPath(SceneName, savable.SavableGuid);
                 
                 foreach (var savableComponent in savable.SavableLookup)
                 {

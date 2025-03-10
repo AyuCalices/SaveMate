@@ -11,34 +11,29 @@ namespace SaveLoadSystem.Core.DataTransferObject
         [UsedImplicitly] public List<string> ActiveScenes { get; set; } = new();
         [UsedImplicitly] public BranchSaveData GlobalSaveData { get; set; } = new();
         [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; } = new();
-
-        public void SetGlobalSceneData(BranchSaveData branchSaveData)
-        {
-            GlobalSaveData = branchSaveData;
-        }
         
         public void SetActiveScenes(List<string> activeScenes)
         {
             ActiveScenes = activeScenes;
         }
 
-        public void SetSceneData(Scene scene, SceneData sceneData)
+        public void SetSceneData(string sceneName, SceneData sceneData)
         {
-            SceneDataLookup[scene.name] = new SceneData
+            SceneDataLookup[sceneName] = new SceneData
             {
                 ActivePrefabs = sceneData.ActivePrefabs, 
                 ActiveSaveData = sceneData.ActiveSaveData
             };
         }
 
-        public bool TryGetSceneData(Scene scene, out SceneData sceneData)
+        public bool TryGetSceneData(string sceneName, out SceneData sceneData)
         {
-            return SceneDataLookup.TryGetValue(scene.name, out sceneData);
+            return SceneDataLookup.TryGetValue(sceneName, out sceneData);
         }
 
-        public void RemoveSceneData(Scene scene)
+        public void RemoveSceneData(string sceneName)
         {
-            SceneDataLookup.Remove(scene.name);
+            SceneDataLookup.Remove(sceneName);
         }
     }
 }

@@ -3,8 +3,8 @@ namespace SaveLoadSystem.Utility
     public enum SaveSceneManagerDestroyType
     {
         None,
-        SnapshotScene,
-        SaveScene
+        SnapshotSingleScene,
+        SaveActiveScenes
     }
     
     public enum SceneManagerEventType

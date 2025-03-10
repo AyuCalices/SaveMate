@@ -30,8 +30,8 @@ namespace SaveLoadSystem.Core
         [SerializeField] private SaveEncryptionType encryptionType;
         [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
         [SerializeField] private string defaultEncryptionIv = "abcdef9876543210";
-        
-        [Header("QOL")]
+
+        [Header("QOL")] 
         [SerializeField] private bool autoSaveOnSaveFocusSwap;
         
         public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
