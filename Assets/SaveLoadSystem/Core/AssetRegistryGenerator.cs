@@ -60,16 +60,18 @@ namespace SaveLoadSystem.Core
         
         private static void ProcessAllPrefabs(List<AssetRegistry> assetRegistries)
         {
-            var guids = AssetDatabase.FindAssets("t:Prefab");
-            
-            foreach (var guid in guids)
+            foreach (var registry in assetRegistries)
             {
-                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(assetPath);
-                
-                if (savablePrefab != null)
+                if (registry == null) continue;
+
+                var guids = AssetDatabase.FindAssets("t:Prefab", registry.SearchInFolders.ToArray());
+
+                foreach (var guid in guids)
                 {
-                    foreach (var registry in assetRegistries)
+                    var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                    var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(assetPath);
+
+                    if (savablePrefab != null)
                     {
                         registry.AddSavablePrefab(savablePrefab);
                     }
@@ -79,8 +81,30 @@ namespace SaveLoadSystem.Core
 
         private static void ProcessAllScriptableObjects(List<AssetRegistry> assetRegistries)
         {
-            // Get all ScriptableObject asset paths
-            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
+            foreach (var registry in assetRegistries)
+            {
+                if (registry == null) continue;
+
+                var guids = AssetDatabase.FindAssets("t:ScriptableObject", registry.SearchInFolders.ToArray());
+
+                foreach (var guid in guids)
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+
+                    if (asset is ISavable)
+                    {
+                        registry.AddSavableScriptableObject(asset);
+                    }
+                }
+            }
+        }
+
+        public static List<ScriptableObject> GetScriptableObjectSavables(string[] filter)
+        {
+            List<ScriptableObject> foundObjects = new();
+            
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject", filter);
 
             foreach (var guid in guids)
             {
@@ -89,12 +113,31 @@ namespace SaveLoadSystem.Core
 
                 if (asset is ISavable)
                 {
-                    foreach (var assetRegistry in assetRegistries)
-                    {
-                        assetRegistry.AddSavableScriptableObject(asset);
-                    }
+                    foundObjects.Add(asset);
                 }
             }
+
+            return foundObjects;
+        }
+        
+        public static List<Savable> GetPrefabSavables(string[] filter)
+        {
+            List<Savable> foundObjects = new();
+            
+            var guids = AssetDatabase.FindAssets("t:Prefab", filter);
+
+            foreach (var guid in guids)
+            {
+                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(assetPath);
+
+                if (savablePrefab != null)
+                {
+                    foundObjects.Add(savablePrefab);
+                }
+            }
+
+            return foundObjects;
         }
         
         private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)

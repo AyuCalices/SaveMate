@@ -7,6 +7,7 @@ namespace SaveLoadSystem.Editor
     [CustomEditor(typeof(AssetRegistry))]
     public class AssetRegistryEditor : UnityEditor.Editor
     {
+        private SerializedProperty _searchInFolderProperty;
         private SerializedProperty _prefabSavablesProperty;
         private SerializedProperty _scriptableObjectSavablesProperty;
         
@@ -15,16 +16,28 @@ namespace SaveLoadSystem.Editor
         
         private void OnEnable()
         {
+            _searchInFolderProperty = serializedObject.FindProperty("searchInFolders");
             _prefabSavablesProperty = serializedObject.FindProperty("prefabSavables");
             _scriptableObjectSavablesProperty = serializedObject.FindProperty("scriptableObjectSavables");
         }
         
         public override void OnInspectorGUI()
         {
-            GUI.enabled = false;
+            serializedObject.Update();
             
+            EditorGUILayout.PropertyField(_searchInFolderProperty);
+            
+            if (GUILayout.Button("Update Folder Filter"))
+            {
+                AssetRegistry assetRegistry = (AssetRegistry)target;
+                assetRegistry.UpdateFolderSelect();
+            }
+            
+            GUI.enabled = false;
+            GUILayout.Space(20f);
             PrefabLayout(_prefabSavablesProperty, "Prefab Savables", ref _showPrefabSavablesList);
             ScriptableObjectLayout(_scriptableObjectSavablesProperty, "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
+            
             
             serializedObject.ApplyModifiedProperties();
         }

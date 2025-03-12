@@ -11,9 +11,11 @@ namespace SaveLoadSystem.Core
     [CreateAssetMenu]
     public class AssetRegistry : ScriptableObject
     {
+        [SerializeField] private List<string> searchInFolders = new();
         [SerializeField] private List<Savable> prefabSavables = new();
         [SerializeField] private List<UnityObjectIdentification> scriptableObjectSavables = new();
 
+        public List<string> SearchInFolders => searchInFolders;
         public List<Savable> PrefabSavables => prefabSavables;
         public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
 
@@ -156,6 +158,57 @@ namespace SaveLoadSystem.Core
             }
             
             SetDirty();
+        }
+        
+        public void UpdateFolderSelect()
+        {
+            UpdateFolderSelectScriptableObject();
+            UpdateFolderSelectPrefabs();
+            SetDirty();
+        }
+        
+        private void UpdateFolderSelectScriptableObject()
+        {
+            var newScriptableObjects = AssetRegistryGenerator.GetScriptableObjectSavables(searchInFolders.ToArray());
+
+            foreach (var newScriptableObject in newScriptableObjects)
+            {
+                if (!scriptableObjectSavables.Exists(x => x.unityObject == newScriptableObject))
+                {
+                    AddSavableScriptableObject(newScriptableObject);
+                }
+            }
+
+            for (var index = scriptableObjectSavables.Count - 1; index >= 0; index--)
+            {
+                var currentScriptableObject = scriptableObjectSavables[index];
+                if (!newScriptableObjects.Contains(currentScriptableObject.unityObject))
+                {
+                    scriptableObjectSavables.Remove(currentScriptableObject);
+                }
+            }
+        }
+
+        private void UpdateFolderSelectPrefabs()
+        {
+            var newPrefabs = AssetRegistryGenerator.GetPrefabSavables(searchInFolders.ToArray());
+
+            foreach (var newScriptableObject in newPrefabs)
+            {
+                if (!prefabSavables.Contains(newScriptableObject))
+                {
+                    AddSavablePrefab(newScriptableObject);
+                }
+            }
+
+            for (var index = prefabSavables.Count - 1; index >= 0; index--)
+            {
+                var currentPrefab = prefabSavables[index];
+                if (!newPrefabs.Contains(currentPrefab))
+                {
+                    prefabSavables.Remove(currentPrefab);
+                }
+            }
         }
 
         /// <summary>
