@@ -18,7 +18,7 @@ namespace SaveLoadSystem.Core
 {
     public enum LoadType { Hard, Soft }
     
-    public class SaveFocus
+    public class SaveLink
     {
         public string FileName { get; }
         public bool HasPendingData { get; private set; }
@@ -36,7 +36,7 @@ namespace SaveLoadSystem.Core
         private HashSet<ScriptableObject> _loadedScriptableObjects;
         private HashSet<SaveSceneManager> _loadedSaveSceneManagers;
         
-        public SaveFocus(SaveLoadManager saveLoadManager, string fileName)
+        public SaveLink(SaveLoadManager saveLoadManager, string fileName)
         {
             _asyncQueue = new AsyncOperationQueue();
             _saveLoadManager = saveLoadManager;
@@ -79,6 +79,17 @@ namespace SaveLoadSystem.Core
             }
             
             return _customMetaData[identifier].ToObject<T>();
+        }
+
+        public List<string> GetSavedActiveScenes()
+        {
+            if (_rootSaveData == null)
+            {
+                Debug.LogError("Couldn't load because there is no SaveFile initialized!");
+                return null;
+            }
+
+            return _rootSaveData.ActiveScenes;
         }
         
         public void SaveActiveScenes()
@@ -318,7 +329,7 @@ namespace SaveLoadSystem.Core
             //TODO: Prefab stuff
             //TODO: cleanup
             
-            List<string> activeSceneNames = new (){ RootSaveData.GlobalSaveDataName };
+            List<string> activeSceneNames = new ();
             Dictionary<GameObject, GuidPath> gameObjects = new();
             Dictionary<ScriptableObject, GuidPath> uniqueScriptableObjects = new();
             Dictionary<Component, GuidPath> components = new();
@@ -341,6 +352,8 @@ namespace SaveLoadSystem.Core
                     uniqueScriptableObjects.TryAdd(scriptableObject, guidPath);
                 }
             }
+            
+            currentRootSaveData.SetActiveScenes(activeSceneNames);
 
             var scriptableObjectsToSave = ParseScriptableObjectWithLoadedScenes(currentRootSaveData, activeSceneNames, uniqueScriptableObjects);
             
@@ -473,7 +486,7 @@ namespace SaveLoadSystem.Core
             CleanupWeakReferences();
             
             //prepare references
-            List<string> activeSceneNames = new (){ RootSaveData.GlobalSaveDataName };
+            List<string> activeSceneNames = new ();
             Dictionary<GuidPath, ScriptableObject> uniqueScriptableObjects = new();
             Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
             Dictionary<GuidPath, Component> uniqueComponents = new();
@@ -633,7 +646,7 @@ namespace SaveLoadSystem.Core
         {
             foreach (var referenceGuidPath in leafSaveData.References.Values)
             {
-                if (!requiredScenes.Contains(referenceGuidPath.Scene)) return false;
+                if (!requiredScenes.Contains(referenceGuidPath.Scene) && referenceGuidPath.Scene != RootSaveData.GlobalSaveDataName) return false;
             }
 
             return true;

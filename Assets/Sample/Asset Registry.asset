@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Asset Registry
   m_EditorClassIdentifier: 
   searchInFolders:
-  - Assets/Sample/Inventory&Item Data
-  - Assets/Sample/Prefabs
+  - Assets/Sample
   prefabSavables:
   - {fileID: 4381035429485724105, guid: 6ad0de2677fa61646b016746eebb0b72, type: 3}
   - {fileID: 6799004914679861805, guid: baa1d5040847f7648823ec50ac47c5a0, type: 3}
   scriptableObjectSavables:
   - guid: ScriptableObject_Inventory_aSZTE
     unityObject: {fileID: 11400000, guid: 4bbc194549df92441ada2df6806111f8, type: 2}
+  - guid: ScriptableObject_Sprite Lookup_Lo3UI
+    unityObject: {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}

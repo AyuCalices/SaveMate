@@ -140,7 +140,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 case SaveSceneManagerDestroyType.SaveActiveScenes:
                     if (!_hasSavedActiveScenesThisFrame)
                     {
-                        saveLoadManager.SaveFocus.SaveActiveScenes();
+                        saveLoadManager.CurrentSaveLink.SaveActiveScenes();
                         _hasSavedActiveScenesThisFrame = true;
                     }
                     break;
@@ -157,7 +157,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (saveActiveScenesOnApplicationQuit && !_hasSavedActiveScenesThisFrame)
             {
-                saveLoadManager.SaveFocus.SaveActiveScenes();
+                saveLoadManager.CurrentSaveLink.SaveActiveScenes();
                 _hasSavedActiveScenesThisFrame = true;
             }
         }
@@ -297,49 +297,49 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Snapshot Scene")]
         public void SnapshotScene()
         {
-            saveLoadManager.SaveFocus.SnapshotScenes(this);
+            saveLoadManager.CurrentSaveLink.SnapshotScenes(this);
         }
 
         [ContextMenu("Write To Disk")]
         public void WriteToDisk()
         {
-            saveLoadManager.SaveFocus.WriteToDisk();
+            saveLoadManager.CurrentSaveLink.WriteToDisk();
         }
         
         [ContextMenu("Save Scene")]
         public void SaveScene()
         {
-            saveLoadManager.SaveFocus.SaveScenes(this);
+            saveLoadManager.CurrentSaveLink.SaveScenes(this);
         }
 
         [ContextMenu("Apply Snapshot")]
         public void ApplySnapshot()
         {
-            saveLoadManager.SaveFocus.ApplySnapshotToScenes(defaultLoadType, this);
+            saveLoadManager.CurrentSaveLink.ApplySnapshotToScenes(defaultLoadType, this);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            saveLoadManager.SaveFocus.LoadScenes(defaultLoadType, this);
+            saveLoadManager.CurrentSaveLink.LoadScenes(defaultLoadType, this);
         }
         
         [ContextMenu("Wipe Scene Data")]
         public void WipeSceneData()
         {
-            saveLoadManager.SaveFocus.DeleteSceneData(this);
+            saveLoadManager.CurrentSaveLink.DeleteSceneData(this);
         }
         
         [ContextMenu("Delete Scene Data")]
         public void DeleteSceneData()
         {
-            saveLoadManager.SaveFocus.DeleteAll(this);
+            saveLoadManager.CurrentSaveLink.DeleteAll(this);
         }
 
         [ContextMenu("Reload Scene")]
         public void ReloadScene()
         {
-            saveLoadManager.SaveFocus.ReloadScenes(this);
+            saveLoadManager.CurrentSaveLink.ReloadScenes(this);
         }
         
         

@@ -34,16 +34,16 @@ namespace SaveLoadSystem.Core
         [Header("QOL")] 
         [SerializeField] private bool autoSaveOnSaveFocusSwap;
         
-        public event Action<SaveFocus, SaveFocus> OnBeforeFocusChange;
-        public event Action<SaveFocus, SaveFocus> OnAfterFocusChange;
+        public event Action<SaveLink, SaveLink> OnBeforeFocusChange;
+        public event Action<SaveLink, SaveLink> OnAfterFocusChange;
         
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
         public SaveVersion SaveVersion => new(major, minor, patch);
         public List<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
-        public bool HasSaveFocus => _saveFocus != null;
-        public SaveFocus SaveFocus
+        public bool HasSaveFocus => _saveLink != null;
+        public SaveLink CurrentSaveLink
         {
             get
             {
@@ -52,11 +52,11 @@ namespace SaveLoadSystem.Core
                     SetFocus();
                 }
 
-                return _saveFocus;
+                return _saveLink;
             }
         }
 
-        private SaveFocus _saveFocus;
+        private SaveLink _saveLink;
         private HashSet<SaveSceneManager> _scenesToReload;
         private byte[] _aesKey = Array.Empty<byte>();
         private byte[] _aesIv = Array.Empty<byte>();
@@ -72,14 +72,14 @@ namespace SaveLoadSystem.Core
         {
             SetFocus(fileName);
 
-            SaveFocus.SaveActiveScenes();
+            CurrentSaveLink.SaveActiveScenes();
         }
 
         public void SimpleLoadActiveScenes(LoadType loadType = LoadType.Hard, string fileName = null)
         {
             SetFocus(fileName);
             
-            SaveFocus.LoadScenes(loadType, TrackedSaveSceneManagers.ToArray());
+            CurrentSaveLink.LoadScenes(loadType, TrackedSaveSceneManagers.ToArray());
         }
 
         #endregion
@@ -97,16 +97,16 @@ namespace SaveLoadSystem.Core
             if (HasSaveFocus)
             {
                 //same to current save
-                if (_saveFocus.FileName == fileName) return;
+                if (_saveLink.FileName == fileName) return;
                 
                 //other save, but still has pending data that can be saved
                 if (autoSaveOnSaveFocusSwap)
                 {
-                    _saveFocus.SaveScenes();
+                    _saveLink.SaveScenes();
                 }
             }
             
-            SwapFocus(new SaveFocus(this, fileName));
+            SwapFocus(new SaveLink(this, fileName));
         }
 
         public void ReleaseFocus()
@@ -114,7 +114,7 @@ namespace SaveLoadSystem.Core
             //save pending data if allowed
             if (HasSaveFocus && autoSaveOnSaveFocusSwap)
             {
-                _saveFocus.SaveScenes();
+                _saveLink.SaveScenes();
             }
             
             SwapFocus(null);
@@ -196,15 +196,15 @@ namespace SaveLoadSystem.Core
 
         #region Private
 
-        private void SwapFocus(SaveFocus newSaveFocus)
+        private void SwapFocus(SaveLink newSaveLink)
         {
-            SaveFocus oldSaveFocus = _saveFocus;
+            SaveLink oldSaveLink = _saveLink;
             
-            OnBeforeFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
+            OnBeforeFocusChange?.Invoke(oldSaveLink, newSaveLink);
 
-            _saveFocus = newSaveFocus;
+            _saveLink = newSaveLink;
             
-            OnAfterFocusChange?.Invoke(oldSaveFocus, newSaveFocus);
+            OnAfterFocusChange?.Invoke(oldSaveLink, newSaveLink);
         }
 
         #endregion
