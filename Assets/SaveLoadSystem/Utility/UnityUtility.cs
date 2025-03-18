@@ -33,6 +33,20 @@ namespace SaveLoadSystem.Utility
         }
         
         /// <summary>
+        /// Changes made to serialized fields via script in Edit mode are not automatically saved.
+        /// Unity only persists modifications made through the Inspector unless explicitly marked as dirty.
+        /// </summary>
+        public static void SetDirty(Object target)
+        {
+#if UNITY_EDITOR
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.SetDirty(target);
+            }
+#endif
+        }
+        
+        /// <summary>
         /// Finds and returns all components that are attached multiple times to the given GameObject.
         /// </summary>
         /// <param name="gameObject">The GameObject to check.</param>

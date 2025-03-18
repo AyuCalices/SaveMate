@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
-using UnityEditor;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
@@ -19,72 +17,20 @@ namespace SaveLoadSystem.Core
         public List<Savable> PrefabSavables => prefabSavables;
         public List<UnityObjectIdentification> ScriptableObjectSavables => scriptableObjectSavables;
 
+        //needed if the user does bad id entries
         private void OnValidate()
         {
-            FixMissingPrefabID();
-            FixMissingScriptableObjectID();
-
-            DetectDuplicateScriptableObjectIDs();
+            //Prefab
+            CleanupSavablePrefabs();
+            FixMissingPrefabGuid();
+            DetectDuplicateSavableGuids();
             
-            SetDirty();
-        }
-
-        private void DetectDuplicateScriptableObjectIDs()
-        {
-            var assetRegistries = UnityUtility.FindAllScriptableObjects<AssetRegistry>();
-            foreach (var unityObjectIdentification in scriptableObjectSavables)
-            {
-                int count = 0;
-                
-                foreach (var assetRegistry in assetRegistries)
-                {
-                    count += assetRegistry.ScriptableObjectSavables.Count(x => x.guid == unityObjectIdentification.guid);
-                }
-                
-                if (count >= 2)
-                {
-                    Debug.LogError($"Duplicate ID '{unityObjectIdentification.guid}' detected! ScriptableObject IDs must be unique across all " +
-                                   $"Asset Registries. Please change your latest edit to ensure uniqueness.");
-                }
-            }
-        }
-
-        internal void AddSavablePrefab(Savable savable)
-        {
-            if (string.IsNullOrEmpty(savable.PrefabGuid))
-            {
-                savable.PrefabGuid = GeneratePrefabID(savable);
-            }
-
-            if (!prefabSavables.Exists(x => x == savable))
-            {
-                prefabSavables.Add(savable);
-            }
-
-            SetDirty();
-        }
-
-        private void FixMissingPrefabID()
-        {
-            foreach (var prefabSavable in prefabSavables)
-            {
-                if (string.IsNullOrEmpty(prefabSavable.PrefabGuid))
-                {
-                    prefabSavable.PrefabGuid = GeneratePrefabID(prefabSavable);
-                }
-            }
-        }
-
-        private string GeneratePrefabID(Savable savable)
-        {
-            var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
+            //ScriptableObject
+            CleanupSavableScriptableObjects();
+            FixMissingScriptableObjectGuid();
+            SavableScriptableObjectSetup.UpdateScriptableObjectGuidOnInspectorInput(this);
             
-            while (prefabSavables.Exists(x => x.PrefabGuid == guid))
-            {
-                guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-            }
-
-            return guid;
+            UnityUtility.SetDirty(this);
         }
         
         internal void CleanupSavablePrefabs()
@@ -96,57 +42,21 @@ namespace SaveLoadSystem.Core
                     prefabSavables.RemoveAt(i);
                 }
             }
-            
-            SetDirty();
         }
         
-        internal void AddSavableScriptableObject(ScriptableObject scriptableObject)
+        private void FixMissingPrefabGuid()
         {
-            if (scriptableObjectSavables.Exists(x => (ScriptableObject)x.unityObject == scriptableObject)) return;
+            foreach (var prefabSavable in prefabSavables)
+            {
+                SavablePrefabSetup.SetUniquePrefabGuid(prefabSavable);
+            }
+        }
 
-            var guid = GenerateScriptableObjectID(scriptableObject);
-            
-            scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
-            
-            SetDirty();
+        private void DetectDuplicateSavableGuids()
+        {
+            //throw new NotImplementedException();
         }
         
-        private void FixMissingScriptableObjectID()
-        {
-            foreach (var unityObjectIdentification in scriptableObjectSavables)
-            {
-                if (string.IsNullOrEmpty(unityObjectIdentification.guid))
-                {
-                    unityObjectIdentification.guid = GenerateScriptableObjectID((ScriptableObject)unityObjectIdentification.unityObject);
-                }
-            }
-        }
-        
-        private string GenerateScriptableObjectID(ScriptableObject scriptableObject)
-        {
-            var guid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
-            
-            while (GuidExists(guid, UnityUtility.FindAllScriptableObjects<AssetRegistry>()))
-            {
-                guid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
-            }
-
-            return guid;
-        }
-
-        private bool GuidExists(string guid, AssetRegistry[] assetRegistries)
-        {
-            foreach (var assetRegistry in assetRegistries)
-            {
-                if (assetRegistry.ScriptableObjectSavables.Exists(x => x.guid == guid))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         internal void CleanupSavableScriptableObjects()
         {
             for (var i = scriptableObjectSavables.Count - 1; i >= 0; i--)
@@ -156,26 +66,54 @@ namespace SaveLoadSystem.Core
                     scriptableObjectSavables.RemoveAt(i);
                 }
             }
+        }
+        
+        private void FixMissingScriptableObjectGuid()
+        {
+            foreach (var unityObjectIdentification in scriptableObjectSavables)
+            {
+                if (string.IsNullOrEmpty(unityObjectIdentification.guid))
+                {
+                    unityObjectIdentification.guid = SavableScriptableObjectSetup.RequestUniqueGuid(unityObjectIdentification.unityObject);
+                }
+            }
+        }
+
+        internal void AddSavablePrefab(Savable savable)
+        {
+            if (prefabSavables.Exists(x => x == savable)) return;
             
-            SetDirty();
+            prefabSavables.Add(savable);
+
+            UnityUtility.SetDirty(this);
+        }
+        
+        internal void AddSavableScriptableObject(ScriptableObject scriptableObject, string guid)
+        {
+            if (scriptableObjectSavables.Exists(x => (ScriptableObject)x.unityObject == scriptableObject)) return;
+            
+            scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
+            
+            UnityUtility.SetDirty(this);
         }
         
         public void UpdateFolderSelect()
         {
             UpdateFolderSelectScriptableObject();
             UpdateFolderSelectPrefabs();
-            SetDirty();
+            
+            UnityUtility.SetDirty(this);
         }
         
         private void UpdateFolderSelectScriptableObject()
         {
-            var newScriptableObjects = AssetRegistryGenerator.GetScriptableObjectSavables(searchInFolders.ToArray());
+            var newScriptableObjects = SavableScriptableObjectSetup.GetScriptableObjectSavables(searchInFolders.ToArray());
 
             foreach (var newScriptableObject in newScriptableObjects)
             {
                 if (!scriptableObjectSavables.Exists(x => x.unityObject == newScriptableObject))
                 {
-                    AddSavableScriptableObject(newScriptableObject);
+                    AddSavableScriptableObject(newScriptableObject, SavableScriptableObjectSetup.RequestUniqueGuid(newScriptableObject));
                 }
             }
 
@@ -191,13 +129,14 @@ namespace SaveLoadSystem.Core
 
         private void UpdateFolderSelectPrefabs()
         {
-            var newPrefabs = AssetRegistryGenerator.GetPrefabSavables(searchInFolders.ToArray());
+            var newPrefabs = SavablePrefabSetup.GetPrefabSavables(searchInFolders.ToArray());
 
-            foreach (var newScriptableObject in newPrefabs)
+            foreach (var newPrefab in newPrefabs)
             {
-                if (!prefabSavables.Contains(newScriptableObject))
+                if (!prefabSavables.Contains(newPrefab))
                 {
-                    AddSavablePrefab(newScriptableObject);
+                    SavablePrefabSetup.SetUniquePrefabGuid(newPrefab);
+                    AddSavablePrefab(newPrefab);
                 }
             }
 
@@ -209,20 +148,6 @@ namespace SaveLoadSystem.Core
                     prefabSavables.Remove(currentPrefab);
                 }
             }
-        }
-
-        /// <summary>
-        /// Changes made to serialized fields via script in Edit mode are not automatically saved.
-        /// Unity only persists modifications made through the Inspector unless explicitly marked as dirty.
-        /// </summary>
-        private new void SetDirty()
-        {
-#if UNITY_EDITOR
-            if (!EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorUtility.SetDirty(this);
-            }
-#endif
         }
     }
 }

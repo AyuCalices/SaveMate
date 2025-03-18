@@ -245,11 +245,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
-  assetRegistry: {fileID: 11400000, guid: 180e624838817bb4da340a6856629547, type: 2}
+  assetRegistry: {fileID: 0}
   defaultLoadType: 1
-  loadSceneOnAwake: 1
-  saveSceneOnDestroy: 2
-  saveActiveScenesOnApplicationQuit: 1
+  loadSceneOnAwake: 0
+  saveSceneOnDestroy: 0
+  saveActiveScenesOnApplicationQuit: 0
   sceneManagerEvents:
     onBeforeSnapshot:
       m_PersistentCalls:
