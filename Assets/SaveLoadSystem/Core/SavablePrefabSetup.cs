@@ -118,33 +118,10 @@ namespace SaveLoadSystem.Core
 
         internal static void CheckUniquePrefabGuidOnInspectorInput()
         {
-            var lookup = new Dictionary<string, List<string>>();
-            
-            foreach (var savable in SavablePrefabsGuidLookup)
-            {
-                if (savable.IsUnityNull() || string.IsNullOrEmpty(savable.PrefabGuid)) continue;
-                
-                if (!lookup.TryGetValue(savable.PrefabGuid, out var prefabNames))
-                {
-                    lookup.Add(savable.PrefabGuid, new List<string>{ $"'{savable.name}'" });
-                }
-                else
-                {
-                    prefabNames.Add($"'{savable.name}'");
-                }
-            }
-            
-            foreach (var (guid, prefabNames) in lookup)
-            {
-                if (prefabNames.Count > 1)
-                {
-                    var combinedNames = string.Join(" | ", prefabNames);
-                    
-                    Debug.LogError(
-                        $"Duplicate ID '{guid}' detected in multiple Prefabs: {combinedNames}. " +
-                        "Each Prefab must have a unique PrefabGuid. Please ensure all guids are distinct.");
-                }
-            }
+            SaveLoadUtility.CheckUniqueGuidOnInspectorInput(SavablePrefabsGuidLookup,
+                obj => obj,
+                obj => obj.PrefabGuid,
+                "Duplicate Guid for different 'PrefabGuid' detected!");
         }
 
         private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)

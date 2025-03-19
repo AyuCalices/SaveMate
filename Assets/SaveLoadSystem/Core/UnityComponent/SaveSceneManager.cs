@@ -190,13 +190,26 @@ namespace SaveLoadSystem.Core.UnityComponent
         /// <param name="savable">The Savable object to be registered.</param>
         internal void RegisterSavable(Savable savable)
         {
+            if (savable == null)
+            {
+                Debug.LogError("[SaveMate - Internal Error] Attempted to register a null Savable object.");
+                return;
+            }
+            
             // Case 1: If the object has no SceneGuid, generate a unique ID
-            // Case 2: If an object with the same SceneGuid exists but is different, assign a new unique ID
-            if (string.IsNullOrEmpty(savable.SavableGuid) || 
-                (_trackedSavables != null && _trackedSavables.TryGetValue(savable.SavableGuid, out var registeredSavable) && registeredSavable != savable))
+            if (string.IsNullOrEmpty(savable.SavableGuid))
             {
                 var id = GetUniqueID(savable);
                 savable.SavableGuid = id;
+            }
+
+            // Case 2: If another object with the same SceneGuid exists, assign a new unique ID
+            if (_trackedSavables != null && _trackedSavables.TryGetValue(savable.SavableGuid, out var registeredSavable) && registeredSavable != savable)
+            {
+                var id = GetUniqueID(savable);
+                savable.SavableGuid = id;
+                Debug.LogWarning($"Assigning a new unique ID to '{savable.gameObject.name}' in scene '{SceneName}'" +
+                                 $" as the existing GUID was duplicated.");
             }
 
             // Add the Savable to the lookup, ensuring it is tracked

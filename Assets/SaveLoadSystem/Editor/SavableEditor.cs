@@ -41,8 +41,8 @@ namespace SaveLoadSystem.Editor
             // Display the fields
             EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
-            ComponentContainerListLayout(_currentSavableListProperty.FindPropertyRelative("values"), "Tracked Savables", ref _showCurrentSavableList);
-            ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components", ref _showSavableReferenceList);
+            ComponentContainerListLayout(_currentSavableListProperty.FindPropertyRelative("values"), "Tracked ISavables", ref _showCurrentSavableList);
+            ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components (No ISavables)", ref _showSavableReferenceList);
             
             // Enable editing back
             GUI.enabled = true;

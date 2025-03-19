@@ -10,7 +10,7 @@ using UnityEngine;
 namespace SaveLoadSystem.Core.UnityComponent
 {
     [DisallowMultipleComponent]
-    public class Savable : MonoBehaviour
+    public class Savable : MonoBehaviour, IChangeGameObjectStructure
     {
         [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
@@ -50,12 +50,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             UnregisterFromSceneManager();
         }
-
-        /*
-         * Currently the system only supports adding savable-components during editor mode.
-         * This is by design, to prevent the necessary to save the type of the component.
-         * optional todo: find a way to save added savable-components similar to dynamic prefab spawning without saving the type.
-         */
+        
         private void OnValidate()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
@@ -66,7 +61,19 @@ namespace SaveLoadSystem.Core.UnityComponent
             FixMissingPrefabGuid();
             SavablePrefabSetup.CheckUniquePrefabGuidOnInspectorInput();
             
-            //guids that must be unique among this savable
+            CheckUniqueISavableGuidOnInspectorInput();
+            CheckUniqueDuplicateComponentGuidOnInspectorInput();
+            
+            UnityUtility.SetDirty(this);
+        }
+        
+        /*
+         * Currently the system only supports adding savable-components during editor mode.
+         * This is by design, to prevent the necessary to save the type of the component.
+         * optional todo: find a way to save added savable-components similar to dynamic prefab spawning without saving the type.
+         */
+        public void OnChangeGameObjectStructure()
+        {
             UpdateSavableComponents();
             UpdateSavableReferenceComponents();
             
@@ -118,6 +125,22 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 SavablePrefabSetup.ApplyUniquePrefabGuid(this);
             }
+        }
+
+        private void CheckUniqueISavableGuidOnInspectorInput()
+        {
+            SaveLoadUtility.CheckUniqueGuidOnInspectorInput(savableLookup.values,
+                obj => obj.unityObject,
+                obj => obj.guid,
+                $"Duplicate Guid on GameObject '{gameObject.name}' for different 'ISavable Components' detected!");
+        }
+        
+        private void CheckUniqueDuplicateComponentGuidOnInspectorInput()
+        {
+            SaveLoadUtility.CheckUniqueGuidOnInspectorInput(duplicateComponentLookup.values,
+                obj => obj.unityObject,
+                obj => obj.guid,
+                $"Duplicate Guid on GameObject '{gameObject.name}' for different 'Duplicated Components' detected!");
         }
 
         private void UpdateSavableComponents()

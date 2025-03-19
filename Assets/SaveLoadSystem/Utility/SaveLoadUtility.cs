@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using SaveLoadSystem.Core;
@@ -189,6 +190,43 @@ namespace SaveLoadSystem.Utility
                 id[i] = allowedChars[index];
             }
             return new string(id);
+        }
+        
+        public static void CheckUniqueGuidOnInspectorInput<T>(
+            IEnumerable<T> items,
+            Func<T, UnityEngine.Object> getUnityObject,
+            Func<T, string> getGuid,
+            string errorMessagePrefix)
+        {
+            var guidLookup = new Dictionary<string, (bool Duplicated, HashSet<string> HashSet)>();
+
+            foreach (var item in items)
+            {
+                var unityObject = getUnityObject(item);
+                if (unityObject.IsUnityNull()) continue;
+                
+                var guid = getGuid(item);
+                if (string.IsNullOrEmpty(guid)) continue;
+
+                var stringToAdd = $"'{unityObject.name}'";
+                if (!guidLookup.TryGetValue(guid, out var uniqueWithCount))
+                {
+                    guidLookup.Add(guid, (false, new HashSet<string> { stringToAdd }));
+                }
+                else
+                {
+                    uniqueWithCount.HashSet.Add(stringToAdd);
+                    guidLookup[guid] = (true, uniqueWithCount.HashSet);
+                }
+            }
+
+            foreach (var (guid, uniqueWithCount) in guidLookup)
+            {
+                if (uniqueWithCount.Duplicated)
+                {
+                    Debug.LogError($"{errorMessagePrefix}. Please ensure all GUIDs are unique. Duplicated guid: '{guid}'. Duplications detected on: {string.Join(" | ", uniqueWithCount.HashSet)}.");
+                }
+            }
         }
     }
 }
