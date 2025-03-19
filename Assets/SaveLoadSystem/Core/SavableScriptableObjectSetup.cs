@@ -87,6 +87,13 @@ namespace SaveLoadSystem.Core
             return newGuid;
         }
 
+        /// <summary>
+        /// Retrieves a unique GUID for the given ScriptableObject. 
+        /// If the object already has an assigned GUID, it returns the existing one.
+        /// Otherwise, a new GUID is generated, assigned, and returned.
+        /// </summary>
+        /// <param name="scriptableObject">The ScriptableObject for which a unique GUID is requested.</param>
+        /// <returns>A unique GUID as a string, either newly generated or previously assigned.</returns>
         internal static string RequestUniqueGuid(Object scriptableObject)
         {
             if (!_savableScriptableObjectGuidLookup.TryGetValue(scriptableObject, out var guid))
@@ -95,8 +102,36 @@ namespace SaveLoadSystem.Core
                 _savableScriptableObjectGuidLookup.TryAdd(scriptableObject, newGuid);
                 return newGuid;
             }
-
+            
             return guid;
+        }
+
+        /// <summary>
+        /// Forces a new guid to a certain scriptable object and updates all AssetRegistries
+        /// </summary>
+        /// <param name="scriptableObject">The scriptable object, that should get a new guid</param>
+        /// <returns>The generated guid as a string</returns>
+        internal static string ApplyNewUniqueGuid(Object scriptableObject)
+        {
+            var newGuid = GenerateScriptableObjectID(scriptableObject);
+            UpdateAssetRegistriesOnScriptableObjectGuidChange(scriptableObject, newGuid);
+            return newGuid;
+        }
+        
+        private static void UpdateAssetRegistriesOnScriptableObjectGuidChange(Object scriptableObject, string guid)
+        {
+            foreach (var cachedAssetRegistry in AssetRegistryManager.CachedAssetRegistries)
+            {
+                foreach (var cachedObjectGuidContainer in cachedAssetRegistry.ScriptableObjectSavables)
+                {
+                    if (cachedObjectGuidContainer.unityObject == scriptableObject)
+                    {
+                        cachedObjectGuidContainer.guid = guid;
+                    }
+                }
+            }
+                    
+            _savableScriptableObjectGuidLookup[scriptableObject] = guid;
         }
         
         internal static List<ScriptableObject> GetScriptableObjectSavables(string[] filter)
@@ -145,21 +180,7 @@ namespace SaveLoadSystem.Core
                 //only change every occurence of the guid for the asset, if there actually is a change
                 if (_savableScriptableObjectGuidLookup.TryGetValue(updatedObjectGuidContainer.unityObject, out var storedGuid) &&  storedGuid != updatedObjectGuidContainer.guid)
                 {
-                    foreach (var cachedAssetRegistry in AssetRegistryManager.CachedAssetRegistries)
-                    {
-                        //skip the registry with the change
-                        if (cachedAssetRegistry == updatedAssetRegistry) continue;
-                        
-                        foreach (var cachedObjectGuidContainer in cachedAssetRegistry.ScriptableObjectSavables)
-                        {
-                            if (cachedObjectGuidContainer.unityObject == updatedObjectGuidContainer.unityObject)
-                            {
-                                cachedObjectGuidContainer.guid = updatedObjectGuidContainer.guid;
-                            }
-                        }
-                    }
-                    
-                    _savableScriptableObjectGuidLookup[updatedObjectGuidContainer.unityObject] = updatedObjectGuidContainer.guid;
+                    UpdateAssetRegistriesOnScriptableObjectGuidChange(updatedObjectGuidContainer.unityObject, updatedObjectGuidContainer.guid);
                 }
             }
         }

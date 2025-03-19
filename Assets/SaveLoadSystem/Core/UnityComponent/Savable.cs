@@ -6,7 +6,6 @@ using SaveLoadSystem.Utility;
 using SaveLoadSystem.Utility.PreventReset;
 using UnityEditor;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
@@ -45,30 +44,33 @@ namespace SaveLoadSystem.Core.UnityComponent
         private void Awake()
         {
             RegisterToSceneManager();
-            //Debug.Log("awake register");
         }
 
         private void OnDestroy()
         {
             UnregisterFromSceneManager();
-            //Debug.Log("destroy unregister");
         }
 
+        /*
+         * Currently the system only supports adding savable-components during editor mode.
+         * This is by design, to prevent the necessary to save the type of the component.
+         * optional todo: find a way to save added savable-components similar to dynamic prefab spawning without saving the type.
+         */
         private void OnValidate()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
             
             RegisterToSceneManager();
-            //Debug.Log("valdate register");
             
-            /*
-             * Currently the system only supports adding savable-components during editor mode.
-             * This is by design, to prevent the necessary to save the type of the component.
-             * optional todo: find a way to save added savable-components similar to dynamic prefab spawning without saving the type.
-             */
+            //update prefab guid
+            FixMissingPrefabGuid();
+            SavablePrefabSetup.CheckUniquePrefabGuidOnInspectorInput();
+            
+            //guids that must be unique among this savable
             UpdateSavableComponents();
             UpdateSavableReferenceComponents();
-            SetDirty(this);
+            
+            UnityUtility.SetDirty(this);
         }
         
         private void RegisterToSceneManager()
@@ -107,6 +109,14 @@ namespace SaveLoadSystem.Core.UnityComponent
             if (!_saveSceneManager.IsUnityNull() && gameObject.scene.IsValid())
             {
                 _saveSceneManager.UnregisterSavable(this);
+            }
+        }
+
+        private void FixMissingPrefabGuid()
+        {
+            if (string.IsNullOrEmpty(PrefabGuid))
+            {
+                SavablePrefabSetup.ApplyUniquePrefabGuid(this);
             }
         }
 
@@ -209,20 +219,6 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
 
             return guid;
-        }
-        
-        /// <summary>
-        /// Changes made to serialized fields via script in Edit mode are not automatically saved.
-        /// Unity only persists modifications made through the Inspector unless explicitly marked as dirty.
-        /// </summary>
-        private void SetDirty(Object obj)
-        {
-#if UNITY_EDITOR
-            if (!EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                EditorUtility.SetDirty(obj);
-            }
-#endif
         }
     }
 }

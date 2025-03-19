@@ -22,8 +22,6 @@ namespace SaveLoadSystem.Core
         {
             //Prefab
             CleanupSavablePrefabs();
-            FixMissingPrefabGuid();
-            DetectDuplicateSavableGuids();
             
             //ScriptableObject
             CleanupSavableScriptableObjects();
@@ -44,19 +42,6 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        private void FixMissingPrefabGuid()
-        {
-            foreach (var prefabSavable in prefabSavables)
-            {
-                SavablePrefabSetup.SetUniquePrefabGuid(prefabSavable);
-            }
-        }
-
-        private void DetectDuplicateSavableGuids()
-        {
-            //throw new NotImplementedException();
-        }
-        
         internal void CleanupSavableScriptableObjects()
         {
             for (var i = scriptableObjectSavables.Count - 1; i >= 0; i--)
@@ -74,7 +59,7 @@ namespace SaveLoadSystem.Core
             {
                 if (string.IsNullOrEmpty(unityObjectIdentification.guid))
                 {
-                    unityObjectIdentification.guid = SavableScriptableObjectSetup.RequestUniqueGuid(unityObjectIdentification.unityObject);
+                    unityObjectIdentification.guid = SavableScriptableObjectSetup.ApplyNewUniqueGuid(unityObjectIdentification.unityObject);
                 }
             }
         }
