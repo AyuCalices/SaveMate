@@ -13,6 +13,7 @@ namespace SaveLoadSystem.Editor
         
         private static bool _showPrefabSavablesList;
         private static bool _showScriptableObjectSavablesList;
+        private static bool _isToggled;
         
         private void OnEnable()
         {
@@ -33,9 +34,27 @@ namespace SaveLoadSystem.Editor
                 assetRegistry.UpdateFolderSelect();
             }
             
-            GUI.enabled = false;
             GUILayout.Space(20f);
+            
+            GUI.enabled = false;
             PrefabLayout(_prefabSavablesProperty, "Prefab Savables", ref _showPrefabSavablesList);
+            GUI.enabled = true;
+            
+            GUILayout.Space(20f);
+            
+            // Toggle Button
+            if (GUILayout.Button(_isToggled ? "Disable GUID Editing" : "Enable GUID Editing"))
+            {
+                _isToggled = !_isToggled;
+            }
+            
+            // Show message when toggled
+            if (_isToggled)
+            {
+                EditorGUILayout.HelpBox("Warning: Changing the GUID will break references in all existing save files that used the previous GUID!", MessageType.Warning);
+            }
+            
+            GUI.enabled = _isToggled;
             ScriptableObjectLayout(_scriptableObjectSavablesProperty, "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
             
             
@@ -46,14 +65,9 @@ namespace SaveLoadSystem.Editor
             ref bool foldout)
         {
             //draw label
-            GUI.enabled = true;
             EditorGUILayout.BeginHorizontal();
-            foldout = EditorGUILayout.Foldout(foldout, layoutName, new GUIStyle(EditorStyles.foldout)
-            {
-                fontStyle = FontStyle.Bold
-            });
+            foldout = EditorGUILayout.Foldout(foldout, layoutName);
             
-            GUI.enabled = false;
             EditorGUILayout.TextField(serializedProperty.arraySize.ToString(), GUILayout.MaxWidth(48));
             EditorGUILayout.EndHorizontal();
             if (!foldout) return;
@@ -80,14 +94,9 @@ namespace SaveLoadSystem.Editor
             ref bool foldout)
         {
             //draw label
-            GUI.enabled = true;
             EditorGUILayout.BeginHorizontal();
-            foldout = EditorGUILayout.Foldout(foldout, layoutName, new GUIStyle(EditorStyles.foldout)
-            {
-                fontStyle = FontStyle.Bold
-            });
+            foldout = EditorGUILayout.Foldout(foldout, layoutName);
             
-            GUI.enabled = false;
             EditorGUILayout.TextField(serializedProperty.arraySize.ToString(), GUILayout.MaxWidth(48));
             EditorGUILayout.EndHorizontal();
             if (!foldout) return;
@@ -109,8 +118,11 @@ namespace SaveLoadSystem.Editor
                 var pathProperty = elementProperty.FindPropertyRelative("guid");
 
                 EditorGUILayout.BeginHorizontal();
+                GUI.enabled = false;
                 EditorGUILayout.PropertyField(componentProperty, GUIContent.none);
+                GUI.enabled = _isToggled;
                 EditorGUILayout.PropertyField(pathProperty, GUIContent.none);
+                GUI.enabled = false;
 
                 EditorGUILayout.EndHorizontal();
             }

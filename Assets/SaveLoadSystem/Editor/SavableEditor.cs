@@ -16,6 +16,7 @@ namespace SaveLoadSystem.Editor
         private static bool _showCurrentSavableList;
         private static bool _showRemovedSavableList;
         private static bool _showSavableReferenceList;
+        private static bool _isToggled;
 
         private void OnEnable()
         {
@@ -30,22 +31,32 @@ namespace SaveLoadSystem.Editor
         {
             serializedObject.Update();
             
+            // Toggle Button
+            if (GUILayout.Button(_isToggled ? "Disable GUID Editing" : "Enable GUID Editing"))
+            {
+                _isToggled = !_isToggled;
+            }
+            
+            // Show message when toggled
+            if (_isToggled)
+            {
+                EditorGUILayout.HelpBox("Warning: Changing the GUID will break references in all existing save files that used the previous GUID!", MessageType.Warning);
+            }
+            
+            EditorGUILayout.Space(20f);
+            
             if (_prefabPathProperty.FindPropertyRelative("value").stringValue != string.Empty)
             {
                 EditorGUILayout.PropertyField(_customSpawningProperty);
             }
             
             // Disable editing
-            GUI.enabled = false;
-            
-            // Display the fields
+            GUI.enabled = _isToggled;
             EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
+            
             ComponentContainerListLayout(_currentSavableListProperty.FindPropertyRelative("values"), "Tracked ISavables", ref _showCurrentSavableList);
             ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components (No ISavables)", ref _showSavableReferenceList);
-            
-            // Enable editing back
-            GUI.enabled = true;
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -72,8 +83,11 @@ namespace SaveLoadSystem.Editor
                 var pathProperty = elementProperty.FindPropertyRelative("guid");
 
                 EditorGUILayout.BeginHorizontal();
+                GUI.enabled = false;
                 EditorGUILayout.PropertyField(componentProperty, GUIContent.none);
+                GUI.enabled = _isToggled;
                 EditorGUILayout.PropertyField(pathProperty, GUIContent.none);
+                GUI.enabled = false;
                 EditorGUILayout.EndHorizontal();
             }
                 

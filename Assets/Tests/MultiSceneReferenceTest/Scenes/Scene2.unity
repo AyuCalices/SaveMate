@@ -209,8 +209,6 @@ GameObject:
   - component: {fileID: 1655517215}
   - component: {fileID: 1655517216}
   - component: {fileID: 1655517214}
-  - component: {fileID: 1655517218}
-  - component: {fileID: 1655517217}
   m_Layer: 0
   m_Name: Reference2
   m_TagString: Untagged
@@ -283,41 +281,7 @@ MonoBehaviour:
     - guid: Component_tVn2r
       unityObject: {fileID: 1655517214}
   duplicateComponentLookup:
-    values:
-    - guid: Component_1SUTx
-      unityObject: {fileID: 1655517218}
-    - guid: Component_1TMps
-      unityObject: {fileID: 1655517217}
---- !u!114 &1655517217
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1655517213}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e741851cba3ad425c91ecf922cc6b379, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _data:
-    _json: '{"declarations":{"Kind":"Object","collection":{"$content":[],"$version":"A"},"$version":"A"}}'
-    _objectReferences: []
---- !u!114 &1655517218
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1655517213}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e741851cba3ad425c91ecf922cc6b379, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _data:
-    _json: '{"declarations":{"Kind":"Object","collection":{"$content":[],"$version":"A"},"$version":"A"}}'
-    _objectReferences: []
+    values: []
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
