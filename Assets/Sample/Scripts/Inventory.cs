@@ -52,32 +52,11 @@ namespace Sample.Scripts
         {
             items ??= new List<Item>();
             saveDataHandler.Save("items", items);
-            
-            /*
-            var test = new List<Item[]>();
-            for (var index = 0; index < items.Count; index++)
-            {
-                var innerTest = new Item[items.Count];
-                test.Add(innerTest);
-            
-                for (var i = 0; i < items.Count; i++)
-                {
-                    innerTest[i] = items[i];
-                }
-            }
-            
-            saveDataHandler.Save("test", test);
-            saveDataHandler.Save("test2", this.test);*/
         }
 
         public void OnLoad(LoadDataHandler loadDataHandler)
         {
             loadDataHandler.TryLoad("items", out items);
-        
-            /*
-            loadDataHandler.TryLoad("test", out List<Item[]> test);
-        
-            loadDataHandler.TryLoad("test3", out this.test);*/
         }
     }
 }

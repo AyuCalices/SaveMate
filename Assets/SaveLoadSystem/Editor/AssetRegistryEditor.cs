@@ -37,7 +37,7 @@ namespace SaveLoadSystem.Editor
             GUILayout.Space(20f);
             
             GUI.enabled = false;
-            PrefabLayout(_prefabSavablesProperty, "Prefab Savables", ref _showPrefabSavablesList);
+            PrefabLayout(_prefabSavablesProperty.FindPropertyRelative("values"), "Prefab Savables", ref _showPrefabSavablesList);
             GUI.enabled = true;
             
             GUILayout.Space(20f);
@@ -55,7 +55,7 @@ namespace SaveLoadSystem.Editor
             }
             
             GUI.enabled = _isToggled;
-            ScriptableObjectLayout(_scriptableObjectSavablesProperty, "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
+            ScriptableObjectLayout(_scriptableObjectSavablesProperty.FindPropertyRelative("values"), "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
             
             
             serializedObject.ApplyModifiedProperties();

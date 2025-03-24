@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
+using SaveLoadSystem.Utility.PreventReset;
 using UnityEngine;
 
 namespace SaveLoadSystem.Core
@@ -10,8 +11,8 @@ namespace SaveLoadSystem.Core
     public class AssetRegistry : ScriptableObject
     {
         [SerializeField] private List<string> searchInFolders = new();
-        [SerializeField] private List<Savable> prefabSavables = new();
-        [SerializeField] private List<UnityObjectIdentification> scriptableObjectSavables = new();
+        [SerializeField] private NonResetableList<Savable> prefabSavables = new();
+        [SerializeField] private NonResetableList<UnityObjectIdentification> scriptableObjectSavables = new();
 
         public List<string> SearchInFolders => searchInFolders;
         public List<Savable> PrefabSavables => prefabSavables;
@@ -33,29 +34,29 @@ namespace SaveLoadSystem.Core
         
         internal void CleanupSavablePrefabs()
         {
-            for (var i = prefabSavables.Count - 1; i >= 0; i--)
+            for (var i = prefabSavables.values.Count - 1; i >= 0; i--)
             {
-                if (prefabSavables[i].IsUnityNull())
+                if (prefabSavables.values[i].IsUnityNull())
                 {
-                    prefabSavables.RemoveAt(i);
+                    prefabSavables.values.RemoveAt(i);
                 }
             }
         }
         
         internal void CleanupSavableScriptableObjects()
         {
-            for (var i = scriptableObjectSavables.Count - 1; i >= 0; i--)
+            for (var i = scriptableObjectSavables.values.Count - 1; i >= 0; i--)
             {
-                if (scriptableObjectSavables[i].unityObject.IsUnityNull())
+                if (scriptableObjectSavables.values[i].unityObject.IsUnityNull())
                 {
-                    scriptableObjectSavables.RemoveAt(i);
+                    scriptableObjectSavables.values.RemoveAt(i);
                 }
             }
         }
         
         private void FixMissingScriptableObjectGuid()
         {
-            foreach (var unityObjectIdentification in scriptableObjectSavables)
+            foreach (var unityObjectIdentification in scriptableObjectSavables.values)
             {
                 if (string.IsNullOrEmpty(unityObjectIdentification.guid))
                 {
@@ -66,18 +67,18 @@ namespace SaveLoadSystem.Core
 
         internal void AddSavablePrefab(Savable savable)
         {
-            if (prefabSavables.Exists(x => x == savable)) return;
+            if (prefabSavables.values.Exists(x => x == savable)) return;
             
-            prefabSavables.Add(savable);
+            prefabSavables.values.Add(savable);
 
             UnityUtility.SetDirty(this);
         }
         
         internal void AddSavableScriptableObject(ScriptableObject scriptableObject, string guid)
         {
-            if (scriptableObjectSavables.Exists(x => (ScriptableObject)x.unityObject == scriptableObject)) return;
+            if (scriptableObjectSavables.values.Exists(x => (ScriptableObject)x.unityObject == scriptableObject)) return;
             
-            scriptableObjectSavables.Add(new UnityObjectIdentification(guid, scriptableObject));
+            scriptableObjectSavables.values.Add(new UnityObjectIdentification(guid, scriptableObject));
             
             UnityUtility.SetDirty(this);
         }
@@ -96,18 +97,18 @@ namespace SaveLoadSystem.Core
 
             foreach (var newScriptableObject in newScriptableObjects)
             {
-                if (!scriptableObjectSavables.Exists(x => x.unityObject == newScriptableObject))
+                if (!scriptableObjectSavables.values.Exists(x => x.unityObject == newScriptableObject))
                 {
                     AddSavableScriptableObject(newScriptableObject, SavableScriptableObjectSetup.RequestUniqueGuid(newScriptableObject));
                 }
             }
 
-            for (var index = scriptableObjectSavables.Count - 1; index >= 0; index--)
+            for (var index = scriptableObjectSavables.values.Count - 1; index >= 0; index--)
             {
-                var currentScriptableObject = scriptableObjectSavables[index];
+                var currentScriptableObject = scriptableObjectSavables.values[index];
                 if (!newScriptableObjects.Contains(currentScriptableObject.unityObject))
                 {
-                    scriptableObjectSavables.Remove(currentScriptableObject);
+                    scriptableObjectSavables.values.Remove(currentScriptableObject);
                 }
             }
         }
@@ -118,19 +119,19 @@ namespace SaveLoadSystem.Core
 
             foreach (var newPrefab in newPrefabs)
             {
-                if (!prefabSavables.Contains(newPrefab))
+                if (!prefabSavables.values.Contains(newPrefab))
                 {
                     SavablePrefabSetup.SetUniquePrefabGuid(newPrefab);
                     AddSavablePrefab(newPrefab);
                 }
             }
 
-            for (var index = prefabSavables.Count - 1; index >= 0; index--)
+            for (var index = prefabSavables.values.Count - 1; index >= 0; index--)
             {
-                var currentPrefab = prefabSavables[index];
+                var currentPrefab = prefabSavables.values[index];
                 if (!newPrefabs.Contains(currentPrefab))
                 {
-                    prefabSavables.Remove(currentPrefab);
+                    prefabSavables.values.Remove(currentPrefab);
                 }
             }
         }

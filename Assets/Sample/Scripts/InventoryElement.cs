@@ -8,7 +8,6 @@ namespace Sample.Scripts
 {
     public class InventoryElement : MonoBehaviour, ISaveMateAfterLoadHandler, ISavable
     {
-        [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private Image image;
         [SerializeField] private Text itemName;
     

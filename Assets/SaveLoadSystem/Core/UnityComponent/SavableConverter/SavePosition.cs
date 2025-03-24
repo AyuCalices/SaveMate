@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core.UnityComponent.SavableConverter
 {
-    
     public class SavePosition : MonoBehaviour, ISavable
     {
         public void OnSave(SaveDataHandler saveDataHandler)

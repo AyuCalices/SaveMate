@@ -90,8 +90,8 @@ GameObject:
   - component: {fileID: 777124105535506031}
   - component: {fileID: 2929727758039547951}
   - component: {fileID: 8051170395826181751}
-  - component: {fileID: 486862100594609039}
   - component: {fileID: 6799004914679861805}
+  - component: {fileID: 486862100594609039}
   - component: {fileID: 2918653190320057826}
   m_Layer: 5
   m_Name: InventoryElement
@@ -159,21 +159,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &486862100594609039
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6037486412435023909}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5aef66e61c0d04a41823290eda4d1bc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
-  image: {fileID: 5340273247403478399}
-  itemName: {fileID: 3133717628176311154}
 --- !u!114 &6799004914679861805
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -201,6 +186,20 @@ MonoBehaviour:
       unityObject: {fileID: 2918653190320057826}
   duplicateComponentLookup:
     values: []
+--- !u!114 &486862100594609039
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6037486412435023909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5aef66e61c0d04a41823290eda4d1bc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  image: {fileID: 5340273247403478399}
+  itemName: {fileID: 3133717628176311154}
 --- !u!114 &2918653190320057826
 MonoBehaviour:
   m_ObjectHideFlags: 0

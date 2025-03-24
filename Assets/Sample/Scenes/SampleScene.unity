@@ -820,10 +820,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
-  assetRegistry: {fileID: 11400000, guid: 00faf92c6e0f7dd4c92c7165d31a851a, type: 2}
-  loadType: 0
+  assetRegistry: {fileID: 11400000, guid: 57986767ef7f7514490df6068498f0cd, type: 2}
+  defaultLoadType: 0
   loadSceneOnAwake: 0
   saveSceneOnDestroy: 0
+  saveActiveScenesOnApplicationQuit: 0
   sceneManagerEvents:
     onBeforeSnapshot:
       m_PersistentCalls:
@@ -2066,8 +2067,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1844078486}
   m_HandleRect: {fileID: 1844078485}
   m_Direction: 0
-  m_Value: 1
-  m_Size: 0.9999999
+  m_Value: 0
+  m_Size: 0.9999998
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
