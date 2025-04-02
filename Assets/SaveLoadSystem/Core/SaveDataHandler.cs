@@ -148,6 +148,14 @@ namespace SaveLoadSystem.Core
                 //Debug.LogError("Internal Error!");
             }
 
+            if (objectToSave is GameObject gameObject)
+            {
+                if (_savableGameObjectToGuidLookup.TryGetValue(gameObject, out guidPath))
+                {
+                    return guidPath;
+                }
+            }
+
             if (objectToSave is ScriptableObject scriptableObject)
             {
                 if (_scriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))

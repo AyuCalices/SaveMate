@@ -12,6 +12,7 @@ public class Reference1 : Singleton<Reference1>, ISavable
     [SerializeField] private Inventory inventory;
     [SerializeField] private List<ItemGenerator> spawnableItems;
 
+    public GameObject test;
     public Item storedItem;
     public Item otherItem;
     
@@ -34,6 +35,7 @@ public class Reference1 : Singleton<Reference1>, ISavable
 
     private Item SpawnRandomItem()
     {
+        test = gameObject;
         int randomItemGenerator = Random.Range(0, spawnableItems.Count);
         return spawnableItems[randomItemGenerator].GenerateItem();
     }
@@ -42,6 +44,7 @@ public class Reference1 : Singleton<Reference1>, ISavable
     {
         saveDataHandler.Save("StoredItem", storedItem);
         saveDataHandler.Save("OtherItem", otherItem);
+        saveDataHandler.Save("gameobject", test);
     }
 
     public void OnLoad(LoadDataHandler loadDataHandler)
@@ -55,5 +58,7 @@ public class Reference1 : Singleton<Reference1>, ISavable
         {
             this.otherItem = otherItem;
         }
+
+        loadDataHandler.TryLoad("gameobject", out test);
     }
 }

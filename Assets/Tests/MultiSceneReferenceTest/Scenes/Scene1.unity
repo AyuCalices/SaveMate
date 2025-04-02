@@ -420,6 +420,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 3fee24a19d82d2544bd2ed77d232ba62, type: 2}
   - {fileID: 11400000, guid: 75716280e67186945ac51065d55a30d4, type: 2}
   - {fileID: 11400000, guid: 6c46fd85685b5a44a9376d1934fc5b3c, type: 2}
+  test: {fileID: 0}
   storedItem:
     spriteLookup: {fileID: 0}
     sprite: {fileID: 0}
