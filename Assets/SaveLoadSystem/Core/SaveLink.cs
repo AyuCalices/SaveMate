@@ -451,7 +451,38 @@ namespace SaveLoadSystem.Core
             {
                 saveSceneManager.HandleBeforeLoad();
             }
-
+            
+            //cleanup unused weak references
+            CleanupWeakReferences();
+            
+            //when resetting hard, everything that already has been created must be resetted. Otherwise the system things, they have already been created by Soft Loading.
+            if (loadType == LoadType.Hard)
+            {
+                var objectsToRemove = new List<GuidPath>();
+                foreach (var (guidPath, obj) in _createdObjectLookup)
+                {
+                    if (guidPath.Scene == RootSaveData.GlobalSaveDataName)
+                    {
+                        objectsToRemove.Add(guidPath);
+                        continue;   //match has been found -> next guidPath
+                    }
+                    
+                    foreach (var saveSceneManager in saveSceneManagers)
+                    {
+                        if (saveSceneManager.SceneName == guidPath.Scene)
+                        {
+                            objectsToRemove.Add(guidPath);
+                            break;   //match has been found -> next guidPath
+                        }
+                    }
+                }
+                
+                foreach (var guidPath in objectsToRemove)
+                {
+                    _createdObjectLookup.Remove(guidPath);
+                }
+            }
+            
             //handle prefabs
             foreach (var saveSceneManager in saveSceneManagers)
             {
@@ -463,9 +494,6 @@ namespace SaveLoadSystem.Core
                     saveSceneManager.DestroyPrefabsOnLoad(sceneData.ActivePrefabs, currentSavePrefabGuidGroup);
                 }
             }
-            
-            //cleanup unused weak references
-            CleanupWeakReferences();
 
             //prepare references
             Dictionary<GuidPath, GameObject> uniqueGameObjects = new();
@@ -511,44 +539,16 @@ namespace SaveLoadSystem.Core
             }
             var scriptableObjectsToLoad = ParseScriptableObjectWithLoadedScenes(rootSaveData, activeSceneNames, uniqueScriptableObjects);
             
-            //when resetting hard, everything that already has been created must be resetted. Otherwise the system things, they have already been created by Soft Loading.
-            if (loadType == LoadType.Hard)
-            {
-                var objectsToRemove = new List<GuidPath>();
-                foreach (var (guidPath, obj) in _createdObjectLookup)
-                {
-                    if (guidPath.Scene == RootSaveData.GlobalSaveDataName)
-                    {
-                        objectsToRemove.Add(guidPath);
-                        continue;   //match has been found -> next guidPath
-                    }
-                    
-                    foreach (var saveSceneManager in saveSceneManagers)
-                    {
-                        if (saveSceneManager.SceneName == guidPath.Scene)
-                        {
-                            objectsToRemove.Add(guidPath);
-                            break;   //match has been found -> next guidPath
-                        }
-                    }
-                }
-                
-                foreach (var guidPath in objectsToRemove)
-                {
-                    _createdObjectLookup.Remove(guidPath);
-                }
-            }
-            
             
             //perform scriptable object load
-            foreach (var (guidPath, scriptableObject) in uniqueScriptableObjects) 
+            foreach (var (guidPath, scriptableObject) in scriptableObjectsToLoad) 
             {
                 if (rootSaveData.GlobalSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData))
                 {
                     if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
                     var loadDataHandler = new LoadDataHandler(rootSaveData, rootSaveData.GlobalSaveData, instanceSaveData, 
-                        _createdObjectLookup, uniqueGameObjects, scriptableObjectsToLoad, uniqueComponents);
+                        _createdObjectLookup, uniqueGameObjects, _saveLoadManager.GuidToScriptableObjectLookup, uniqueComponents);
                     
                     targetSavable.OnLoad(loadDataHandler);
                     
@@ -562,7 +562,7 @@ namespace SaveLoadSystem.Core
                 if (rootSaveData.TryGetSceneData(saveSceneManager.SceneName, out var sceneData))
                 {
                     saveSceneManager.LoadBranchSaveData(rootSaveData, sceneData.ActiveSaveData, _createdObjectLookup, 
-                        uniqueGameObjects, uniqueScriptableObjects, uniqueComponents);
+                        uniqueGameObjects, _saveLoadManager.GuidToScriptableObjectLookup, uniqueComponents);
                 }
             }
             
