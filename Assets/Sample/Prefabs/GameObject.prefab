@@ -46,9 +46,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dynamicPrefabSpawningDisabled: 0
   prefabGuid:
-    value: Prefab_GameObject_XacfY
+    value: Prefab_GameObject_qZpPw
     valid: 1
-  savableGuid:
+  sceneGuid:
     value: 
     valid: 1
   savableLookup:

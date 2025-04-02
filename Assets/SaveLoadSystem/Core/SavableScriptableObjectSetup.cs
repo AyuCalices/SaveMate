@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using SaveLoadSystem.Utility;
 using UnityEditor;
@@ -10,8 +9,6 @@ namespace SaveLoadSystem.Core
     [InitializeOnLoad]
     public class SavableScriptableObjectSetup : AssetPostprocessor
     {
-        private static readonly Dictionary<Object, string> _savableScriptableObjectGuidLookup = new();
-        
         static SavableScriptableObjectSetup()
         {
             AssetRegistryManager.OnAssetRegistriesInitialized += LoadSavables;
@@ -32,36 +29,15 @@ namespace SaveLoadSystem.Core
         {
             foreach (var assetRegistry in assetRegistries)
             {
-                RegisterAssetRegistryScriptableObjects(assetRegistry);
-            }
-            
-            foreach (var assetRegistry in assetRegistries)
-            {
                 ProcessScriptableObjectsForAssetRegistry(assetRegistry);
             }
         }
         
-        private static void RegisterAssetRegistryScriptableObjects(AssetRegistry assetRegistry)
-        {
-            foreach (var assetRegistryScriptableObjectSavable in assetRegistry.ScriptableObjectSavables)
-            {
-                if (_savableScriptableObjectGuidLookup.TryGetValue(assetRegistryScriptableObjectSavable.unityObject, out string guid))
-                {
-                    if (assetRegistryScriptableObjectSavable.guid != guid)
-                    {
-                        Debug.LogWarning("[Internal Error] Different guid's for one Savable Scriptable Objects detected!");
-                    }
-                }
-                    
-                _savableScriptableObjectGuidLookup.TryAdd(assetRegistryScriptableObjectSavable.unityObject, assetRegistryScriptableObjectSavable.guid);
-            }
-        }
-
         private static void ProcessScriptableObjectsForAssetRegistry(AssetRegistry assetRegistry)
         {
             if (assetRegistry == null) return;
 
-            var guids = AssetDatabase.FindAssets("t:ScriptableObject", assetRegistry.SearchInFolders.ToArray());
+            var guids = AssetDatabase.FindAssets("t:ScriptableObject");
 
             foreach (var guid in guids)
             {
@@ -70,117 +46,7 @@ namespace SaveLoadSystem.Core
 
                 if (asset is ISavable)
                 {
-                    assetRegistry.AddSavableScriptableObject(asset, RequestUniqueGuid(asset));
-                }
-            }
-        }
-        
-        private static string GenerateScriptableObjectID(Object scriptableObject)
-        {
-            var newGuid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
-            
-            while (_savableScriptableObjectGuidLookup.Values.Contains(newGuid))
-            {
-                newGuid = "ScriptableObject_" + scriptableObject.name + "_" + SaveLoadUtility.GenerateId();
-            }
-
-            return newGuid;
-        }
-
-        /// <summary>
-        /// Retrieves a unique GUID for the given ScriptableObject. 
-        /// If the object already has an assigned GUID, it returns the existing one.
-        /// Otherwise, a new GUID is generated, assigned, and returned.
-        /// </summary>
-        /// <param name="scriptableObject">The ScriptableObject for which a unique GUID is requested.</param>
-        /// <returns>A unique GUID as a string, either newly generated or previously assigned.</returns>
-        internal static string RequestUniqueGuid(Object scriptableObject)
-        {
-            if (!_savableScriptableObjectGuidLookup.TryGetValue(scriptableObject, out var guid))
-            {
-                var newGuid = GenerateScriptableObjectID(scriptableObject);
-                _savableScriptableObjectGuidLookup.TryAdd(scriptableObject, newGuid);
-                return newGuid;
-            }
-            
-            return guid;
-        }
-
-        /// <summary>
-        /// Forces a new guid to a certain scriptable object and updates all AssetRegistries
-        /// </summary>
-        /// <param name="scriptableObject">The scriptable object, that should get a new guid</param>
-        /// <returns>The generated guid as a string</returns>
-        internal static string ApplyNewUniqueGuid(Object scriptableObject)
-        {
-            var newGuid = GenerateScriptableObjectID(scriptableObject);
-            UpdateAssetRegistriesOnScriptableObjectGuidChange(scriptableObject, newGuid);
-            return newGuid;
-        }
-        
-        private static void UpdateAssetRegistriesOnScriptableObjectGuidChange(Object scriptableObject, string guid)
-        {
-            foreach (var cachedAssetRegistry in AssetRegistryManager.CachedAssetRegistries)
-            {
-                foreach (var cachedObjectGuidContainer in cachedAssetRegistry.ScriptableObjectSavables)
-                {
-                    if (cachedObjectGuidContainer.unityObject == scriptableObject)
-                    {
-                        cachedObjectGuidContainer.guid = guid;
-                    }
-                }
-            }
-                    
-            _savableScriptableObjectGuidLookup[scriptableObject] = guid;
-        }
-        
-        internal static List<ScriptableObject> GetScriptableObjectSavables(string[] filter)
-        {
-            List<ScriptableObject> foundObjects = new();
-            
-            var guids = AssetDatabase.FindAssets("t:ScriptableObject", filter);
-
-            foreach (var guid in guids)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
-
-                if (asset is ISavable)
-                {
-                    foundObjects.Add(asset);
-                }
-            }
-
-            return foundObjects;
-        }
-
-        internal static void UpdateScriptableObjectGuidOnInspectorInput(AssetRegistry updatedAssetRegistry)
-        {
-            foreach (var updatedObjectGuidContainer in updatedAssetRegistry.ScriptableObjectSavables)
-            {
-                var duplicatedNames = new List<string>();
-                foreach (var keyValuePair in _savableScriptableObjectGuidLookup)
-                {
-                    if (keyValuePair.Value == updatedObjectGuidContainer.guid)
-                    {
-                        duplicatedNames.Add($"'{keyValuePair.Key.name}'");
-                    }
-                }
-
-                var combinedNames = string.Join(" | ", duplicatedNames);
-                
-                if (duplicatedNames.Count > 1)
-                {
-                    Debug.LogError($"Duplicate ID '{updatedObjectGuidContainer.guid}' detected in multiple Scriptable Objects within the Asset Registries: {combinedNames}. " +
-                                   "Each ScriptableObject reference must have a unique GUID. Please ensure all references are distinct.");
-                    continue;
-                }
-                
-
-                //only change every occurence of the guid for the asset, if there actually is a change
-                if (_savableScriptableObjectGuidLookup.TryGetValue(updatedObjectGuidContainer.unityObject, out var storedGuid) &&  storedGuid != updatedObjectGuidContainer.guid)
-                {
-                    UpdateAssetRegistriesOnScriptableObjectGuidChange(updatedObjectGuidContainer.unityObject, updatedObjectGuidContainer.guid);
+                    assetRegistry.AddSavableScriptableObject(asset);
                 }
             }
         }
@@ -192,33 +58,40 @@ namespace SaveLoadSystem.Core
             var assetRegistries = AssetRegistryManager.CachedAssetRegistries;
             if (assetRegistries is { Count: > 0 })
             {
+                CleanupSavableScriptableObjects(assetRegistries);
                 PostprocessScriptableObjects(assetRegistries, importedAssets);
+                assetRegistries.ForEach(UnityUtility.SetDirty);
             }
         }
         
         private static void PostprocessScriptableObjects(List<AssetRegistry> assetRegistries, string[] importedAssets)
         {
-            foreach (var assetRegistry in assetRegistries)
-            {
-                if (assetRegistry.IsUnityNull()) continue;
-                
-                assetRegistry.CleanupSavableScriptableObjects();
-                UnityUtility.SetDirty(assetRegistry);
-            }
-
             foreach (var importedAsset in importedAssets)
             {
                 foreach (var assetRegistry in assetRegistries)
                 {
                     if (assetRegistry.IsUnityNull()) continue;
                     
-                    //TODO: this check must work!
-                    if (!assetRegistry.SearchInFolders.Exists(x => importedAsset.StartsWith(x))) continue;
-                    
                     var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(importedAsset);
                     if (asset != null && asset is ISavable)
                     {
-                        assetRegistry.AddSavableScriptableObject(asset, RequestUniqueGuid(asset));
+                        assetRegistry.AddSavableScriptableObject(asset);
+                    }
+                }
+            }
+        }
+        
+        private static void CleanupSavableScriptableObjects(List<AssetRegistry> assetRegistries)
+        {
+            foreach (var assetRegistry in assetRegistries)
+            {
+                if (assetRegistry.IsUnityNull()) continue;
+                
+                for (var i = assetRegistry.ScriptableObjectSavables.Count - 1; i >= 0; i--)
+                {
+                    if (assetRegistry.ScriptableObjectSavables[i].unityObject.IsUnityNull())
+                    {
+                        assetRegistry.ScriptableObjectSavables.RemoveAt(i);
                     }
                 }
             }

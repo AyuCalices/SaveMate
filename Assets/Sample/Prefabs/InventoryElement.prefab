@@ -175,7 +175,7 @@ MonoBehaviour:
   prefabGuid:
     value: Prefab_InventoryElement_YE1q4
     valid: 1
-  savableGuid:
+  sceneGuid:
     value: 
     valid: 1
   savableLookup:

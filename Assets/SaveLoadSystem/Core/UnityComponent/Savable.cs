@@ -6,6 +6,7 @@ using SaveLoadSystem.Utility;
 using SaveLoadSystem.Utility.PreventReset;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
@@ -15,16 +16,19 @@ namespace SaveLoadSystem.Core.UnityComponent
         [SerializeField] private bool dynamicPrefabSpawningDisabled;
         
         [SerializeField] private NonResetable<string> prefabGuid;
-        [SerializeField] private NonResetable<string> savableGuid;
+        [SerializeField] private NonResetable<string> sceneGuid;
         
         [SerializeField] private NonResetableList<UnityObjectIdentification> savableLookup = new();
         [SerializeField] private NonResetableList<UnityObjectIdentification> duplicateComponentLookup = new();
 
         
-        public string SavableGuid
+        public static event Action<Savable> OnValidateSavable;
+        
+        
+        public string SceneGuid
         {
-            get => savableGuid;
-            internal set => savableGuid.value = value;
+            get => sceneGuid;
+            internal set => sceneGuid.value = value;
         }
 
         public string PrefabGuid
@@ -33,17 +37,29 @@ namespace SaveLoadSystem.Core.UnityComponent
             internal set => prefabGuid.value = value;
         }
 
+        
         public bool DynamicPrefabSpawningDisabled => dynamicPrefabSpawningDisabled;
         public List<UnityObjectIdentification> SavableLookup => savableLookup;
         public List<UnityObjectIdentification> DuplicateComponentLookup => duplicateComponentLookup;
-
         
+        
+        private Scene _lastScene;
         private SaveSceneManager _saveSceneManager;
-
 
         private void Awake()
         {
+            _lastScene = gameObject.scene;
             RegisterToSceneManager();
+        }
+
+        private void Update()
+        {
+            if (gameObject.scene != _lastScene)
+            {
+                UnregisterFromSceneManager();
+                RegisterToSceneManager();
+                _lastScene = gameObject.scene;
+            }
         }
 
         private void OnDestroy()
@@ -58,8 +74,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             RegisterToSceneManager();
             
             //update prefab guid
-            FixMissingPrefabGuid();
-            SavablePrefabSetup.CheckUniquePrefabGuidOnInspectorInput();
+            OnValidateSavable?.Invoke(this);
             
             CheckUniqueISavableGuidOnInspectorInput();
             CheckUniqueDuplicateComponentGuidOnInspectorInput();
@@ -82,13 +97,19 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void RegisterToSceneManager()
         {
-            if (gameObject.scene.IsValid() && AcquireSceneManager())
+            if (!gameObject.scene.IsValid()) return;
+
+            if (gameObject.scene.name == "DontDestroyOnLoad")
+            {
+                Debug.LogWarning("There is no support for saving elements inside dont destroy on load!");
+            }
+            else if (AcquireSceneManager())
             {
                 _saveSceneManager.RegisterSavable(this);
             }
             else
             {
-                SavableGuid = null;
+                SceneGuid = null;
             }
         }
         
@@ -113,17 +134,9 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void UnregisterFromSceneManager()
         {
-            if (!_saveSceneManager.IsUnityNull() && gameObject.scene.IsValid())
+            if (!_saveSceneManager.IsUnityNull())
             {
                 _saveSceneManager.UnregisterSavable(this);
-            }
-        }
-
-        private void FixMissingPrefabGuid()
-        {
-            if (string.IsNullOrEmpty(PrefabGuid))
-            {
-                SavablePrefabSetup.ApplyUniquePrefabGuid(this);
             }
         }
 

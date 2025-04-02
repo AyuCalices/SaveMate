@@ -20,7 +20,7 @@ namespace SaveLoadSystem.Editor
 
         private void OnEnable()
         {
-            _sceneGuidProperty = serializedObject.FindProperty("savableGuid");
+            _sceneGuidProperty = serializedObject.FindProperty("sceneGuid");
             _prefabPathProperty = serializedObject.FindProperty("prefabGuid");
             _customSpawningProperty = serializedObject.FindProperty("dynamicPrefabSpawningDisabled");
             _currentSavableListProperty = serializedObject.FindProperty("savableLookup");

@@ -1,17 +1,13 @@
 using System.Collections.Generic;
-using System.Linq;
 using SaveLoadSystem.Core.UnityComponent;
 using SaveLoadSystem.Utility;
 using UnityEditor;
-using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
     [InitializeOnLoad]
     public class SavablePrefabSetup : AssetPostprocessor
     {
-        private static readonly HashSet<Savable> SavablePrefabsGuidLookup = new();
-        
         static SavablePrefabSetup()
         {
             AssetRegistryManager.OnAssetRegistriesInitialized += LoadSavables;
@@ -32,20 +28,7 @@ namespace SaveLoadSystem.Core
         {
             foreach (var registry in assetRegistries)
             {
-                RegisterAssetRegistrySavables(registry);
-            }
-            
-            foreach (var registry in assetRegistries)
-            {
                 ProcessPrefabsForAssetRegistry(registry); 
-            }
-        }
-        
-        private static void RegisterAssetRegistrySavables(AssetRegistry assetRegistry)
-        {
-            foreach (var prefabSavable in assetRegistry.PrefabSavables)
-            {
-                SavablePrefabsGuidLookup.Add(prefabSavable);
             }
         }
 
@@ -53,7 +36,7 @@ namespace SaveLoadSystem.Core
         {
             if (assetRegistry == null) return;
 
-            var guids = AssetDatabase.FindAssets("t:Prefab", assetRegistry.SearchInFolders.ToArray());
+            var guids = AssetDatabase.FindAssets("t:Prefab");
 
             foreach (var guid in guids)
             {
@@ -62,66 +45,9 @@ namespace SaveLoadSystem.Core
 
                 if (savablePrefab != null)
                 {
-                    SetUniquePrefabGuid(savablePrefab);
                     assetRegistry.AddSavablePrefab(savablePrefab);
                 }
             }
-        }
-
-        private static string GenerateUniquePrefabGuid(Savable savable)
-        {
-            //generate guid
-            var guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-            
-            while (SavablePrefabsGuidLookup.Any(x => x.PrefabGuid == guid))
-            {
-                guid = "Prefab_" + savable.gameObject.name + "_" + SaveLoadUtility.GenerateId();
-            }
-
-            return guid;
-        }
-        
-        internal static void SetUniquePrefabGuid(Savable savable)
-        {
-            SavablePrefabsGuidLookup.Add(savable);
-            
-            if (string.IsNullOrEmpty(savable.PrefabGuid))
-            {
-                ApplyUniquePrefabGuid(savable);
-            }
-        }
-
-        internal static void ApplyUniquePrefabGuid(Savable savable)
-        {
-            savable.PrefabGuid = GenerateUniquePrefabGuid(savable);
-        }
-        
-        internal static List<Savable> GetPrefabSavables(string[] filter)
-        {
-            List<Savable> foundObjects = new();
-            
-            var guids = AssetDatabase.FindAssets("t:Prefab", filter);
-
-            foreach (var guid in guids)
-            {
-                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(assetPath);
-
-                if (savablePrefab != null)
-                {
-                    foundObjects.Add(savablePrefab);
-                }
-            }
-
-            return foundObjects;
-        }
-
-        internal static void CheckUniquePrefabGuidOnInspectorInput()
-        {
-            SaveLoadUtility.CheckUniqueGuidOnInspectorInput(SavablePrefabsGuidLookup,
-                obj => obj,
-                obj => obj.PrefabGuid,
-                "Duplicate Guid for different 'PrefabGuid' detected!");
         }
 
         private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
@@ -131,33 +57,39 @@ namespace SaveLoadSystem.Core
             var assetRegistries = AssetRegistryManager.CachedAssetRegistries;
             if (assetRegistries is { Count: > 0 })
             {
+                CleanupSavablePrefabs(assetRegistries);
                 PostprocessPrefabs(assetRegistries, importedAssets);
+                assetRegistries.ForEach(UnityUtility.SetDirty);
             }
         }
         
-        private static void PostprocessPrefabs(List<AssetRegistry> assetRegistries, string[] importedAssets)
+        private static void CleanupSavablePrefabs(List<AssetRegistry> assetRegistries)
         {
             foreach (var assetRegistry in assetRegistries)
             {
                 if (assetRegistry.IsUnityNull()) continue;
                 
-                assetRegistry.CleanupSavablePrefabs();
-                UnityUtility.SetDirty(assetRegistry);
+                for (var i = assetRegistry.PrefabSavables.Count - 1; i >= 0; i--)
+                {
+                    if (assetRegistry.PrefabSavables[i].IsUnityNull())
+                    {
+                        assetRegistry.PrefabSavables.RemoveAt(i);
+                    }
+                }
             }
-            
+        }
+        
+        private static void PostprocessPrefabs(List<AssetRegistry> assetRegistries, string[] importedAssets)
+        {
             foreach (var importedAsset in importedAssets)
             {
                 foreach (var assetRegistry in assetRegistries)
                 {
                     if (assetRegistry.IsUnityNull()) continue;
                     
-                    //TODO: this check must work!
-                    if (!assetRegistry.SearchInFolders.Exists(x => importedAsset.StartsWith(x))) continue;
-                    
                     var savablePrefab = AssetDatabase.LoadAssetAtPath<Savable>(importedAsset);
                     if (savablePrefab)
                     {
-                        SetUniquePrefabGuid(savablePrefab);
                         assetRegistry.AddSavablePrefab(savablePrefab);
                     }
                 }

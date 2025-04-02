@@ -14,25 +14,26 @@ namespace SaveLoadSystem.Core
     public class SaveLoadManager : ScriptableObject, ISaveConfig, ISaveStrategy
     {
         [Header("Version")] 
-        [SerializeField] private int major;
-        [SerializeField] private int minor;
-        [SerializeField] private int patch;
+        [SerializeField] public int major;
+        [SerializeField] public int minor;
+        [SerializeField] public int patch;
         
         [Header("File Name")]
-        [SerializeField] private string defaultFileName;
-        [SerializeField] private string savePath;
-        [SerializeField] private string extensionName;
-        [SerializeField] private string metaDataExtensionName;
+        [SerializeField] public string defaultFileName;
+        [SerializeField] public string savePath;
+        [SerializeField] public string extensionName;
+        [SerializeField] public string metaDataExtensionName;
         
         [Header("Storage")]
-        [SerializeField] private SaveIntegrityType integrityCheckType;
-        [SerializeField] private SaveCompressionType compressionType;
-        [SerializeField] private SaveEncryptionType encryptionType;
-        [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
-        [SerializeField] private string defaultEncryptionIv = "abcdef9876543210";
+        [SerializeField] public SaveIntegrityType integrityCheckType;
+        [SerializeField] public SaveCompressionType compressionType;
+        [SerializeField] public SaveEncryptionType encryptionType;
+        [SerializeField] public string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
+        [SerializeField] public string defaultEncryptionIv = "abcdef9876543210";
 
-        [Header("QOL")] 
-        [SerializeField] private bool autoSaveOnSaveFocusSwap;
+        [Header("Other")] 
+        [SerializeField] private AssetRegistry assetRegistry;
+        [SerializeField] public bool autoSaveOnSaveFocusSwap;
         
         public event Action<SaveLink, SaveLink> OnBeforeFocusChange;
         public event Action<SaveLink, SaveLink> OnAfterFocusChange;
@@ -60,6 +61,39 @@ namespace SaveLoadSystem.Core
         private HashSet<SaveSceneManager> _scenesToReload;
         private byte[] _aesKey = Array.Empty<byte>();
         private byte[] _aesIv = Array.Empty<byte>();
+        
+        
+        internal readonly Dictionary<GuidPath, ScriptableObject> GuidToScriptableObjectLookup = new();
+        internal readonly Dictionary<GuidPath, Savable> GuidToSavablePrefabsLookup = new();
+        
+        internal readonly Dictionary<ScriptableObject, GuidPath> ScriptableObjectToGuidLookup = new();
+        internal readonly Dictionary<Savable, GuidPath> SavablePrefabsToGuidLookup = new();
+        
+
+        private void OnEnable()
+        {
+            foreach (var scriptableObjectSavable in assetRegistry.ScriptableObjectSavables)
+            {
+                var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, scriptableObjectSavable.guid);
+                ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
+                GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
+            }
+
+            foreach (var prefabSavable in assetRegistry.PrefabSavables)
+            {
+                var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, prefabSavable.PrefabGuid);
+                SavablePrefabsToGuidLookup.Add(prefabSavable, guidPath);
+                GuidToSavablePrefabsLookup.Add(guidPath, prefabSavable);
+            }
+        }
+
+        private void OnDisable()
+        {
+            GuidToScriptableObjectLookup.Clear();
+            GuidToSavablePrefabsLookup.Clear();
+            ScriptableObjectToGuidLookup.Clear();
+            SavablePrefabsToGuidLookup.Clear();
+        }
 
         #region Simple Save
 

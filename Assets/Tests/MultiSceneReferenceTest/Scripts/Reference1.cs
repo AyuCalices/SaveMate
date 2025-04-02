@@ -4,6 +4,7 @@ using Sample.Scripts;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 public class Reference1 : Singleton<Reference1>, ISavable
@@ -13,7 +14,7 @@ public class Reference1 : Singleton<Reference1>, ISavable
 
     public Item storedItem;
     public Item otherItem;
-
+    
     [ContextMenu("Setup")]
     public void Setup()
     {

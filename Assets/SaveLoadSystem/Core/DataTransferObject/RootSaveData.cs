@@ -8,14 +8,8 @@ namespace SaveLoadSystem.Core.DataTransferObject
     {
         public const string GlobalSaveDataName = "GLOBAL";
         
-        [UsedImplicitly] public List<string> ActiveScenes { get; set; } = new();
         [UsedImplicitly] public BranchSaveData GlobalSaveData { get; set; } = new();
         [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; } = new();
-        
-        public void SetActiveScenes(List<string> activeScenes)
-        {
-            ActiveScenes = activeScenes;
-        }
 
         public void SetSceneData(string sceneName, SceneData sceneData)
         {

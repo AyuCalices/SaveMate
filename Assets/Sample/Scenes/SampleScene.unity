@@ -820,10 +820,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
-  assetRegistry: {fileID: 11400000, guid: 57986767ef7f7514490df6068498f0cd, type: 2}
+  scriptableObjectsToSave: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
   defaultLoadType: 0
-  loadSceneOnAwake: 0
-  saveSceneOnDestroy: 0
+  loadSceneOnEnable: 0
+  saveSceneOnDisable: 0
   saveActiveScenesOnApplicationQuit: 0
   sceneManagerEvents:
     onBeforeSnapshot:
@@ -1327,9 +1327,9 @@ MonoBehaviour:
   prefabGuid:
     value: 
     valid: 1
-  savableGuid:
-    value: GameObject_Canvas_zmKXJ
-    valid: 1
+  sceneGuid:
+    value: GameObject_Canvas_x4WFT
+    valid: 0
   savableLookup:
     values:
     - guid: Component_Canvas_ty9eH
@@ -2849,9 +2849,9 @@ MonoBehaviour:
   prefabGuid:
     value: 
     valid: 1
-  savableGuid:
-    value: GameObject_Content_xKQch
-    valid: 1
+  sceneGuid:
+    value: GameObject_Content_BDk5D
+    valid: 0
   savableLookup:
     values: []
   duplicateComponentLookup:

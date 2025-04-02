@@ -7,7 +7,6 @@ namespace SaveLoadSystem.Editor
     [CustomEditor(typeof(AssetRegistry))]
     public class AssetRegistryEditor : UnityEditor.Editor
     {
-        private SerializedProperty _searchInFolderProperty;
         private SerializedProperty _prefabSavablesProperty;
         private SerializedProperty _scriptableObjectSavablesProperty;
         
@@ -17,7 +16,6 @@ namespace SaveLoadSystem.Editor
         
         private void OnEnable()
         {
-            _searchInFolderProperty = serializedObject.FindProperty("searchInFolders");
             _prefabSavablesProperty = serializedObject.FindProperty("prefabSavables");
             _scriptableObjectSavablesProperty = serializedObject.FindProperty("scriptableObjectSavables");
         }
@@ -25,22 +23,6 @@ namespace SaveLoadSystem.Editor
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
-            
-            EditorGUILayout.PropertyField(_searchInFolderProperty);
-            
-            if (GUILayout.Button("Update Folder Filter"))
-            {
-                AssetRegistry assetRegistry = (AssetRegistry)target;
-                assetRegistry.UpdateFolderSelect();
-            }
-            
-            GUILayout.Space(20f);
-            
-            GUI.enabled = false;
-            PrefabLayout(_prefabSavablesProperty.FindPropertyRelative("values"), "Prefab Savables", ref _showPrefabSavablesList);
-            GUI.enabled = true;
-            
-            GUILayout.Space(20f);
             
             // Toggle Button
             if (GUILayout.Button(_isToggled ? "Disable GUID Editing" : "Enable GUID Editing"))
@@ -53,6 +35,12 @@ namespace SaveLoadSystem.Editor
             {
                 EditorGUILayout.HelpBox("Warning: Changing the GUID will break references in all existing save files that used the previous GUID!", MessageType.Warning);
             }
+            
+            GUILayout.Space(20f);
+            
+            GUI.enabled = false;
+            PrefabLayout(_prefabSavablesProperty.FindPropertyRelative("values"), "Prefab Savables", ref _showPrefabSavablesList);
+            GUI.enabled = true;
             
             GUI.enabled = _isToggled;
             ScriptableObjectLayout(_scriptableObjectSavablesProperty.FindPropertyRelative("values"), "Scriptable Object Savables", ref _showScriptableObjectSavablesList);
