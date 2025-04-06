@@ -170,8 +170,8 @@ MonoBehaviour:
   saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
   scriptableObjectsToSave: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
   defaultLoadType: 1
-  loadSceneOnEnable: 0
-  saveSceneOnDisable: 0
+  loadSceneOnEnable: 1
+  saveSceneOnDisable: 1
   saveActiveScenesOnApplicationQuit: 0
   sceneManagerEvents:
     onBeforeSnapshot:

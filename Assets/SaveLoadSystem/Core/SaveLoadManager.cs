@@ -42,7 +42,7 @@ namespace SaveLoadSystem.Core
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
         public SaveVersion SaveVersion => new(major, minor, patch);
-        public List<SaveSceneManager> TrackedSaveSceneManagers { get; } = new();
+        public List<BaseSceneSaveManager> TrackedSaveSceneManagers { get; } = new();
         public bool HasSaveFocus => _saveLink != null;
         public SaveLink CurrentSaveLink
         {
@@ -58,16 +58,15 @@ namespace SaveLoadSystem.Core
         }
 
         private SaveLink _saveLink;
-        private HashSet<SaveSceneManager> _scenesToReload;
+        private HashSet<SceneSaveManager> _scenesToReload;
         private byte[] _aesKey = Array.Empty<byte>();
         private byte[] _aesIv = Array.Empty<byte>();
         
         
         internal readonly Dictionary<GuidPath, ScriptableObject> GuidToScriptableObjectLookup = new();
-        internal readonly Dictionary<GuidPath, Savable> GuidToSavablePrefabsLookup = new();
-        
         internal readonly Dictionary<ScriptableObject, GuidPath> ScriptableObjectToGuidLookup = new();
-        internal readonly Dictionary<Savable, GuidPath> SavablePrefabsToGuidLookup = new();
+        
+        internal readonly Dictionary<string, Savable> GuidToSavablePrefabsLookup = new();
         
 
         private void OnEnable()
@@ -81,9 +80,7 @@ namespace SaveLoadSystem.Core
 
             foreach (var prefabSavable in assetRegistry.PrefabSavables)
             {
-                var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, prefabSavable.PrefabGuid);
-                SavablePrefabsToGuidLookup.Add(prefabSavable, guidPath);
-                GuidToSavablePrefabsLookup.Add(guidPath, prefabSavable);
+                GuidToSavablePrefabsLookup.Add(prefabSavable.PrefabGuid, prefabSavable);
             }
         }
 
@@ -92,7 +89,6 @@ namespace SaveLoadSystem.Core
             GuidToScriptableObjectLookup.Clear();
             GuidToSavablePrefabsLookup.Clear();
             ScriptableObjectToGuidLookup.Clear();
-            SavablePrefabsToGuidLookup.Clear();
         }
 
         #region Simple Save
@@ -113,7 +109,7 @@ namespace SaveLoadSystem.Core
         {
             SetFocus(fileName);
             
-            CurrentSaveLink.LoadScenes(loadType, TrackedSaveSceneManagers.ToArray());
+            CurrentSaveLink.Load(loadType, TrackedSaveSceneManagers.ToArray());
         }
 
         #endregion
@@ -136,7 +132,7 @@ namespace SaveLoadSystem.Core
                 //other save, but still has pending data that can be saved
                 if (autoSaveOnSaveFocusSwap)
                 {
-                    _saveLink.SaveScenes();
+                    _saveLink.Save();
                 }
             }
             
@@ -148,7 +144,7 @@ namespace SaveLoadSystem.Core
             //save pending data if allowed
             if (HasSaveFocus && autoSaveOnSaveFocusSwap)
             {
-                _saveLink.SaveScenes();
+                _saveLink.Save();
             }
             
             SwapFocus(null);
@@ -216,14 +212,14 @@ namespace SaveLoadSystem.Core
 
         #region Internal
 
-        internal void RegisterSaveSceneManager(SaveSceneManager saveSceneManager)
+        internal void RegisterSaveSceneManager(SceneSaveManager sceneSaveManager)
         { 
-            TrackedSaveSceneManagers.Add(saveSceneManager);
+            TrackedSaveSceneManagers.Add(sceneSaveManager);
         }
         
-        internal bool UnregisterSaveSceneManager(SaveSceneManager saveSceneManager)
+        internal bool UnregisterSaveSceneManager(SceneSaveManager sceneSaveManager)
         {
-            return TrackedSaveSceneManagers.Remove(saveSceneManager);
+            return TrackedSaveSceneManagers.Remove(sceneSaveManager);
         }
         
         #endregion

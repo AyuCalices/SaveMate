@@ -15,7 +15,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
             return Elements.TryGetValue(guidPath, out leafSaveData);
         }
 
-        public void AddLeafSaveData(GuidPath guidPath, LeafSaveData leafSaveData)
+        public void UpsertLeafSaveData(GuidPath guidPath, LeafSaveData leafSaveData)
         {
             Elements[guidPath] = leafSaveData;
         }

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
-using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.DataTransferObject
 {

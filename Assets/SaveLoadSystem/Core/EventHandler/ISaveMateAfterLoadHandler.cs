@@ -2,6 +2,6 @@ namespace SaveLoadSystem.Core.EventHandler
 {
     public interface ISaveMateAfterLoadHandler
     {
-        void OnAfterLoad();
+        void OnAfterRestoreSnapshot();
     }
 }

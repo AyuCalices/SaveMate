@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.CompilerServices;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
@@ -21,29 +18,21 @@ namespace SaveLoadSystem.Core
         private readonly RootSaveData _rootSaveData;
         private readonly LeafSaveData _leafSaveData;
         private readonly GuidPath _guidPath;
+        private readonly string _sceneName;
 
-        private readonly Dictionary<GuidPath, WeakReference<object>> _createdObjectLookup;
-        private readonly ConditionalWeakTable<object, string> _processedObjectLookup;
-        
-        private readonly Dictionary<GameObject, GuidPath> _savableGameObjectToGuidLookup;
-        private readonly Dictionary<ScriptableObject, GuidPath> _scriptableObjectToGuidLookup;
-        private readonly Dictionary<Component, GuidPath> _componentToGuidLookup;
+        private readonly SaveLink _saveLink;
+        private readonly SaveLoadManager _saveLoadManager;
 
-        public SaveDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, GuidPath guidPath, 
-            Dictionary<GuidPath, WeakReference<object>> createdObjectLookup, ConditionalWeakTable<object, string> processedObjectLookup, 
-            Dictionary<GameObject, GuidPath> savableGameObjectToGuidLookup, Dictionary<ScriptableObject, GuidPath> scriptableObjectToGuidLookup, 
-            Dictionary<Component, GuidPath> componentToGuidLookup)
+        public SaveDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, GuidPath guidPath, string sceneName, 
+            SaveLink saveLink, SaveLoadManager saveLoadManagers)
         {
             _rootSaveData = rootSaveData;
             _leafSaveData = leafSaveData;
             _guidPath = guidPath;
+            _sceneName = sceneName;
 
-            _createdObjectLookup = createdObjectLookup;
-            _processedObjectLookup = processedObjectLookup;
-            
-            _savableGameObjectToGuidLookup = savableGameObjectToGuidLookup;
-            _scriptableObjectToGuidLookup = scriptableObjectToGuidLookup;
-            _componentToGuidLookup = componentToGuidLookup;
+            _saveLink = saveLink;
+            _saveLoadManager = saveLoadManagers;
         }
 
         public void Save(string uniqueIdentifier, object obj)
@@ -76,8 +65,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectLookup, _processedObjectLookup, 
-                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveLink, _saveLoadManager);
                 
                 savable.OnSave(saveDataHandler);
                 
@@ -87,8 +75,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _createdObjectLookup, _processedObjectLookup, 
-                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveLink, _saveLoadManager);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
@@ -114,7 +101,7 @@ namespace SaveLoadSystem.Core
         {
             _leafSaveData.References.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
         }
-
+        
         /// <summary>
         /// Attempts to convert an object to a GUID path, so the reference can be identified at deserialization.
         /// </summary>
@@ -135,87 +122,115 @@ namespace SaveLoadSystem.Core
             if (objectToSave is Component component)
             {
                 //components with a guid must be processed because: 1. prevent ambiguity between duplicates 2. clearly identify components that inherit from ISavable
-                if (_componentToGuidLookup.TryGetValue(component, out guidPath))
-                {
-                    return guidPath;
-                }
+                if (GetComponentGuidPath(component, out var convertedToPath)) return convertedToPath;
+                if (GetGameObjectGuidPath(component.gameObject, out var convertToPath)) return convertToPath;
                 
-                if (_savableGameObjectToGuidLookup.TryGetValue(component.gameObject, out guidPath))
-                {
-                    return guidPath;
-                }
-                
-                //Debug.LogError("Internal Error!");
+                //TODO: debug
             }
 
             if (objectToSave is GameObject gameObject)
             {
-                if (_savableGameObjectToGuidLookup.TryGetValue(gameObject, out guidPath))
+                if (GetGameObjectGuidPath(gameObject, out var convertToPath))
                 {
-                    return guidPath;
+                    return convertToPath;
                 }
+                
+                //TODO: debug
             }
 
             if (objectToSave is ScriptableObject scriptableObject)
             {
-                if (_scriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
+                if (_saveLoadManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
                 {
                     return guidPath;
                 }
+                
+                //TODO: debug
             }
             
-            //make sure the object gets created
-            if (!_processedObjectLookup.TryGetValue(objectToSave, out string stringPath))
+            //make sure there is a unique id for each Non-Unity-Object
+            if (!_saveLink.SavedNonUnityObjectToGuidLookup.TryGetValue(objectToSave, out var stringPath))
             {
                 guidPath = new GuidPath(_guidPath, uniqueIdentifier);
-                PersistAsNonUnityObject(objectToSave, guidPath);
+                
+                _saveLink.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
+                _saveLink.GuidToCreatedNonUnityObjectLookup.Upsert(LoadType.Soft, guidPath, objectToSave);
             }
             else
             {
-                return GuidPath.FromString(stringPath);
+                guidPath = GuidPath.FromString(stringPath);
             }
+            UpsertNonUnityObject(objectToSave, guidPath);
             
             return guidPath;
         }
+
+        private bool GetGameObjectGuidPath(GameObject gameObject, out GuidPath convertToPath)
+        {
+            convertToPath = default;
+            
+            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            {
+                if (_sceneName != saveSceneManager.SceneName) continue;
+                    
+                if (saveSceneManager.SavableGameObjectToGuidLookup.TryGetValue(gameObject, out convertToPath))
+                {
+                    return true;
+                }
+                
+                return false;
+            }
+
+            return false;
+        }
         
+        private bool GetComponentGuidPath(Component component, out GuidPath convertToPath)
+        {
+            convertToPath = default;
+            
+            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            {
+                if (_sceneName != saveSceneManager.SceneName) continue;
+                    
+                if (saveSceneManager.ComponentToGuidLookup.TryGetValue(component, out convertToPath))
+                {
+                    return true;
+                }
+                
+                return false;
+            }
+
+            return false;
+        }
+
         //TODO: if an object is beeing loaded in two different types, there must be an error -> not allowed
         //TODO: objects must always be loaded with the same type like when saving: how to check this is the case? i cant, but i can throw an error, if at spot 1 it is A and at spot 2 it is B and it is performed in the wrong order
         
-        private void PersistAsNonUnityObject(object objectToSave, GuidPath guidPath)
+        private void UpsertNonUnityObject(object objectToSave, GuidPath guidPath)
         {
-            //if the fields and properties was found once, it shall not be created again to avoid a stackoverflow by cyclic references
-            if (objectToSave.IsUnityNull()) return;
-            
-            _processedObjectLookup.Add(objectToSave, guidPath.ToString());
-            
             if (objectToSave is ISavable)
             {
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
                 
                 var leafSaveData = new LeafSaveData();
-                _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
-                _createdObjectLookup[guidPath] = new WeakReference<object>(objectToSave);
+                _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
             
-                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectLookup, _processedObjectLookup, 
-                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup));
+                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveLink, _saveLoadManager));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
                 var leafSaveData = new LeafSaveData();
                 
-                _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
-                _createdObjectLookup[guidPath] = new WeakReference<object>(objectToSave);
+                _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                         
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _createdObjectLookup, _processedObjectLookup, 
-                    _savableGameObjectToGuidLookup, _scriptableObjectToGuidLookup, _componentToGuidLookup);
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveLink, _saveLoadManager);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else
             {
                 var leafSaveData = new LeafSaveData();
                 
-                _rootSaveData.GlobalSaveData.AddLeafSaveData(guidPath, leafSaveData);
-                _createdObjectLookup[guidPath] = new WeakReference<object>(objectToSave);
+                _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                 
                 leafSaveData.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
             }

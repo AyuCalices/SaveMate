@@ -1328,8 +1328,8 @@ MonoBehaviour:
     value: 
     valid: 1
   sceneGuid:
-    value: GameObject_Canvas_x4WFT
-    valid: 0
+    value: GameObject_Canvas_pcuDj
+    valid: 1
   savableLookup:
     values:
     - guid: Component_Canvas_ty9eH
@@ -2850,8 +2850,8 @@ MonoBehaviour:
     value: 
     valid: 1
   sceneGuid:
-    value: GameObject_Content_BDk5D
-    valid: 0
+    value: GameObject_Content_XP29K
+    valid: 1
   savableLookup:
     values: []
   duplicateComponentLookup:

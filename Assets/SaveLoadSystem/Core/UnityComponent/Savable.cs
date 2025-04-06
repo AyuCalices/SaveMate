@@ -44,7 +44,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         
         private Scene _lastScene;
-        private SaveSceneManager _saveSceneManager;
+        private SceneSaveManager _sceneSaveManager;
 
         private void Awake()
         {
@@ -105,7 +105,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             }
             else if (AcquireSceneManager())
             {
-                _saveSceneManager.RegisterSavable(this);
+                _sceneSaveManager.RegisterSavable(this);
             }
             else
             {
@@ -115,12 +115,12 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private bool AcquireSceneManager()
         {
-            if (_saveSceneManager.IsUnityNull())
+            if (_sceneSaveManager.IsUnityNull())
             {
                 try
                 {
-                    var sceneManagers = FindObjectsOfType<SaveSceneManager>();
-                    _saveSceneManager = sceneManagers.First(x => x.gameObject.scene == gameObject.scene);
+                    var sceneManagers = FindObjectsOfType<SceneSaveManager>();
+                    _sceneSaveManager = sceneManagers.First(x => x.gameObject.scene == gameObject.scene);
                 }
                 catch (Exception e)
                 {
@@ -134,9 +134,9 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void UnregisterFromSceneManager()
         {
-            if (!_saveSceneManager.IsUnityNull())
+            if (!_sceneSaveManager.IsUnityNull())
             {
-                _saveSceneManager.UnregisterSavable(this);
+                _sceneSaveManager.UnregisterSavable(this);
             }
         }
 

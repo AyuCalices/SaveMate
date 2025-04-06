@@ -20,7 +20,7 @@ namespace Sample.Scripts
             itemName.text = item.itemName;
         }
     
-        public void OnAfterLoad()
+        public void OnAfterRestoreSnapshot()
         {
             if (ContainedItem != null)
             {

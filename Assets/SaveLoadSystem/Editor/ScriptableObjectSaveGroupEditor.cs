@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Editor
 {
-    [CustomEditor(typeof(ScriptableObjectSaveGroup))]
+    [CustomEditor(typeof(ScriptableObjectSaveGroupElement))]
     public class ScriptableObjectSaveGroupEditor : UnityEditor.Editor
     {
         private SerializedProperty _searchInFolderProperty;
