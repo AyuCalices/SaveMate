@@ -9,13 +9,16 @@ using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
-    public class SceneSaveManager : BaseSceneSaveManager, IGetCaptureSnapshotGroupElementHandler, IGetRestoreSnapshotGroupElementHandler
+    public class SceneSaveManager : SimpleSceneSaveManager, IGetCaptureSnapshotGroupElementHandler, IGetRestoreSnapshotGroupElementHandler
     {
         [SerializeField] private SaveLoadManager saveLoadManager;
+        [SerializeField] private LoadType defaultLoadType;
+        
+        [Header("Save and Load Link")]
         [SerializeField] private ScriptableObjectSaveGroupElement scriptableObjectsToSave;
+        [SerializeField] private bool additionallySaveDontDestroyOnLoad;
 
         [Header("Unity Lifecycle Events")] 
-        [SerializeField] private LoadType defaultLoadType;
         [SerializeField] private bool loadSceneOnEnable;
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDisable;
         [SerializeField] private bool saveActiveScenesOnApplicationQuit;
@@ -72,7 +75,7 @@ namespace SaveLoadSystem.Core.UnityComponent
                 case SaveSceneManagerDestroyType.SaveActiveScenes:
                     if (!_hasSavedActiveScenesThisFrame)
                     {
-                        saveLoadManager.CurrentSaveLink.SaveActiveScenes();
+                        saveLoadManager.CurrentSaveFileContext.SaveActiveScenes();
                         _hasSavedActiveScenesThisFrame = true;
                     }
                     break;
@@ -92,7 +95,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (saveActiveScenesOnApplicationQuit && !_hasSavedActiveScenesThisFrame)
             {
-                saveLoadManager.CurrentSaveLink.SaveActiveScenes();
+                saveLoadManager.CurrentSaveFileContext.SaveActiveScenes();
                 _hasSavedActiveScenesThisFrame = true;
             }
         }
@@ -101,12 +104,36 @@ namespace SaveLoadSystem.Core.UnityComponent
 
         public List<ICaptureSnapshotGroupElement> GetCaptureSnapshotGroupElements()
         {
-            return new List<ICaptureSnapshotGroupElement> { scriptableObjectsToSave };
+            var captureSnapshotGroupElements = new List<ICaptureSnapshotGroupElement>();
+            
+            if (additionallySaveDontDestroyOnLoad)
+            {
+                captureSnapshotGroupElements.Add(SaveLoadManager.GetDontDestroyOnLoadSceneManager());
+            }
+
+            if (scriptableObjectsToSave)
+            {
+                captureSnapshotGroupElements.Add(scriptableObjectsToSave);
+            }
+            
+            return captureSnapshotGroupElements;
         }
 
         public List<IRestoreSnapshotGroupElement> GetRestoreSnapshotGroupElements()
         {
-            return new List<IRestoreSnapshotGroupElement> { scriptableObjectsToSave };
+            var restoreSnapshotGroupElements = new List<IRestoreSnapshotGroupElement>();
+            
+            if (additionallySaveDontDestroyOnLoad)
+            {
+                restoreSnapshotGroupElements.Add(SaveLoadManager.GetDontDestroyOnLoadSceneManager());
+            }
+
+            if (scriptableObjectsToSave)
+            {
+                restoreSnapshotGroupElements.Add(scriptableObjectsToSave);
+            }
+            
+            return restoreSnapshotGroupElements;
         }
         
         #region SaveLoad Methods
@@ -115,59 +142,59 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Capture Scene Snapshot")]
         public void CaptureSceneSnapshot()
         {
-            saveLoadManager.CurrentSaveLink.CaptureSnapshot(this);
+            saveLoadManager.CurrentSaveFileContext.CaptureSnapshot(this);
         }
 
         [ContextMenu("Write To Disk")]
         public void WriteToDisk()
         {
-            saveLoadManager.CurrentSaveLink.WriteToDisk();
+            saveLoadManager.CurrentSaveFileContext.WriteToDisk();
         }
         
         [ContextMenu("Save Scene")]
         public void SaveScene()
         {
-            saveLoadManager.CurrentSaveLink.Save(this);
+            saveLoadManager.CurrentSaveFileContext.Save(this);
         }
 
         [ContextMenu("Restore Scene Snapshot")]
         public void RestoreSceneSnapshot()
         {
-            saveLoadManager.CurrentSaveLink.RestoreSnapshot(defaultLoadType, this);
+            saveLoadManager.CurrentSaveFileContext.RestoreSnapshot(defaultLoadType, this);
         }
         
         public void RestoreSceneSnapshot(LoadType loadType)
         {
-            saveLoadManager.CurrentSaveLink.RestoreSnapshot(loadType, this);
+            saveLoadManager.CurrentSaveFileContext.RestoreSnapshot(loadType, this);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            saveLoadManager.CurrentSaveLink.Load(defaultLoadType, this);
+            saveLoadManager.CurrentSaveFileContext.Load(defaultLoadType, this);
         }
         
         public void LoadScene(LoadType loadType)
         {
-            saveLoadManager.CurrentSaveLink.Load(loadType, this);
+            saveLoadManager.CurrentSaveFileContext.Load(loadType, this);
         }
         
         [ContextMenu("Delete Scene Snapshot Data")]
         public void DeleteSceneSnapshotData()
         {
-            saveLoadManager.CurrentSaveLink.DeleteSnapshotData(this);
+            saveLoadManager.CurrentSaveFileContext.DeleteSnapshotData(this);
         }
         
         [ContextMenu("Delete Scene Data")]
         public void DeleteSceneData()
         {
-            saveLoadManager.CurrentSaveLink.Delete(this);
+            saveLoadManager.CurrentSaveFileContext.Delete(this);
         }
 
         [ContextMenu("Reload Scene")]
         public void ReloadScene()
         {
-            saveLoadManager.CurrentSaveLink.ReloadScenes(this);
+            saveLoadManager.CurrentSaveFileContext.ReloadScenes(this);
         }
         
         [ContextMenu("UnloadScene")]
@@ -181,7 +208,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         #region Event System
         
-        //TODO: maybe swap to observer for internal (preferred, cause use should not call these event methods)
+        //TODO: maybe swap to observer for internal visibillity (preferred, cause use should not call these event methods)
 
         public override void OnBeforeCaptureSnapshot()
         {

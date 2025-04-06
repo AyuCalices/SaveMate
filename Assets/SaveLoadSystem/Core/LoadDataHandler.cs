@@ -26,10 +26,10 @@ namespace SaveLoadSystem.Core
 
         //reference lookups
         private readonly SaveLoadManager _saveLoadManager;
-        private readonly SaveLink _saveLink;
+        private readonly SaveFileContext _saveFileContext;
 
         public LoadDataHandler(RootSaveData rootSaveData, BranchSaveData globalBranchSaveData, LeafSaveData leafSaveData, 
-            LoadType loadType, string sceneName, SaveLink saveLink, SaveLoadManager saveLoadManager)
+            LoadType loadType, string sceneName, SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
         {
             _rootSaveData = rootSaveData;
             _globalBranchSaveData = globalBranchSaveData;
@@ -39,7 +39,7 @@ namespace SaveLoadSystem.Core
             _sceneName = sceneName;
 
             _saveLoadManager = saveLoadManager;
-            _saveLink = saveLink;
+            _saveFileContext = saveFileContext;
         }
 
         public bool TryLoad<T>(string identifier, out T obj)
@@ -160,7 +160,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
             var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, saveDataBuffer, _loadType, 
-                _sceneName, _saveLink, _saveLoadManager);
+                _sceneName, _saveFileContext, _saveLoadManager);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -179,7 +179,7 @@ namespace SaveLoadSystem.Core
             
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
             var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, saveDataBuffer, _loadType, 
-                _sceneName, _saveLink, _saveLoadManager);
+                _sceneName, _saveFileContext, _saveLoadManager);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
@@ -243,13 +243,17 @@ namespace SaveLoadSystem.Core
             }
             else if (typeof(Component).IsAssignableFrom(type))
             {
+                // Check if the component has a unique identifier (e.g., multiple of the same component type on one GameObject, 
+                // implements ISavable interface, or uses a custom converter). If found, return the matched component.
                 if (GetGuidPathComponent(guidPath, out var duplicatedComponent))
                 {
                     reference = duplicatedComponent;
                     return true;
                 }
                 
-                if (GetGuidPathGameObject(guidPath, out var savable))  //TODO: explain why this is happening
+                // If no unique identifier is required, resolve the component using the GameObject and the requested type.
+                // This works when there's only one such component on the GameObject.
+                if (GetGuidPathGameObject(guidPath, out var savable))
                 {
                     reference = savable.GetComponent(type);
                     return true;
@@ -265,7 +269,7 @@ namespace SaveLoadSystem.Core
         {
             gameObject = default;
             
-            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            foreach (var saveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
                 if (_sceneName != saveSceneManager.SceneName) continue;
                     
@@ -284,7 +288,7 @@ namespace SaveLoadSystem.Core
         {
             component = default;
             
-            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            foreach (var saveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
                 if (_sceneName != saveSceneManager.SceneName) continue;
                     
@@ -303,11 +307,11 @@ namespace SaveLoadSystem.Core
         {
             reference = default;
             
-            if (_saveLink.GuidToCreatedNonUnityObjectLookup.TryGetValue(_loadType, guidPath, out reference))
+            if (_saveFileContext.GuidToCreatedNonUnityObjectLookup.TryGetValue(_loadType, guidPath, out reference))
             {
                 if (reference.GetType() != type)
                 {
-                    Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. You tried to return it as type '{type}', which is not allowed. Please use matching types."); //TODO: debug
+                    Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. You tried to return it as type '{type}', which is not allowed. Please use matching types.");
                     return false;
                 }
                 
@@ -329,7 +333,7 @@ namespace SaveLoadSystem.Core
             }
             
             var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, leafSaveData, _loadType, 
-                _sceneName, _saveLink, _saveLoadManager);
+                _sceneName, _saveFileContext, _saveLoadManager);
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))
@@ -338,7 +342,7 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
                     return false;
 
-                _saveLink.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
+                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
                 objectSavable.OnLoad(loadDataHandler);
                 return true;
             }
@@ -352,7 +356,7 @@ namespace SaveLoadSystem.Core
                 var converter = ConverterServiceProvider.GetConverter(type);
 
                 reference = converter.CreateInstanceForLoad(loadDataHandler);
-                _saveLink.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
+                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
                 converter.Load(reference, loadDataHandler);
                 return true;
             }
@@ -364,7 +368,7 @@ namespace SaveLoadSystem.Core
                 reference = jObject.ToObject(type);
                 if (reference != null)
                 {
-                    _saveLink.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
+                    _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
                     return true;
                 }
             }

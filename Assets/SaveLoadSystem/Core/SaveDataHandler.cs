@@ -20,18 +20,18 @@ namespace SaveLoadSystem.Core
         private readonly GuidPath _guidPath;
         private readonly string _sceneName;
 
-        private readonly SaveLink _saveLink;
+        private readonly SaveFileContext _saveFileContext;
         private readonly SaveLoadManager _saveLoadManager;
 
         public SaveDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, GuidPath guidPath, string sceneName, 
-            SaveLink saveLink, SaveLoadManager saveLoadManagers)
+            SaveFileContext saveFileContext, SaveLoadManager saveLoadManagers)
         {
             _rootSaveData = rootSaveData;
             _leafSaveData = leafSaveData;
             _guidPath = guidPath;
             _sceneName = sceneName;
 
-            _saveLink = saveLink;
+            _saveFileContext = saveFileContext;
             _saveLoadManager = saveLoadManagers;
         }
 
@@ -65,7 +65,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveLink, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
                 
                 savable.OnSave(saveDataHandler);
                 
@@ -75,7 +75,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveLink, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
@@ -86,17 +86,7 @@ namespace SaveLoadSystem.Core
                 _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(obj));
             }
         }
-
-        /// <summary>
-        /// Attempts to add a referencable object to the save data buffer using a unique identifier.
-        /// Supported types:
-        /// 1. All Objects that have a unique identifier
-        /// 2. Non-MonoBehaviour Classes, that can be instantiated by Activator.CreateInstance() and have Savable Attributes on them or implement the ISavable interface
-        /// 3. Serializable Types of types that are supported by <see cref="SaveLoadSystem.Core.Converter.IConvertable"/>
-        /// </summary>
-        /// <param name="uniqueIdentifier">The unique identifier for the object reference.</param>
-        /// <param name="obj">The object to be referenced and added to the buffer.</param>
-        /// <returns><c>true</c> if the object reference was successfully added; otherwise, <c>false</c>.</returns>
+        
         public void SaveAsReferencable(string uniqueIdentifier, object obj)
         {
             _leafSaveData.References.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
@@ -149,12 +139,12 @@ namespace SaveLoadSystem.Core
             }
             
             //make sure there is a unique id for each Non-Unity-Object
-            if (!_saveLink.SavedNonUnityObjectToGuidLookup.TryGetValue(objectToSave, out var stringPath))
+            if (!_saveFileContext.SavedNonUnityObjectToGuidLookup.TryGetValue(objectToSave, out var stringPath))
             {
                 guidPath = new GuidPath(_guidPath, uniqueIdentifier);
                 
-                _saveLink.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
-                _saveLink.GuidToCreatedNonUnityObjectLookup.Upsert(LoadType.Soft, guidPath, objectToSave);
+                _saveFileContext.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
+                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Upsert(LoadType.Soft, guidPath, objectToSave);
             }
             else
             {
@@ -169,7 +159,7 @@ namespace SaveLoadSystem.Core
         {
             convertToPath = default;
             
-            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            foreach (var saveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
                 if (_sceneName != saveSceneManager.SceneName) continue;
                     
@@ -188,7 +178,7 @@ namespace SaveLoadSystem.Core
         {
             convertToPath = default;
             
-            foreach (var saveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+            foreach (var saveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
                 if (_sceneName != saveSceneManager.SceneName) continue;
                     
@@ -203,9 +193,6 @@ namespace SaveLoadSystem.Core
             return false;
         }
 
-        //TODO: if an object is beeing loaded in two different types, there must be an error -> not allowed
-        //TODO: objects must always be loaded with the same type like when saving: how to check this is the case? i cant, but i can throw an error, if at spot 1 it is A and at spot 2 it is B and it is performed in the wrong order
-        
         private void UpsertNonUnityObject(object objectToSave, GuidPath guidPath)
         {
             if (objectToSave is ISavable)
@@ -215,7 +202,7 @@ namespace SaveLoadSystem.Core
                 var leafSaveData = new LeafSaveData();
                 _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
             
-                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveLink, _saveLoadManager));
+                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
@@ -223,7 +210,7 @@ namespace SaveLoadSystem.Core
                 
                 _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                         
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveLink, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else

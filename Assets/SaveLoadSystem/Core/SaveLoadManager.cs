@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
@@ -35,29 +36,31 @@ namespace SaveLoadSystem.Core
         [SerializeField] private AssetRegistry assetRegistry;
         [SerializeField] public bool autoSaveOnSaveFocusSwap;
         
-        public event Action<SaveLink, SaveLink> OnBeforeFocusChange;
-        public event Action<SaveLink, SaveLink> OnAfterFocusChange;
+        public event Action<SaveFileContext, SaveFileContext> OnBeforeFocusChange;
+        public event Action<SaveFileContext, SaveFileContext> OnAfterFocusChange;
         
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
         public SaveVersion SaveVersion => new(major, minor, patch);
-        public List<BaseSceneSaveManager> TrackedSaveSceneManagers { get; } = new();
-        public bool HasSaveFocus => _saveLink != null;
-        public SaveLink CurrentSaveLink
+        public bool HasSaveFileContext => _saveFileContext != null;
+        public SaveFileContext CurrentSaveFileContext
         {
             get
             {
-                if (!HasSaveFocus)
+                if (!HasSaveFileContext)
                 {
                     SetFocus();
                 }
 
-                return _saveLink;
+                return _saveFileContext;
             }
         }
 
-        private SaveLink _saveLink;
+        private readonly List<SimpleSceneSaveManager> _trackedSaveSceneManagers = new();
+        private static SimpleSceneSaveManager _dontDestroyOnLoadManager;
+        
+        private SaveFileContext _saveFileContext;
         private HashSet<SceneSaveManager> _scenesToReload;
         private byte[] _aesKey = Array.Empty<byte>();
         private byte[] _aesIv = Array.Empty<byte>();
@@ -102,14 +105,14 @@ namespace SaveLoadSystem.Core
         {
             SetFocus(fileName);
 
-            CurrentSaveLink.SaveActiveScenes();
+            CurrentSaveFileContext.SaveActiveScenes();
         }
 
         public void SimpleLoadActiveScenes(LoadType loadType = LoadType.Hard, string fileName = null)
         {
             SetFocus(fileName);
             
-            CurrentSaveLink.Load(loadType, TrackedSaveSceneManagers.ToArray());
+            CurrentSaveFileContext.Load(loadType, GetTrackedSaveSceneManagers().Cast<IRestoreSnapshotGroupElement>().ToArray());
         }
 
         #endregion
@@ -124,27 +127,27 @@ namespace SaveLoadSystem.Core
                 Debug.Log("Initialized the save system with the default file Name.");
             }
             
-            if (HasSaveFocus)
+            if (HasSaveFileContext)
             {
                 //same to current save
-                if (_saveLink.FileName == fileName) return;
+                if (_saveFileContext.FileName == fileName) return;
                 
                 //other save, but still has pending data that can be saved
                 if (autoSaveOnSaveFocusSwap)
                 {
-                    _saveLink.Save();
+                    _saveFileContext.Save();
                 }
             }
             
-            SwapFocus(new SaveLink(this, fileName));
+            SwapFocus(new SaveFileContext(this, fileName));
         }
 
         public void ReleaseFocus()
         {
             //save pending data if allowed
-            if (HasSaveFocus && autoSaveOnSaveFocusSwap)
+            if (HasSaveFileContext && autoSaveOnSaveFocusSwap)
             {
-                _saveLink.Save();
+                _saveFileContext.Save();
             }
             
             SwapFocus(null);
@@ -212,29 +215,62 @@ namespace SaveLoadSystem.Core
 
         #region Internal
 
+        public List<SimpleSceneSaveManager> GetTrackedSaveSceneManagers()
+        {
+            if (_dontDestroyOnLoadManager != null && !_trackedSaveSceneManagers.Contains(_dontDestroyOnLoadManager))
+            {
+                _trackedSaveSceneManagers.Add(_dontDestroyOnLoadManager);
+            }
+
+            if (_dontDestroyOnLoadManager == null && _trackedSaveSceneManagers.Contains(_dontDestroyOnLoadManager))
+            {
+                _trackedSaveSceneManagers.Remove(_dontDestroyOnLoadManager);
+            }
+
+            return _trackedSaveSceneManagers;
+        }
+
         internal void RegisterSaveSceneManager(SceneSaveManager sceneSaveManager)
-        { 
-            TrackedSaveSceneManagers.Add(sceneSaveManager);
+        {
+            _trackedSaveSceneManagers.Add(sceneSaveManager);
         }
         
         internal bool UnregisterSaveSceneManager(SceneSaveManager sceneSaveManager)
         {
-            return TrackedSaveSceneManagers.Remove(sceneSaveManager);
+            return _trackedSaveSceneManagers.Remove(sceneSaveManager);
+        }
+
+        internal static SimpleSceneSaveManager GetDontDestroyOnLoadSceneManager()
+        {
+            if (!_dontDestroyOnLoadManager)
+            {
+                GameObject newObject = new GameObject("DontDestroyOnLoadObject");
+                DontDestroyOnLoad(newObject);
+                _dontDestroyOnLoadManager = newObject.AddComponent<SimpleSceneSaveManager>();
+            }
+            
+            return _dontDestroyOnLoadManager;
+        }
+
+        internal static void DestroyDontDestroyOnLoadSceneManager()
+        {
+            Destroy(_dontDestroyOnLoadManager.gameObject);
+            _dontDestroyOnLoadManager = null;
         }
         
         #endregion
 
         #region Private
 
-        private void SwapFocus(SaveLink newSaveLink)
+        private void SwapFocus(SaveFileContext newSaveFileContext)
         {
-            SaveLink oldSaveLink = _saveLink;
+            SaveFileContext oldSaveFileContext = _saveFileContext;
             
-            OnBeforeFocusChange?.Invoke(oldSaveLink, newSaveLink);
+            OnBeforeFocusChange?.Invoke(oldSaveFileContext, newSaveFileContext);
 
-            _saveLink = newSaveLink;
+            _saveFileContext = newSaveFileContext;
             
-            OnAfterFocusChange?.Invoke(oldSaveLink, newSaveLink);
+            OnAfterFocusChange?.Invoke(oldSaveFileContext, newSaveFileContext);
         }
 
         #endregion

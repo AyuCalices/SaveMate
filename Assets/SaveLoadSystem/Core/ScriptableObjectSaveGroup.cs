@@ -24,6 +24,7 @@ namespace SaveLoadSystem.Core
         
         #region Editor Behaviour
 
+        
         private void OnValidate()
         {
             UpdateFolderSelectScriptableObject();
@@ -73,26 +74,27 @@ namespace SaveLoadSystem.Core
             return foundObjects;
         }
 
+        
         #endregion
-
 
         #region CaptureSnapshot
 
+        
         public void OnBeforeCaptureSnapshot()
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                if (pathBasedScriptableObject is IBeforeCaptureSnapshotHandler beforeSnapshotHandler)
+                if (pathBasedScriptableObject is IBeforeCaptureSnapshotHandler handler)
                 {
-                    beforeSnapshotHandler.OnBeforeCaptureSnapshot();
+                    handler.OnBeforeCaptureSnapshot();
                 }
             }
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                if (customAddedScriptableObject is IBeforeCaptureSnapshotHandler beforeSnapshotHandler)
+                if (customAddedScriptableObject is IBeforeCaptureSnapshotHandler handler)
                 {
-                    beforeSnapshotHandler.OnBeforeCaptureSnapshot();
+                    handler.OnBeforeCaptureSnapshot();
                 }
             }
         }
@@ -117,17 +119,17 @@ namespace SaveLoadSystem.Core
             
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                if (pathBasedScriptableObject is IAfterCaptureSnapshotHandler afterSnapshotHandler)
+                if (pathBasedScriptableObject is IAfterCaptureSnapshotHandler handler)
                 {
-                    afterSnapshotHandler.OnAfterCaptureSnapshot();
+                    handler.OnAfterCaptureSnapshot();
                 }
             }
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                if (customAddedScriptableObject is IAfterCaptureSnapshotHandler afterSnapshotHandler)
+                if (customAddedScriptableObject is IAfterCaptureSnapshotHandler handler)
                 {
-                    afterSnapshotHandler.OnAfterCaptureSnapshot();
+                    handler.OnAfterCaptureSnapshot();
                 }
             }
         }
@@ -143,7 +145,7 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
-            var saveLink = saveLoadManager.CurrentSaveLink;
+            var saveLink = saveLoadManager.CurrentSaveFileContext;
             
             if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                 
@@ -156,26 +158,27 @@ namespace SaveLoadSystem.Core
             saveLink.LoadedScriptableObjects.Remove(scriptableObject);
         }
 
+        
         #endregion
-
-
+        
         #region RestoreSnapshot
 
+        
         public void OnBeforeRestoreSnapshot()
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                if (pathBasedScriptableObject is ISaveMateBeforeLoadHandler beforeLoadHandler)
+                if (pathBasedScriptableObject is ISaveMateBeforeLoadHandler handler)
                 {
-                    beforeLoadHandler.OnBeforeRestoreSnapshot();
+                    handler.OnBeforeRestoreSnapshot();
                 }
             }
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                if (customAddedScriptableObject is ISaveMateBeforeLoadHandler beforeLoadHandler)
+                if (customAddedScriptableObject is ISaveMateBeforeLoadHandler handler)
                 {
-                    beforeLoadHandler.OnBeforeRestoreSnapshot();
+                    handler.OnBeforeRestoreSnapshot();
                 }
             }
         }
@@ -197,7 +200,7 @@ namespace SaveLoadSystem.Core
 
         private void RestoreScriptableObjectSnapshot(SaveLoadManager saveLoadManager, LoadType loadType, ScriptableObject scriptableObject)
         {
-            var saveLink = saveLoadManager.CurrentSaveLink;
+            var saveLink = saveLoadManager.CurrentSaveFileContext;
 
             //return if it cant be loaded due to soft loading
             if (loadType != LoadType.Hard && saveLink.LoadedScriptableObjects.Contains(scriptableObject)) return;
@@ -213,7 +216,7 @@ namespace SaveLoadSystem.Core
             // Skip the scriptable object, if it contains references to scene's, that arent active
             if (rootSaveData.GlobalSaveData.Elements.TryGetValue(guidPath, out var leafSaveData))
             {
-                if (!ScenesForGlobalLeafSaveDataAreLoaded(saveLoadManager.TrackedSaveSceneManagers, leafSaveData))
+                if (!ScenesForGlobalLeafSaveDataAreLoaded(saveLoadManager.GetTrackedSaveSceneManagers(), leafSaveData))
                 {
                     Debug.LogWarning($"Skipped ScriptableObject '{scriptableObject.name}' for saving, because of a scene requirement. ScriptableObject GUID: '{guidPath.ToString()}'");
                     return;
@@ -237,22 +240,22 @@ namespace SaveLoadSystem.Core
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                if (pathBasedScriptableObject is ISaveMateAfterLoadHandler afterLoadHandler)
+                if (pathBasedScriptableObject is ISaveMateAfterLoadHandler handler)
                 {
-                    afterLoadHandler.OnAfterRestoreSnapshot();
+                    handler.OnAfterRestoreSnapshot();
                 }
             }
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                if (customAddedScriptableObject is ISaveMateAfterLoadHandler afterLoadHandler)
+                if (customAddedScriptableObject is ISaveMateAfterLoadHandler handler)
                 {
-                    afterLoadHandler.OnAfterRestoreSnapshot();
+                    handler.OnAfterRestoreSnapshot();
                 }
             }
         }
         
-        private bool ScenesForGlobalLeafSaveDataAreLoaded(List<BaseSceneSaveManager> requiredScenes, LeafSaveData leafSaveData)
+        private bool ScenesForGlobalLeafSaveDataAreLoaded(List<SimpleSceneSaveManager> requiredScenes, LeafSaveData leafSaveData)
         {
             foreach (var referenceGuidPath in leafSaveData.References.Values)
             {
@@ -263,6 +266,7 @@ namespace SaveLoadSystem.Core
             return true;
         }
 
+        
         #endregion
     }
 }

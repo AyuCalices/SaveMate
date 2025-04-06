@@ -85,7 +85,6 @@ namespace SaveLoadSystem.Core.UnityComponent
         /*
          * Currently the system only supports adding savable-components during editor mode.
          * This is by design, to prevent the necessary to save the type of the component.
-         * optional todo: find a way to save added savable-components similar to dynamic prefab spawning without saving the type.
          */
         public void OnChangeGameObjectStructure()
         {
@@ -101,7 +100,7 @@ namespace SaveLoadSystem.Core.UnityComponent
 
             if (gameObject.scene.name == "DontDestroyOnLoad")
             {
-                Debug.LogWarning("There is no support for saving elements inside dont destroy on load!");
+                SaveLoadManager.GetDontDestroyOnLoadSceneManager().RegisterSavable(this);
             }
             else if (AcquireSceneManager())
             {

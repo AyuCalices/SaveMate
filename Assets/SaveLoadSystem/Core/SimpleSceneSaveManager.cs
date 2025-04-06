@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
-    public abstract class BaseSceneSaveManager : MonoBehaviour, 
+    public class SimpleSceneSaveManager : MonoBehaviour, 
         ICaptureSnapshotGroupElement, IBeforeCaptureSnapshotHandler, IAfterCaptureSnapshotHandler, 
         IRestoreSnapshotGroupElement, ISaveMateBeforeLoadHandler, ISaveMateAfterLoadHandler
     {
@@ -43,8 +43,8 @@ namespace SaveLoadSystem.Core
         {
             if (gameObject.scene.name != SceneName)
             {
-                Debug.LogWarning($"The scene in {nameof(BaseSceneSaveManager)} ('{gameObject.name}') from scene " +
-                                 $"'{gameObject.scene.name}' has changed. Despite the switch, {nameof(BaseSceneSaveManager)} " +
+                Debug.LogWarning($"The scene in {nameof(SimpleSceneSaveManager)} ('{gameObject.name}') from scene " +
+                                 $"'{gameObject.scene.name}' has changed. Despite the switch, {nameof(SimpleSceneSaveManager)} " +
                                  $"remains responsible for '{SceneName}'.");
             }
         }
@@ -259,7 +259,7 @@ namespace SaveLoadSystem.Core
         
         public void CaptureSnapshot(SaveLoadManager saveLoadManager)
         {
-            var saveLink = saveLoadManager.CurrentSaveLink;
+            var saveLink = saveLoadManager.CurrentSaveFileContext;
             
             var branchSaveData = CreateBranchSaveData(saveLink.RootSaveData, saveLink, saveLoadManager);
                 
@@ -286,7 +286,7 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        private BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, SaveLink saveLink, SaveLoadManager saveLoadManager)
+        private BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
         {
             //save data
             var branchSaveData = new BranchSaveData();
@@ -302,7 +302,7 @@ namespace SaveLoadSystem.Core
                     var leafSaveData = new LeafSaveData();
                     branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                     
-                    targetSavable.OnSave(new SaveDataHandler(rootSaveData, leafSaveData, guidPath, SceneName, saveLink, saveLoadManager));
+                    targetSavable.OnSave(new SaveDataHandler(rootSaveData, leafSaveData, guidPath, SceneName, saveFileContext, saveLoadManager));
                 }
             }
 
@@ -331,7 +331,7 @@ namespace SaveLoadSystem.Core
 
         public void OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType)
         {
-            var saveLink = saveLoadManager.CurrentSaveLink;
+            var saveLink = saveLoadManager.CurrentSaveFileContext;
             
             var currentSavePrefabGuidGroup = GetExistingPrefabsGuid(saveLoadManager.GuidToSavablePrefabsLookup);
             SyncScenePrefabsOnLoad(saveLink.RootSaveData, saveLoadManager.GuidToSavablePrefabsLookup, currentSavePrefabGuidGroup);
@@ -339,12 +339,12 @@ namespace SaveLoadSystem.Core
 
         public void RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
         {
-            var saveLink = saveLoadManager.CurrentSaveLink;
+            var saveLink = saveLoadManager.CurrentSaveFileContext;
             
             if (saveLink.RootSaveData.TryGetSceneData(SceneName, out var sceneData))
             {
                 LoadBranchSaveData(saveLink.RootSaveData, sceneData.ActiveSaveData, loadType, 
-                    saveLoadManager.CurrentSaveLink, saveLoadManager);
+                    saveLoadManager.CurrentSaveFileContext, saveLoadManager);
             }
         }
         
@@ -400,7 +400,7 @@ namespace SaveLoadSystem.Core
         }
 
         private void LoadBranchSaveData(RootSaveData rootSaveData, BranchSaveData branchSaveData, LoadType loadType, 
-            SaveLink saveLink, SaveLoadManager saveLoadManager)
+            SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
         {
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
@@ -416,7 +416,7 @@ namespace SaveLoadSystem.Core
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     
                         var loadDataHandler = new LoadDataHandler(rootSaveData, branchSaveData, instanceSaveData, loadType, 
-                            SceneName, saveLink, saveLoadManager);
+                            SceneName, saveFileContext, saveLoadManager);
                         
                         targetSavable.OnLoad(loadDataHandler);
                     }
@@ -457,7 +457,7 @@ namespace SaveLoadSystem.Core
             {
                 if (EditorApplication.isPlayingOrWillChangePlaymode) return;
                 
-                var saveSceneManagers = FindObjectsOfType<BaseSceneSaveManager>();
+                var saveSceneManagers = FindObjectsOfType<SimpleSceneSaveManager>();
 
                 foreach (var saveSceneManager in saveSceneManagers)
                 {

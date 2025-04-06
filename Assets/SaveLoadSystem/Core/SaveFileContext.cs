@@ -17,7 +17,7 @@ namespace SaveLoadSystem.Core
 {
     public enum LoadType { Hard, Soft }
     
-    public class SaveLink
+    public class SaveFileContext
     {
         public string FileName { get; }
         public bool HasPendingData { get; private set; }
@@ -37,7 +37,7 @@ namespace SaveLoadSystem.Core
         internal HashSet<object> SoftLoadedObjects;
         
         
-        public SaveLink(SaveLoadManager saveLoadManager, string fileName)
+        public SaveFileContext(SaveLoadManager saveLoadManager, string fileName)
         {
             _asyncQueue = new AsyncOperationQueue();
             _saveLoadManager = saveLoadManager;
@@ -88,15 +88,15 @@ namespace SaveLoadSystem.Core
             WriteToDisk();
         }
 
-        public void Save(params BaseSceneSaveManager[] saveSceneManagersToSave)
+        public void Save(params ICaptureSnapshotGroupElement[] saveSceneManagersToSave)
         {
-            CaptureSnapshot(saveSceneManagersToSave.Cast<ICaptureSnapshotGroupElement>().ToArray());
+            CaptureSnapshot(saveSceneManagersToSave.ToArray());
             WriteToDisk();
         }
         
         public void CaptureSnapshotForActiveScenes()
         {
-            CaptureSnapshot(_saveLoadManager.TrackedSaveSceneManagers.Cast<ICaptureSnapshotGroupElement>().ToArray());
+            CaptureSnapshot(_saveLoadManager.GetTrackedSaveSceneManagers().Cast<ICaptureSnapshotGroupElement>().ToArray());
         }
 
         public void CaptureSnapshot(params ICaptureSnapshotGroupElement[] captureSnapshotGroupElements)
@@ -111,9 +111,9 @@ namespace SaveLoadSystem.Core
                 var combinedCaptureGroupSnapshots = new List<ICaptureSnapshotGroupElement>();
                 foreach (var captureSnapshotGroupElement in captureSnapshotGroupElements)
                 {
-                    if (!SceneManager.GetSceneByName(captureSnapshotGroupElement.SceneName).isLoaded)
+                    if (captureSnapshotGroupElement.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(captureSnapshotGroupElement.SceneName).isLoaded)
                     {
-                        Debug.LogWarning("Tried to create a snapshot to an unloaded scene!");
+                        Debug.LogWarning($"Tried to create a snapshot to the unloaded scene '{captureSnapshotGroupElement.SceneName}'");
                     }
                     
                     combinedCaptureGroupSnapshots.Add(captureSnapshotGroupElement);
@@ -146,7 +146,7 @@ namespace SaveLoadSystem.Core
                     CustomData = _customMetaData
                 };
                 
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
                 {
                     trackedSaveSceneManager.OnBeforeWriteToDisk();
                 }
@@ -156,7 +156,7 @@ namespace SaveLoadSystem.Core
                 IsPersistent = true;
                 HasPendingData = false;
                 
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
                 {
                     trackedSaveSceneManager.OnAfterWriteToDisk();
                 }
@@ -179,7 +179,7 @@ namespace SaveLoadSystem.Core
 
         public void RestoreSnapshotForActiveScenes(LoadType loadType)
         {
-            RestoreSnapshot(loadType, _saveLoadManager.TrackedSaveSceneManagers.Cast<IRestoreSnapshotGroupElement>().ToArray());
+            RestoreSnapshot(loadType, _saveLoadManager.GetTrackedSaveSceneManagers().Cast<IRestoreSnapshotGroupElement>().ToArray());
         }
 
         public void RestoreSnapshot(LoadType loadType, params IRestoreSnapshotGroupElement[] restoreSnapshotGroupElements)
@@ -191,9 +191,9 @@ namespace SaveLoadSystem.Core
                 var combinedRestoreGroupSnapshots = new List<IRestoreSnapshotGroupElement>();
                 foreach (var restoreSnapshotGroupElement in restoreSnapshotGroupElements)
                 {
-                    if (!SceneManager.GetSceneByName(restoreSnapshotGroupElement.SceneName).isLoaded)
+                    if (restoreSnapshotGroupElement.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(restoreSnapshotGroupElement.SceneName).isLoaded)
                     {
-                        Debug.LogWarning("Tried to apply a snapshot to an unloaded scene!");
+                        Debug.LogWarning($"Tried to apply a snapshot to the unloaded scene '{restoreSnapshotGroupElement.SceneName}'");
                     }
                     
                     combinedRestoreGroupSnapshots.Add(restoreSnapshotGroupElement);
@@ -230,7 +230,7 @@ namespace SaveLoadSystem.Core
         
         public void ReloadScenes()
         {
-            ReloadScenes(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
+            ReloadScenes(_saveLoadManager.GetTrackedSaveSceneManagers().ToArray());
         }
 
         /// <summary>
@@ -238,7 +238,7 @@ namespace SaveLoadSystem.Core
         /// </summary>
         /// <param name="loadType"></param>
         /// <param name="scenesToLoad"></param>
-        public void ReloadScenes(params BaseSceneSaveManager[] scenesToLoad)
+        public void ReloadScenes(params SimpleSceneSaveManager[] scenesToLoad)
         {
             _asyncQueue.Enqueue(async () =>
             {
@@ -264,10 +264,10 @@ namespace SaveLoadSystem.Core
         
         public void DeleteActiveSceneSnapshotData()
         {
-            DeleteSnapshotData(_saveLoadManager.TrackedSaveSceneManagers.ToArray());
+            DeleteSnapshotData(_saveLoadManager.GetTrackedSaveSceneManagers().ToArray());
         }
 
-        public void DeleteSnapshotData(params BaseSceneSaveManager[] saveSceneManagersToWipe)
+        public void DeleteSnapshotData(params SimpleSceneSaveManager[] saveSceneManagersToWipe)
         {
             _asyncQueue.Enqueue(() =>
             {
@@ -283,7 +283,7 @@ namespace SaveLoadSystem.Core
             });
         }
         
-        public void Delete(params BaseSceneSaveManager[] saveSceneManagersToWipe)
+        public void Delete(params SimpleSceneSaveManager[] saveSceneManagersToWipe)
         {
             foreach (var saveSceneManager in saveSceneManagersToWipe)
             {
@@ -297,7 +297,7 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(async () =>
             {
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
                 {
                     trackedSaveSceneManager.OnBeforeDeleteDiskData();
                 }
@@ -306,7 +306,7 @@ namespace SaveLoadSystem.Core
 
                 IsPersistent = false;
                 
-                foreach (var trackedSaveSceneManager in _saveLoadManager.TrackedSaveSceneManagers)
+                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
                 {
                     trackedSaveSceneManager.OnAfterDeleteDiskData();
                 }
