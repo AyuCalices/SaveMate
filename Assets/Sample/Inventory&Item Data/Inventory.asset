@@ -12,5 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cea98e25cdb4dae4bb52a52cfccbaab1, type: 3}
   m_Name: Inventory
   m_EditorClassIdentifier: 
-  items: []
+  items:
+  - spriteLookup: {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}
+    sprite: {fileID: 21300000, guid: 66e635d45f854544b995af005360b1de, type: 3}
+    itemName: Gauntlet
+  - spriteLookup: {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}
+    sprite: {fileID: 21300000, guid: 66e635d45f854544b995af005360b1de, type: 3}
+    itemName: Gauntlet
   test: 5

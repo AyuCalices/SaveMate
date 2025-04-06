@@ -11,6 +11,7 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
+    //TODO: refactor in order to make things easier configurable: NewtonsoftJson and the Strategies
     [CreateAssetMenu]
     public class SaveLoadManager : ScriptableObject, ISaveConfig, ISaveStrategy
     {

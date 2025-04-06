@@ -17,6 +17,7 @@ namespace SaveLoadSystem.Core
 {
     public enum LoadType { Hard, Soft }
     
+    //TODO: implement a system to add things similar to the PlayerPrefs, but with reference support
     public class SaveFileContext
     {
         public string FileName { get; }
