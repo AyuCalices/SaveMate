@@ -52,6 +52,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             base.OnValidate();
             
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            
             saveLoadManager?.RegisterSaveSceneManager(this);
         }
         

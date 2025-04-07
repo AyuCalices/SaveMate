@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.EventHandler;
 using SaveLoadSystem.Core.UnityComponent;
@@ -69,6 +70,25 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
+#if UNITY_EDITOR
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                ValidateSavableInEditor(savable);
+            }
+            else
+            {
+                if (!ValidateSavableAtRuntime(savable)) return;
+            }
+#else
+            if (!ValidateSavableAtRuntime(savable)) return;
+#endif
+
+            // Add the Savable to the lookup, ensuring it is tracked
+            InsertSavableIntoLookup(savable.SceneGuid, savable);
+        }
+
+        private void ValidateSavableInEditor(Savable savable)
+        {
             // Case 1: If the object has no SceneGuid, generate a unique ID
             if (string.IsNullOrEmpty(savable.SceneGuid))
             {
@@ -84,11 +104,34 @@ namespace SaveLoadSystem.Core
                 Debug.LogWarning($"Assigning a new unique ID to '{savable.gameObject.name}' in scene '{SceneName}'" +
                                  $" as the existing GUID was duplicated.");
             }
-
-            // Add the Savable to the lookup, ensuring it is tracked
-            InsertSavableIntoLookup(savable.SceneGuid, savable);
         }
 
+        [UsedImplicitly]
+        private bool ValidateSavableAtRuntime(Savable savable)
+        {
+            // Case 1: If the object has no SceneGuid, generate a unique ID
+            if (string.IsNullOrEmpty(savable.SceneGuid))
+            {
+                if (!string.IsNullOrEmpty(savable.PrefabGuid))
+                {
+                    var id = GetUniqueID(savable);
+                    savable.SceneGuid = id;
+                    return false;
+                }
+
+                Debug.LogError("Tried to add an id to a non prefab! This is only allowed inside the EditorApplication");
+                return false;
+            }
+            
+            if (_trackedSavables != null && _trackedSavables.TryGetValue(savable.SceneGuid, out var registeredSavable) && registeredSavable != savable)
+            {
+                Debug.LogError($"Found a duplicated id at runtime! You might applied duplicated guids inside the EditorApplication. This may also occur, when two objects from different scenes with same id's are moved into the same scene!");
+                return false;
+            }
+
+            return true;
+        }
+        
         internal void UnregisterSavable(Savable savable)
         {
             RemoveSavableFromLookup(savable);

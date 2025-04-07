@@ -40,6 +40,8 @@ namespace SaveLoadSystem.Core
         public event Action<SaveFileContext, SaveFileContext> OnBeforeFocusChange;
         public event Action<SaveFileContext, SaveFileContext> OnAfterFocusChange;
         
+        
+        
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
         public string MetaDataExtensionName => metaDataExtensionName;
