@@ -37,10 +37,8 @@ namespace SaveLoadSystem.Core
         [SerializeField] private AssetRegistry assetRegistry;
         [SerializeField] public bool autoSaveOnSaveFocusSwap;
         
-        public event Action<SaveFileContext, SaveFileContext> OnBeforeFocusChange;
-        public event Action<SaveFileContext, SaveFileContext> OnAfterFocusChange;
-        
-        
+        public event Action<SaveFileContext, SaveFileContext> OnBeforeSaveFileContextChange;
+        public event Action<SaveFileContext, SaveFileContext> OnAfterSaveFileContextChange;
         
         public string SavePath => savePath;
         public string ExtensionName => extensionName;
@@ -269,11 +267,11 @@ namespace SaveLoadSystem.Core
         {
             SaveFileContext oldSaveFileContext = _saveFileContext;
             
-            OnBeforeFocusChange?.Invoke(oldSaveFileContext, newSaveFileContext);
+            OnBeforeSaveFileContextChange?.Invoke(oldSaveFileContext, newSaveFileContext);
 
             _saveFileContext = newSaveFileContext;
             
-            OnAfterFocusChange?.Invoke(oldSaveFileContext, newSaveFileContext);
+            OnAfterSaveFileContextChange?.Invoke(oldSaveFileContext, newSaveFileContext);
         }
 
         #endregion

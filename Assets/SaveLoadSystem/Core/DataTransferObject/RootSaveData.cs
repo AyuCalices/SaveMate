@@ -12,11 +12,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public void SetSceneData(string sceneName, SceneData sceneData)
         {
-            SceneDataLookup[sceneName] = new SceneData
-            {
-                ActivePrefabs = sceneData.ActivePrefabs, 
-                ActiveSaveData = sceneData.ActiveSaveData
-            };
+            SceneDataLookup[sceneName] = sceneData;
         }
 
         public bool TryGetSceneData(string sceneName, out SceneData sceneData)

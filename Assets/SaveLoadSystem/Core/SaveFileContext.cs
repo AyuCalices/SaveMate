@@ -33,8 +33,6 @@ namespace SaveLoadSystem.Core
         internal RootSaveData RootSaveData;
         internal GuidToCreatedNonUnityObjectLookup GuidToCreatedNonUnityObjectLookup;
         internal ConditionalWeakTable<object, string> SavedNonUnityObjectToGuidLookup;
-        internal HashSet<ScriptableObject> LoadedScriptableObjects;
-
         internal HashSet<object> SoftLoadedObjects;
         
         
@@ -107,7 +105,7 @@ namespace SaveLoadSystem.Core
                 RootSaveData ??= new RootSaveData();
                 GuidToCreatedNonUnityObjectLookup ??= new GuidToCreatedNonUnityObjectLookup();
                 SavedNonUnityObjectToGuidLookup ??= new ConditionalWeakTable<object, string>();
-                LoadedScriptableObjects ??= new HashSet<ScriptableObject>();
+                SoftLoadedObjects ??= new HashSet<object>();
                 
                 var combinedCaptureGroupSnapshots = new List<ICaptureSnapshotGroupElement>();
                 foreach (var captureSnapshotGroupElement in captureSnapshotGroupElements)
@@ -222,7 +220,7 @@ namespace SaveLoadSystem.Core
                     RootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                     GuidToCreatedNonUnityObjectLookup = new GuidToCreatedNonUnityObjectLookup();
                     SavedNonUnityObjectToGuidLookup = new ConditionalWeakTable<object, string>();
-                    LoadedScriptableObjects = new HashSet<ScriptableObject>();
+                    SoftLoadedObjects = new HashSet<object>();
                     
                     Debug.Log("Read from disk completed");
                 }

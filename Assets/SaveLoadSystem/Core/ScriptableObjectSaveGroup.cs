@@ -155,7 +155,7 @@ namespace SaveLoadSystem.Core
             targetSavable.OnSave(new SaveDataHandler(saveLink.RootSaveData, leafSaveData, guidPath, RootSaveData.GlobalSaveDataName, 
                 saveLink, saveLoadManager));
                 
-            saveLink.LoadedScriptableObjects.Remove(scriptableObject);
+            saveLink.SoftLoadedObjects.Remove(scriptableObject);
         }
 
         
@@ -203,7 +203,7 @@ namespace SaveLoadSystem.Core
             var saveLink = saveLoadManager.CurrentSaveFileContext;
 
             //return if it cant be loaded due to soft loading
-            if (loadType != LoadType.Hard && saveLink.LoadedScriptableObjects.Contains(scriptableObject)) return;
+            if (loadType != LoadType.Hard && saveLink.SoftLoadedObjects.Contains(scriptableObject)) return;
 
             if (!saveLoadManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out var guidPath))
             {
@@ -233,7 +233,7 @@ namespace SaveLoadSystem.Core
             
             targetSavable.OnLoad(loadDataHandler);
                     
-            saveLink.LoadedScriptableObjects.Add(scriptableObject);
+            saveLink.SoftLoadedObjects.Add(scriptableObject);
         }
 
         public void OnAfterRestoreSnapshot()
