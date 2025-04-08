@@ -201,10 +201,10 @@ namespace SaveLoadSystem.Core
 
         private void RestoreScriptableObjectSnapshot(SaveLoadManager saveLoadManager, LoadType loadType, ScriptableObject scriptableObject)
         {
-            var saveLink = saveLoadManager.CurrentSaveFileContext;
+            var saveContext = saveLoadManager.CurrentSaveFileContext;
 
             //return if it cant be loaded due to soft loading
-            if (loadType != LoadType.Hard && saveLink.SoftLoadedObjects.Contains(scriptableObject)) return;
+            if (loadType != LoadType.Hard && saveContext.SoftLoadedObjects.Contains(scriptableObject)) return;
 
             if (!saveLoadManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out var guidPath))
             {
@@ -212,7 +212,7 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
-            var rootSaveData = saveLink.RootSaveData;
+            var rootSaveData = saveContext.RootSaveData;
             
             // Skip the scriptable object, if it contains references to scene's, that arent active
             if (rootSaveData.ScriptableObjectSaveData.Elements.TryGetValue(guidPath, out var leafSaveData))
@@ -230,11 +230,11 @@ namespace SaveLoadSystem.Core
             if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
             var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, RootSaveData.ScriptableObjectDataName, 
-                saveLink, saveLoadManager);
+                saveContext, saveLoadManager);
             
             targetSavable.OnLoad(loadDataHandler);
                     
-            saveLink.SoftLoadedObjects.Add(scriptableObject);
+            saveContext.SoftLoadedObjects.Add(scriptableObject);
         }
 
         public void OnAfterRestoreSnapshot()

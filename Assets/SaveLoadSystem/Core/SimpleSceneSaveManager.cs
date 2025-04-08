@@ -450,16 +450,23 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var savableComponent in savable.SavableLookup)
                 {
+                    var iSavable = savableComponent.unityObject;
+                    
+                    //return if it cant be loaded due to soft loading
+                    var softLoadedObjects = saveLoadManager.CurrentSaveFileContext.SoftLoadedObjects;
+                    if (loadType != LoadType.Hard && softLoadedObjects.Contains(iSavable)) return;
+                    
                     var componentGuidPath = new GuidPath(savableGuidPath, savableComponent.guid);
 
                     if (branchSaveData.TryGetLeafSaveData(componentGuidPath, out var instanceSaveData))
                     {
-                        if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
+                        if (!TypeUtility.TryConvertTo(iSavable, out ISavable targetSavable)) return;
                     
                         var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, SceneName, 
                             saveFileContext, saveLoadManager);
                         
                         targetSavable.OnLoad(loadDataHandler);
+                        softLoadedObjects.Add(iSavable);
                     }
                 }
             }
