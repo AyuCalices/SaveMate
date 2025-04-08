@@ -337,13 +337,14 @@ namespace SaveLoadSystem.Core
                 var savableGuidPath = new GuidPath(SceneName, saveObject.SceneGuid);
                 foreach (var componentContainer in saveObject.SavableLookup)
                 {
-                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable targetSavable)) continue;
+                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable iSavable)) continue;
             
                     var guidPath = new GuidPath(savableGuidPath, componentContainer.guid);
                     var leafSaveData = new LeafSaveData();
                     branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                     
-                    targetSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, SceneName, saveFileContext, saveLoadManager));
+                    iSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, SceneName, saveFileContext, saveLoadManager));
+                    saveLoadManager.CurrentSaveFileContext.SoftLoadedObjects.Remove(componentContainer.unityObject);
                 }
             }
 
@@ -450,23 +451,21 @@ namespace SaveLoadSystem.Core
                 
                 foreach (var savableComponent in savable.SavableLookup)
                 {
-                    var iSavable = savableComponent.unityObject;
-                    
                     //return if it cant be loaded due to soft loading
                     var softLoadedObjects = saveLoadManager.CurrentSaveFileContext.SoftLoadedObjects;
-                    if (loadType != LoadType.Hard && softLoadedObjects.Contains(iSavable)) return;
+                    if (loadType != LoadType.Hard && softLoadedObjects.Contains(savableComponent.unityObject)) return;
                     
                     var componentGuidPath = new GuidPath(savableGuidPath, savableComponent.guid);
 
                     if (branchSaveData.TryGetLeafSaveData(componentGuidPath, out var instanceSaveData))
                     {
-                        if (!TypeUtility.TryConvertTo(iSavable, out ISavable targetSavable)) return;
+                        if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable iSavable)) return;
                     
                         var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, SceneName, 
                             saveFileContext, saveLoadManager);
                         
-                        targetSavable.OnLoad(loadDataHandler);
-                        softLoadedObjects.Add(iSavable);
+                        iSavable.OnLoad(loadDataHandler);
+                        softLoadedObjects.Add(savableComponent.unityObject);
                     }
                 }
             }
