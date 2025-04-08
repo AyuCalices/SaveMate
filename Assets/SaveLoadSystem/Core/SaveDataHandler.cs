@@ -15,7 +15,7 @@ namespace SaveLoadSystem.Core
     /// </summary>
     public readonly struct SaveDataHandler
     {
-        private readonly RootSaveData _rootSaveData;
+        private readonly BranchSaveData _branchSaveData;
         private readonly LeafSaveData _leafSaveData;
         private readonly GuidPath _guidPath;
         private readonly string _sceneName;
@@ -23,10 +23,10 @@ namespace SaveLoadSystem.Core
         private readonly SaveFileContext _saveFileContext;
         private readonly SaveLoadManager _saveLoadManager;
 
-        public SaveDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, GuidPath guidPath, string sceneName, 
+        public SaveDataHandler(BranchSaveData branchSaveData, LeafSaveData leafSaveData, GuidPath guidPath, string sceneName, 
             SaveFileContext saveFileContext, SaveLoadManager saveLoadManagers)
         {
-            _rootSaveData = rootSaveData;
+            _branchSaveData = branchSaveData;
             _leafSaveData = leafSaveData;
             _guidPath = guidPath;
             _sceneName = sceneName;
@@ -65,7 +65,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
                 
                 savable.OnSave(saveDataHandler);
                 
@@ -75,7 +75,7 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
 
                 ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
                 
@@ -144,13 +144,17 @@ namespace SaveLoadSystem.Core
                 guidPath = new GuidPath(_guidPath, uniqueIdentifier);
                 
                 _saveFileContext.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
-                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Upsert(LoadType.Soft, guidPath, objectToSave);
+                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Upsert(guidPath, objectToSave);
             }
             else
             {
                 guidPath = GuidPath.FromString(stringPath);
             }
-            UpsertNonUnityObject(objectToSave, guidPath);
+
+            if (guidPath.SceneName == _sceneName)
+            {
+                UpsertNonUnityObject(objectToSave, guidPath);
+            }
             
             return guidPath;
         }
@@ -200,24 +204,24 @@ namespace SaveLoadSystem.Core
                 if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
                 
                 var leafSaveData = new LeafSaveData();
-                _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
+                _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
             
-                targetSavable.OnSave(new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager));
+                targetSavable.OnSave(new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
             {
                 var leafSaveData = new LeafSaveData();
                 
-                _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
+                _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                         
-                var saveDataHandler = new SaveDataHandler(_rootSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager);
                 ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
             }
             else
             {
                 var leafSaveData = new LeafSaveData();
                 
-                _rootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
+                _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                 
                 leafSaveData.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
             }

@@ -73,6 +73,12 @@ namespace SaveLoadSystem.Core.UnityComponent
                 case SaveSceneManagerDestroyType.SnapshotSingleScene:
                     CaptureSceneSnapshot();
                     break;
+                case SaveSceneManagerDestroyType.SnapshotActiveScenes:
+                    saveLoadManager.CurrentSaveFileContext.CaptureSnapshotForActiveScenes();
+                    break;
+                case SaveSceneManagerDestroyType.SaveSingleScene:
+                    saveLoadManager.CurrentSaveFileContext.Save(this);
+                    break;
                 case SaveSceneManagerDestroyType.SaveActiveScenes:
                     if (!_hasSavedActiveScenesThisFrame)
                     {
@@ -107,14 +113,14 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             var captureSnapshotGroupElements = new List<ICaptureSnapshotGroupElement>();
             
-            if (additionallySaveDontDestroyOnLoad)
-            {
-                captureSnapshotGroupElements.Add(SaveLoadManager.GetDontDestroyOnLoadSceneManager());
-            }
-
             if (scriptableObjectsToSave)
             {
                 captureSnapshotGroupElements.Add(scriptableObjectsToSave);
+            }
+            
+            if (additionallySaveDontDestroyOnLoad)
+            {
+                captureSnapshotGroupElements.Add(SaveLoadManager.GetDontDestroyOnLoadSceneManager());
             }
             
             return captureSnapshotGroupElements;

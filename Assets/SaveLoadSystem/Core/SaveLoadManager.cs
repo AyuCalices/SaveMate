@@ -77,7 +77,7 @@ namespace SaveLoadSystem.Core
         {
             foreach (var scriptableObjectSavable in assetRegistry.ScriptableObjectSavables)
             {
-                var guidPath = new GuidPath(RootSaveData.GlobalSaveDataName, scriptableObjectSavable.guid);
+                var guidPath = new GuidPath(RootSaveData.ScriptableObjectDataName, scriptableObjectSavable.guid);
                 ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
                 GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
             }

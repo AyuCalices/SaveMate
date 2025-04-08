@@ -110,16 +110,11 @@ namespace SaveLoadSystem.Core
                 var combinedCaptureGroupSnapshots = new List<ICaptureSnapshotGroupElement>();
                 foreach (var captureSnapshotGroupElement in captureSnapshotGroupElements)
                 {
-                    if (captureSnapshotGroupElement.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(captureSnapshotGroupElement.SceneName).isLoaded)
-                    {
-                        Debug.LogWarning($"Tried to create a snapshot to the unloaded scene '{captureSnapshotGroupElement.SceneName}'");
-                    }
-                    
-                    combinedCaptureGroupSnapshots.Add(captureSnapshotGroupElement);
                     if (captureSnapshotGroupElement is IGetCaptureSnapshotGroupElementHandler getRestoreSnapshotHandler)
                     {
                         combinedCaptureGroupSnapshots.AddRange(getRestoreSnapshotHandler.GetCaptureSnapshotGroupElements());
                     }
+                    combinedCaptureGroupSnapshots.Add(captureSnapshotGroupElement);
                 }
                 
                 InternalCaptureSnapshot(combinedCaptureGroupSnapshots);
@@ -195,11 +190,11 @@ namespace SaveLoadSystem.Core
                         Debug.LogWarning($"Tried to apply a snapshot to the unloaded scene '{restoreSnapshotGroupElement.SceneName}'");
                     }
                     
-                    combinedRestoreGroupSnapshots.Add(restoreSnapshotGroupElement);
                     if (restoreSnapshotGroupElement is IGetRestoreSnapshotGroupElementHandler getRestoreSnapshotHandler)
                     {
                         combinedRestoreGroupSnapshots.AddRange(getRestoreSnapshotHandler.GetRestoreSnapshotGroupElements());
                     }
+                    combinedRestoreGroupSnapshots.Add(restoreSnapshotGroupElement);
                 }
                 
                 InternalRestoreSnapshot(loadType, combinedRestoreGroupSnapshots);

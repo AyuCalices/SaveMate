@@ -304,12 +304,10 @@ namespace SaveLoadSystem.Core
         {
             var saveLink = saveLoadManager.CurrentSaveFileContext;
             
-            var branchSaveData = CreateBranchSaveData(saveLink.RootSaveData, saveLink, saveLoadManager);
-                
             var sceneData = new SceneData 
             {
                 ActivePrefabs = GetExistingPrefabsGuid(saveLoadManager.GuidToSavablePrefabsLookup), 
-                ActiveSaveData = branchSaveData
+                ActiveSaveData = CreateBranchSaveData(saveLink, saveLoadManager)
             };
                 
             saveLink.RootSaveData.SetSceneData(SceneName, sceneData);
@@ -329,7 +327,7 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        private BranchSaveData CreateBranchSaveData(RootSaveData rootSaveData, SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
+        private BranchSaveData CreateBranchSaveData(SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
         {
             //save data
             var branchSaveData = new BranchSaveData();
@@ -345,7 +343,7 @@ namespace SaveLoadSystem.Core
                     var leafSaveData = new LeafSaveData();
                     branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                     
-                    targetSavable.OnSave(new SaveDataHandler(rootSaveData, leafSaveData, guidPath, SceneName, saveFileContext, saveLoadManager));
+                    targetSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, SceneName, saveFileContext, saveLoadManager));
                 }
             }
 
@@ -458,8 +456,8 @@ namespace SaveLoadSystem.Core
                     {
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable targetSavable)) return;
                     
-                        var loadDataHandler = new LoadDataHandler(rootSaveData, branchSaveData, instanceSaveData, loadType, 
-                            SceneName, saveFileContext, saveLoadManager);
+                        var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, SceneName, 
+                            saveFileContext, saveLoadManager);
                         
                         targetSavable.OnLoad(loadDataHandler);
                     }

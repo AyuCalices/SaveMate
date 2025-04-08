@@ -35,6 +35,17 @@ namespace Sample.Scripts
             OnItemAdded?.Invoke(item);
         }
 
+        public void RemoveItem(Item item)
+        {
+            if (!items.Contains(item))
+            {
+                return;
+            }
+
+            items.Remove(item);
+            OnItemRemoved?.Invoke(item);
+        }
+
         public void RemoveAtIndex(int index)
         {
             if (index > ItemCount)

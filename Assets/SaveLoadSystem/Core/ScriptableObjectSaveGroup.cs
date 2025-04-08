@@ -17,7 +17,7 @@ namespace SaveLoadSystem.Core
         [SerializeField] private List<ScriptableObject> pathBasedScriptableObjects = new();
         [SerializeField] private List<ScriptableObject> customAddedScriptableObjects = new();
         
-        public string SceneName => RootSaveData.GlobalSaveDataName;
+        public string SceneName => RootSaveData.ScriptableObjectDataName;
         
         private static readonly HashSet<ScriptableObject> _savedScriptableObjectsLookup = new();
 
@@ -150,9 +150,10 @@ namespace SaveLoadSystem.Core
             if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                 
             var leafSaveData = new LeafSaveData();
-            saveLink.RootSaveData.GlobalSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
+            var branchSaveData = saveLink.RootSaveData.ScriptableObjectSaveData;
+            branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
 
-            targetSavable.OnSave(new SaveDataHandler(saveLink.RootSaveData, leafSaveData, guidPath, RootSaveData.GlobalSaveDataName, 
+            targetSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, RootSaveData.ScriptableObjectDataName, 
                 saveLink, saveLoadManager));
                 
             saveLink.SoftLoadedObjects.Remove(scriptableObject);
@@ -214,7 +215,7 @@ namespace SaveLoadSystem.Core
             var rootSaveData = saveLink.RootSaveData;
             
             // Skip the scriptable object, if it contains references to scene's, that arent active
-            if (rootSaveData.GlobalSaveData.Elements.TryGetValue(guidPath, out var leafSaveData))
+            if (rootSaveData.ScriptableObjectSaveData.Elements.TryGetValue(guidPath, out var leafSaveData))
             {
                 if (!ScenesForGlobalLeafSaveDataAreLoaded(saveLoadManager.GetTrackedSaveSceneManagers(), leafSaveData))
                 {
@@ -224,12 +225,12 @@ namespace SaveLoadSystem.Core
             }
 
             //restore snapshot data
-            if (!rootSaveData.GlobalSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData)) return;
+            if (!rootSaveData.ScriptableObjectSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData)) return;
             
             if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
-            var loadDataHandler = new LoadDataHandler(rootSaveData, rootSaveData.GlobalSaveData, instanceSaveData, loadType, 
-                RootSaveData.GlobalSaveDataName, saveLink, saveLoadManager);
+            var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, RootSaveData.ScriptableObjectDataName, 
+                saveLink, saveLoadManager);
             
             targetSavable.OnLoad(loadDataHandler);
                     
@@ -259,8 +260,8 @@ namespace SaveLoadSystem.Core
         {
             foreach (var referenceGuidPath in leafSaveData.References.Values)
             {
-                if (!requiredScenes.Exists(x => x.SceneName == referenceGuidPath.Scene) && 
-                    referenceGuidPath.Scene != RootSaveData.GlobalSaveDataName) return false;
+                if (!requiredScenes.Exists(x => x.SceneName == referenceGuidPath.SceneName) && 
+                    referenceGuidPath.SceneName != RootSaveData.ScriptableObjectDataName) return false;
             }
 
             return true;

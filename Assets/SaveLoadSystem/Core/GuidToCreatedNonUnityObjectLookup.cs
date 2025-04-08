@@ -74,16 +74,9 @@ namespace SaveLoadSystem.Core
             }
         }
 
-        public void Upsert(LoadType loadType, GuidPath guidPath, object obj)
+        public void Upsert(GuidPath guidPath, object obj)
         {
-            if (loadType == LoadType.Hard)
-            {
-                _hardResetLookup[guidPath] = obj;
-            }
-            else
-            {
-                _guidToCreatedNonUnityObjectLookup[guidPath] = new WeakReference<object>(obj);
-            }
+            _guidToCreatedNonUnityObjectLookup[guidPath] = new WeakReference<object>(obj);
         }
     }
 }

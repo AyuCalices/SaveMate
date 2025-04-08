@@ -5,9 +5,9 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class RootSaveData
     {
-        public const string GlobalSaveDataName = "GLOBAL";
+        public const string ScriptableObjectDataName = "ScriptableObjects";
         
-        [UsedImplicitly] public BranchSaveData GlobalSaveData { get; set; } = new();
+        [UsedImplicitly] public BranchSaveData ScriptableObjectSaveData { get; set; } = new();
         [UsedImplicitly] public Dictionary<string, SceneData> SceneDataLookup { get; set; } = new();
 
         public void SetSceneData(string sceneName, SceneData sceneData)

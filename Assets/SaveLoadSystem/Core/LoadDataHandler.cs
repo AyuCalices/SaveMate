@@ -16,7 +16,6 @@ namespace SaveLoadSystem.Core
     {
         //save data container
         private readonly RootSaveData _rootSaveData;
-        private readonly BranchSaveData _globalBranchSaveData;
         private readonly LeafSaveData _leafSaveData;
 
         private readonly LoadType _loadType;
@@ -26,11 +25,10 @@ namespace SaveLoadSystem.Core
         private readonly SaveLoadManager _saveLoadManager;
         private readonly SaveFileContext _saveFileContext;
 
-        public LoadDataHandler(RootSaveData rootSaveData, BranchSaveData globalBranchSaveData, LeafSaveData leafSaveData, 
-            LoadType loadType, string sceneName, SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
+        public LoadDataHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, LoadType loadType, string sceneName, 
+            SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
         {
             _rootSaveData = rootSaveData;
-            _globalBranchSaveData = globalBranchSaveData;
             _leafSaveData = leafSaveData;
 
             _loadType = loadType;
@@ -124,8 +122,8 @@ namespace SaveLoadSystem.Core
             }
             
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
-            var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, saveDataBuffer, _loadType, 
-                _sceneName, _saveFileContext, _saveLoadManager);
+            var loadDataHandler = new LoadDataHandler(_rootSaveData, saveDataBuffer, _loadType, _sceneName, 
+                _saveFileContext, _saveLoadManager);
 
             value = Activator.CreateInstance(type);
             ((ISavable)value).OnLoad(loadDataHandler);
@@ -143,8 +141,8 @@ namespace SaveLoadSystem.Core
             }
             
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
-            var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, saveDataBuffer, _loadType, 
-                _sceneName, _saveFileContext, _saveLoadManager);
+            var loadDataHandler = new LoadDataHandler(_rootSaveData, saveDataBuffer, _loadType, _sceneName, 
+                _saveFileContext, _saveLoadManager);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
             value = convertable.CreateInstanceForLoad(loadDataHandler);
@@ -183,17 +181,17 @@ namespace SaveLoadSystem.Core
 
             if (type == typeof(GameObject))
             {
-                return TryGetGameObjectReference(guidPath, out reference);
+                return TryGetGameObjectReference(guidPath, obj => obj, out reference);
             }
 
             if (type == typeof(Transform))
             {
-                return TryGetTransformReference(guidPath, out reference);
+                return TryGetGameObjectReference(guidPath, obj => obj.transform, out reference);
             }
 
             if (type == typeof(RectTransform))
             {
-                return TryGetRectTransformReference(guidPath, out reference);
+                return TryGetGameObjectReference(guidPath, obj => (RectTransform)obj.transform, out reference);
             }
 
             if (typeof(Component).IsAssignableFrom(type))
@@ -219,45 +217,17 @@ namespace SaveLoadSystem.Core
             return false;
         }
 
-        private bool TryGetGameObjectReference(GuidPath guidPath, out object reference)
+        private bool TryGetGameObjectReference<T>(GuidPath guidPath, Func<GameObject, T> convertAction, out object reference)
         {
             reference = null;
             
             if (GetGuidPathGameObject(guidPath, out var savable))
             {
-                reference = savable.gameObject;
+                reference = convertAction.Invoke(savable);
                 return true;
             }
             
-            Debug.LogError($"Wasn't able to find the '{nameof(GameObject)}' for the GUID: '{guidPath.ToString()}'!");
-            return false;
-        }
-
-        private bool TryGetTransformReference(GuidPath guidPath, out object reference)
-        {
-            reference = null;
-            
-            if (GetGuidPathGameObject(guidPath, out var savable))
-            {
-                reference = savable.transform;
-                return true;
-            }
-            
-            Debug.LogError($"Wasn't able to find the '{nameof(Transform)}' for the GUID: '{guidPath.ToString()}'!");
-            return false;
-        }
-
-        private bool TryGetRectTransformReference(GuidPath guidPath, out object reference)
-        {
-            reference = null;
-            
-            if (GetGuidPathGameObject(guidPath, out var savable))
-            {
-                reference = (RectTransform)savable.transform;
-                return true;
-            }
-            
-            Debug.LogError($"Wasn't able to find the '{nameof(RectTransform)}' for the GUID: '{guidPath.ToString()}'!");
+            Debug.LogError($"Wasn't able to find the '{nameof(T)}' for the GUID: '{guidPath.ToString()}'!");
             return false;
         }
 
@@ -300,7 +270,7 @@ namespace SaveLoadSystem.Core
             
             foreach (var saveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
-                if (_sceneName != saveSceneManager.SceneName) continue;
+                if (guidPath.SceneName != saveSceneManager.SceneName) continue;
                     
                 if (saveSceneManager.GuidToSavableGameObjectLookup.TryGetValue(guidPath, out gameObject))
                 {
@@ -319,7 +289,7 @@ namespace SaveLoadSystem.Core
             
             foreach (var saveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
-                if (_sceneName != saveSceneManager.SceneName) continue;
+                if (guidPath.SceneName != saveSceneManager.SceneName) continue;
                     
                 if (saveSceneManager.GuidToComponentLookup.TryGetValue(guidPath, out component))
                 {
@@ -354,44 +324,73 @@ namespace SaveLoadSystem.Core
         private bool CreateObject(Type type, GuidPath guidPath, out object reference)
         {
             reference = null;
-            
-            if (!_globalBranchSaveData.TryGetLeafSaveData(guidPath, out LeafSaveData leafSaveData) && 
-                !_rootSaveData.GlobalSaveData.TryGetLeafSaveData(guidPath, out leafSaveData))
+
+            if (!TryGetLeafSaveData(guidPath, out var leafSaveData))
             {
                 Debug.LogError($"Wasn't able to find the save data for the GUID: '{guidPath.ToString()}'. Requested object type: '{type.FullName}'!");
                 return false;
             }
             
-            var loadDataHandler = new LoadDataHandler(_rootSaveData, _globalBranchSaveData, leafSaveData, _loadType, 
-                _sceneName, _saveFileContext, _saveLoadManager);
+            var loadDataHandler = new LoadDataHandler(_rootSaveData, leafSaveData, _loadType, _sceneName, 
+                _saveFileContext, _saveLoadManager);
+            
             
             //savable handling
             if (typeof(ISavable).IsAssignableFrom(type))
             {
-                reference = Activator.CreateInstance(type);
-                if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
-                    return false;
-
-                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
-                objectSavable.OnLoad(loadDataHandler);
-                return true;
+                return CreateObjectISavable(loadDataHandler, type, guidPath, out reference);
             }
 
             //converter handling
             if (ConverterServiceProvider.ExistsAndCreate(type))
             {
-                if (!ConverterServiceProvider.ExistsAndCreate(type))
-                    return false;
-
-                var converter = ConverterServiceProvider.GetConverter(type);
-
-                reference = converter.CreateInstanceForLoad(loadDataHandler);
-                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
-                converter.Load(reference, loadDataHandler);
+                CreateObjectConverter(loadDataHandler, type, guidPath, out reference);
                 return true;
             }
 
-            //serializable handling
+            return CreateObjectNewtonsoft(leafSaveData, type, guidPath, out reference);
+        }
+
+        private bool TryGetLeafSaveData(GuidPath guidPath, out LeafSaveData leafSaveData)
+        {
+            leafSaveData = default;
+            if (guidPath.SceneName == RootSaveData.ScriptableObjectDataName)
+            {
+                if (!_rootSaveData.ScriptableObjectSaveData.TryGetLeafSaveData(guidPath, out leafSaveData)) return false;
+            }
+            else
+            {
+                if (!_rootSaveData.SceneDataLookup.TryGetValue(guidPath.SceneName, out var sceneData)) return false;
+
+                if (!sceneData.ActiveSaveData.TryGetLeafSaveData(guidPath, out leafSaveData)) return false;
+            }
+
+            return true;
+        }
+
+        private bool CreateObjectISavable(LoadDataHandler loadDataHandler, Type type, GuidPath guidPath, out object reference)
+        {
+            reference = Activator.CreateInstance(type);
+            if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
+                return false;
+
+            _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
+            objectSavable.OnLoad(loadDataHandler);
+            return true;
+        }
+
+        private void CreateObjectConverter(LoadDataHandler loadDataHandler, Type type, GuidPath guidPath, out object reference)
+        {
+            var converter = ConverterServiceProvider.GetConverter(type);
+            reference = converter.CreateInstanceForLoad(loadDataHandler);
+            _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
+            converter.Load(reference, loadDataHandler);
+        }
+
+        private bool CreateObjectNewtonsoft(LeafSaveData leafSaveData, Type type, GuidPath guidPath, out object reference)
+        {
+            reference = default;
+            
             try
             {
                 var jObject = leafSaveData.Values["SerializeRef"];

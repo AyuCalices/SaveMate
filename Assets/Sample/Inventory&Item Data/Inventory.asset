@@ -19,4 +19,4 @@ MonoBehaviour:
   - spriteLookup: {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}
     sprite: {fileID: 21300000, guid: 66e635d45f854544b995af005360b1de, type: 3}
     itemName: Gauntlet
-  test: 5
+  test: 0

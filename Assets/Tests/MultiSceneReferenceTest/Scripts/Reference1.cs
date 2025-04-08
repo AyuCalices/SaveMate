@@ -1,10 +1,8 @@
-using System;
 using System.Collections.Generic;
 using Sample.Scripts;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 public class Reference1 : Singleton<Reference1>, ISavable
@@ -12,13 +10,13 @@ public class Reference1 : Singleton<Reference1>, ISavable
     [SerializeField] private Inventory inventory;
     [SerializeField] private List<ItemGenerator> spawnableItems;
 
-    public GameObject test;
     public Item storedItem;
     public Item otherItem;
     
     [ContextMenu("Setup")]
     public void Setup()
     {
+        inventory.RemoveItem(storedItem);
         storedItem = SpawnRandomItem();
         inventory.AddItem(storedItem);
         Reference2.Instance.otherItem = storedItem;
@@ -35,7 +33,6 @@ public class Reference1 : Singleton<Reference1>, ISavable
 
     private Item SpawnRandomItem()
     {
-        test = gameObject;
         int randomItemGenerator = Random.Range(0, spawnableItems.Count);
         return spawnableItems[randomItemGenerator].GenerateItem();
     }
@@ -44,7 +41,6 @@ public class Reference1 : Singleton<Reference1>, ISavable
     {
         saveDataHandler.Save("StoredItem", storedItem);
         saveDataHandler.Save("OtherItem", otherItem);
-        saveDataHandler.Save("gameobject", test);
     }
 
     public void OnLoad(LoadDataHandler loadDataHandler)
@@ -58,7 +54,5 @@ public class Reference1 : Singleton<Reference1>, ISavable
         {
             this.otherItem = otherItem;
         }
-
-        loadDataHandler.TryLoad("gameobject", out test);
     }
 }

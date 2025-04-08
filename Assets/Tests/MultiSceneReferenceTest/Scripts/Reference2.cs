@@ -16,6 +16,7 @@ public class Reference2 : Singleton<Reference2>, ISavable
     [ContextMenu("Setup")]
     public void Setup()
     {
+        inventory.RemoveItem(storedItem);
         storedItem = SpawnRandomItem();
         inventory.AddItem(storedItem);
         Reference1.Instance.otherItem = storedItem;

@@ -4,7 +4,9 @@ namespace SaveLoadSystem.Utility
     {
         None,
         SnapshotSingleScene,
-        SaveActiveScenes
+        SnapshotActiveScenes,
+        SaveSingleScene,
+        SaveActiveScenes,
     }
     
     public enum SceneManagerEventType

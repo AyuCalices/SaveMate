@@ -7,25 +7,25 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public struct GuidPath : IEquatable<GuidPath>
     {
-        public string Scene { get; set; }
+        public string SceneName { get; set; }
         [UsedImplicitly] public string[] TargetGuid { get; set; }
         
-        public GuidPath(string scene, string guid)
+        public GuidPath(string sceneName, string guid)
         {
-            Scene = scene;
+            SceneName = sceneName;
             TargetGuid = new[] {guid};
         }
 
-        public GuidPath(string scene, string[] guidPath)
+        public GuidPath(string sceneName, string[] guidPath)
         {
-            Scene = scene;
+            SceneName = sceneName;
             TargetGuid = new string[guidPath.Length];
             Array.Copy(guidPath, TargetGuid, guidPath.Length);
         }
         
         public GuidPath(GuidPath parentPath, string guidPrefix)
         {
-            Scene = parentPath.Scene;
+            SceneName = parentPath.SceneName;
             TargetGuid = new string[parentPath.TargetGuid.Length + 1];
             Array.Copy(parentPath.TargetGuid, TargetGuid, parentPath.TargetGuid.Length);
             TargetGuid[^1] = guidPrefix;
@@ -33,7 +33,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
 
         public override string ToString()
         {
-            return Scene + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar.ToString(), TargetGuid);
+            return SceneName + Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar.ToString(), TargetGuid);
         }
         
         public static GuidPath FromString(string path)
@@ -47,7 +47,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
         
         public bool Equals(GuidPath other)
         {
-            return Scene == other.Scene && TargetGuid.SequenceEqual(other.TargetGuid);
+            return SceneName == other.SceneName && TargetGuid.SequenceEqual(other.TargetGuid);
         }
 
         public override bool Equals(object obj)
@@ -60,7 +60,7 @@ namespace SaveLoadSystem.Core.DataTransferObject
         public override int GetHashCode()
         {
             int hash = 17;
-            hash = hash * 31 + (Scene != null ? Scene.GetHashCode() : 0);
+            hash = hash * 31 + (SceneName != null ? SceneName.GetHashCode() : 0);
         
             if (TargetGuid != null)
             {
