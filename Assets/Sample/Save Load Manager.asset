@@ -20,8 +20,8 @@ MonoBehaviour:
   extensionName: json
   metaDataExtensionName: metajson
   integrityCheckType: 1
-  compressionType: 0
-  encryptionType: 0
+  compressionType: 1
+  encryptionType: 1
   defaultEncryptionKey: 0123456789abcdef0123456789abcdef
   defaultEncryptionIv: abcdef9876543210
   assetRegistry: {fileID: 11400000, guid: 57986767ef7f7514490df6068498f0cd, type: 2}

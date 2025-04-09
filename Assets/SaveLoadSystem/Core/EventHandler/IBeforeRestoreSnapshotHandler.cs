@@ -1,6 +1,6 @@
 namespace SaveLoadSystem.Core.EventHandler
 {
-    public interface ISaveMateBeforeLoadHandler
+    public interface IBeforeRestoreSnapshotHandler
     {
         void OnBeforeRestoreSnapshot();
     }

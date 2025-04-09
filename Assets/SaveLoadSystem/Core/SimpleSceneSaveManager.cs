@@ -11,9 +11,7 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Core
 {
-    public class SimpleSceneSaveManager : MonoBehaviour, 
-        ICaptureSnapshotGroupElement, IBeforeCaptureSnapshotHandler, IAfterCaptureSnapshotHandler, 
-        IRestoreSnapshotGroupElement, ISaveMateBeforeLoadHandler, ISaveMateAfterLoadHandler
+    public class SimpleSceneSaveManager : MonoBehaviour, ISavableGroupHandler, ILoadableGroupHandler
     {
         public string SceneName { get; private set; }
         
@@ -150,7 +148,6 @@ namespace SaveLoadSystem.Core
             return guid;
         }
         
-        
         private bool InsertSavableIntoLookup(string id, Savable savable)
         {
             //savable lookup registration
@@ -219,74 +216,11 @@ namespace SaveLoadSystem.Core
         
         
         #endregion
-        
-        #region Event System
-        
-        
-        internal virtual void OnBeforeDeleteDiskData()
-        {
-            foreach (var savable in _trackedSavables.Values)
-            {
-                if (savable.IsUnityNull()) continue;
-                
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeDeleteDiskHandler>();
-                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
-                {
-                    saveMateBeforeLoadHandler.OnBeforeDeleteDiskData();
-                }
-            }
-        }
-        
-        internal virtual void OnAfterDeleteDiskData()
-        {
-            foreach (var savable in _trackedSavables.Values)
-            {
-                if (savable.IsUnityNull()) continue;
-                
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterDeleteDiskHandler>();
-                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
-                {
-                    saveMateBeforeLoadHandler.OnAfterDeleteDiskData();
-                }
-            }
-        }
-        
-        internal virtual void OnBeforeWriteToDisk()
-        {
-            foreach (var savable in _trackedSavables.Values)
-            {
-                if (savable.IsUnityNull()) continue;
-                
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeWriteDiskHandler>();
-                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
-                {
-                    saveMateBeforeLoadHandler.OnBeforeWriteToDisk();
-                }
-            }
-        }
-        
-        internal virtual void OnAfterWriteToDisk()
-        {
-            foreach (var savable in _trackedSavables.Values)
-            {
-                if (savable.IsUnityNull()) continue;
-                
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterWriteDiskHandler>();
-                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
-                {
-                    saveMateBeforeLoadHandler.OnAfterWriteToDisk();
-                }
-            }
-        }
+
+        #region Interface Implementation: ISavableGroupHandler
 
         
-        #endregion
-
-
-        #region CaptureSnapshot
-
-        
-        public virtual void OnBeforeCaptureSnapshot()
+        void ISavableGroupHandler.OnBeforeCaptureSnapshot()
         {
             foreach (var savable in _trackedSavables.Values)
             {
@@ -298,9 +232,11 @@ namespace SaveLoadSystem.Core
                     beforeSnapshotHandler.OnBeforeCaptureSnapshot();
                 }
             }
+
+            InternalOnBeforeCaptureSnapshot();
         }
         
-        public void CaptureSnapshot(SaveLoadManager saveLoadManager)
+        void ISavableGroupHandler.CaptureSnapshot(SaveLoadManager saveLoadManager)
         {
             var saveLink = saveLoadManager.CurrentSaveFileContext;
             
@@ -313,7 +249,7 @@ namespace SaveLoadSystem.Core
             saveLink.RootSaveData.SetSceneData(SceneName, sceneData);
         }
 
-        public virtual void OnAfterCaptureSnapshot()
+        void ISavableGroupHandler.OnAfterCaptureSnapshot()
         {
             foreach (var savable in _trackedSavables.Values)
             {
@@ -325,7 +261,15 @@ namespace SaveLoadSystem.Core
                     beforeSnapshotHandler.OnAfterCaptureSnapshot();
                 }
             }
+
+            InternalOnAfterCaptureSnapshot();
         }
+
+        
+        #endregion
+        
+        #region Private: ISavableGroupHandler
+        
         
         private BranchSaveData CreateBranchSaveData(SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
         {
@@ -350,28 +294,30 @@ namespace SaveLoadSystem.Core
 
             return branchSaveData;
         }
-
+        
         
         #endregion
+
+        #region Interface Implementation: ILoadableGroupHandler
+
         
-        #region RestoreSnapshot
-        
-        
-        public virtual void OnBeforeRestoreSnapshot()
+        void ILoadableGroupHandler.OnBeforeRestoreSnapshot()
         {
             foreach (var savable in _trackedSavables.Values)
             {
                 if (savable.IsUnityNull()) continue;
                 
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeLoadHandler>();
+                var beforeLoadHandlers = savable.GetComponents<IBeforeRestoreSnapshotHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
                     saveMateBeforeLoadHandler.OnBeforeRestoreSnapshot();
                 }
             }
-        }
 
-        public void OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType)
+            InternalOnBeforeRestoreSnapshot();
+        }
+        
+        void ILoadableGroupHandler.OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType)
         {
             var saveLink = saveLoadManager.CurrentSaveFileContext;
             
@@ -379,7 +325,7 @@ namespace SaveLoadSystem.Core
             SyncScenePrefabsOnLoad(saveLink.RootSaveData, saveLoadManager.GuidToSavablePrefabsLookup, currentSavePrefabGuidGroup);
         }
 
-        public void RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
+        void ILoadableGroupHandler.RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
         {
             var saveLink = saveLoadManager.CurrentSaveFileContext;
             
@@ -390,19 +336,27 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        public virtual void OnAfterRestoreSnapshot()
+        void ILoadableGroupHandler.OnAfterRestoreSnapshot()
         {
             foreach (var savable in _trackedSavables.Values)
             {
                 if (savable.IsUnityNull()) continue;
                 
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterLoadHandler>();
+                var beforeLoadHandlers = savable.GetComponents<IAfterRestoreSnapshotHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
                     saveMateBeforeLoadHandler.OnAfterRestoreSnapshot();
                 }
             }
+
+            InternalOnAfterRestoreSnapshot();
         }
+        
+
+        #endregion
+        
+        #region Private: ILoadableGroupHandler
+        
 
         private void SyncScenePrefabsOnLoad(RootSaveData rootSaveData, Dictionary<string, Savable> guidToSavablePrefabsLookup, PrefabGuidGroup currentSavePrefabGuidGroup)
         {
@@ -474,7 +428,93 @@ namespace SaveLoadSystem.Core
         
         #endregion
         
-        #region Prefab Handling
+        #region Event Inheritance
+        
+        
+        protected virtual void InternalOnBeforeRestoreSnapshot() {}
+        
+        protected virtual void InternalOnAfterRestoreSnapshot() {}
+        
+        protected virtual void InternalOnBeforeCaptureSnapshot() {}
+        
+        protected virtual void InternalOnAfterCaptureSnapshot() { }
+        
+        internal void OnBeforeDeleteDiskData()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeDeleteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeDeleteDiskData();
+                }
+            }
+
+            InternalOnBeforeDeleteDiskData();
+        }
+
+        protected virtual void InternalOnBeforeDeleteDiskData() { }
+
+        internal void OnAfterDeleteDiskData()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterDeleteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnAfterDeleteDiskData();
+                }
+            }
+
+            InternalOnAfterDeleteDiskData();
+        }
+        
+        protected virtual void InternalOnAfterDeleteDiskData() { }
+        
+        internal void OnBeforeWriteToDisk()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeWriteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeWriteToDisk();
+                }
+            }
+
+            InternalOnBeforeWriteToDisk();
+        }
+        
+        protected virtual void InternalOnBeforeWriteToDisk() { }
+        
+        internal void OnAfterWriteToDisk()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterWriteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnAfterWriteToDisk();
+                }
+            }
+
+            InternalOnAfterWriteToDisk();
+        }
+        
+        protected virtual void InternalOnAfterWriteToDisk() { }
+
+        
+        #endregion
+        
+        #region Prefab Utillity
 
         
         private PrefabGuidGroup GetExistingPrefabsGuid(Dictionary<string, Savable> guidToSavablePrefabsLookup)
@@ -491,6 +531,9 @@ namespace SaveLoadSystem.Core
         
         
         #endregion
+        
+        #region Private Classes
+        
         
         [InitializeOnLoad]
         private static class SaveObjectDestructionUpdater
@@ -536,31 +579,47 @@ namespace SaveLoadSystem.Core
                 }
             }
         }
-    }
-
-    internal interface IGetCaptureSnapshotGroupElementHandler
-    {
-        List<ICaptureSnapshotGroupElement> GetCaptureSnapshotGroupElements();
-    }
-
-    internal interface IGetRestoreSnapshotGroupElementHandler
-    {
-        List<IRestoreSnapshotGroupElement> GetRestoreSnapshotGroupElements();
-    }
-
-    public interface ICaptureSnapshotGroupElement
-    {
-        string SceneName { get; }
         
-        void CaptureSnapshot(SaveLoadManager saveLoadManager);
+        
+        #endregion
+    }
+
+    internal interface INestableSaveGroupHandler
+    {
+        List<ISavableGroupHandler> GetSavableGroupHandlers();
+    }
+
+    internal interface INestableLoadGroupHandler
+    {
+        List<ILoadableGroupHandler> GetLoadableGroupHandlers();
+    }
+
+    public interface ISavableGroup
+    {
+        
     }
     
-    public interface IRestoreSnapshotGroupElement
+    internal interface ISavableGroupHandler : ISavableGroup
     {
         string SceneName { get; }
-        
+
+        void OnBeforeCaptureSnapshot();
+        void CaptureSnapshot(SaveLoadManager saveLoadManager);
+        void OnAfterCaptureSnapshot();
+    }
+
+    public interface ILoadableGroup
+    {
+
+    }
+
+    internal interface ILoadableGroupHandler : ILoadableGroup
+    {
+        string SceneName { get; }
+
+        void OnBeforeRestoreSnapshot();
         void OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType);
-        
         void RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType);
+        void OnAfterRestoreSnapshot();
     }
 }

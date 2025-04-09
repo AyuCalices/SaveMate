@@ -34,7 +34,7 @@ namespace SaveLoadSystem.Core
         {
             //ScriptableObject
             FixMissingScriptableObjectGuid();
-            UpdateScriptableObjectGuidOnInspectorInput(this);
+            UpdateScriptableObjectGuidOnInspectorInput();
             
             UnityUtility.SetDirty(this);
         }
@@ -62,7 +62,7 @@ namespace SaveLoadSystem.Core
             return newGuid;
         }
 
-        private void UpdateScriptableObjectGuidOnInspectorInput(AssetRegistry updatedAssetRegistry)
+        private void UpdateScriptableObjectGuidOnInspectorInput()
         {
             SaveLoadUtility.CheckUniqueGuidOnInspectorInput(ScriptableObjectSavables,
                 obj => obj.unityObject,

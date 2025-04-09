@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Sample.Scripts
 {
-    public class InventoryElement : MonoBehaviour, ISaveMateAfterLoadHandler, ISavable
+    public class InventoryElement : MonoBehaviour, IAfterRestoreSnapshotHandler, ISavable
     {
         [SerializeField] private Image image;
         [SerializeField] private Text itemName;

@@ -25,6 +25,7 @@ namespace SaveLoadSystem.Core
         public bool IsPersistent { get; private set; }
 
         private readonly SaveLoadManager _saveLoadManager;
+        private readonly AssetRegistry _assetRegistry;
         private readonly AsyncOperationQueue _asyncQueue;
         
         private JObject _customMetaData;
@@ -36,10 +37,11 @@ namespace SaveLoadSystem.Core
         internal HashSet<object> SoftLoadedObjects;
         
         
-        public SaveFileContext(SaveLoadManager saveLoadManager, string fileName)
+        public SaveFileContext(SaveLoadManager saveLoadManager, AssetRegistry assetRegistry, string fileName)
         {
-            _asyncQueue = new AsyncOperationQueue();
             _saveLoadManager = saveLoadManager;
+            _assetRegistry = assetRegistry;
+            _asyncQueue = new AsyncOperationQueue();
             FileName = fileName;
 
             Initialize();
@@ -62,6 +64,10 @@ namespace SaveLoadSystem.Core
             });
         }
 
+
+        #region Public Methods
+        
+        
         public void SetCustomMetaData(string identifier, object data)
         {
             _asyncQueue.Enqueue(() =>
@@ -87,18 +93,18 @@ namespace SaveLoadSystem.Core
             WriteToDisk();
         }
 
-        public void Save(params ICaptureSnapshotGroupElement[] saveSceneManagersToSave)
+        public void Save(params ISavableGroup[] savableGroups)
         {
-            CaptureSnapshot(saveSceneManagersToSave.ToArray());
+            CaptureSnapshot(savableGroups.ToArray());
             WriteToDisk();
         }
         
         public void CaptureSnapshotForActiveScenes()
         {
-            CaptureSnapshot(_saveLoadManager.GetTrackedSaveSceneManagers().Cast<ICaptureSnapshotGroupElement>().ToArray());
+            CaptureSnapshot(_saveLoadManager.GetTrackedSaveSceneManagers().Cast<ISavableGroup>().ToArray());
         }
 
-        public void CaptureSnapshot(params ICaptureSnapshotGroupElement[] captureSnapshotGroupElements)
+        public void CaptureSnapshot(params ISavableGroup[] savableGroups)
         {
             _asyncQueue.Enqueue(() =>
             {
@@ -107,17 +113,20 @@ namespace SaveLoadSystem.Core
                 SavedNonUnityObjectToGuidLookup ??= new ConditionalWeakTable<object, string>();
                 SoftLoadedObjects ??= new HashSet<object>();
                 
-                var combinedCaptureGroupSnapshots = new List<ICaptureSnapshotGroupElement>();
-                foreach (var captureSnapshotGroupElement in captureSnapshotGroupElements)
+                //convert into required handlers
+                var combinedSavableGroupHandlers = new List<ISavableGroupHandler>();
+                foreach (var savableGroup in savableGroups)
                 {
-                    if (captureSnapshotGroupElement is IGetCaptureSnapshotGroupElementHandler getRestoreSnapshotHandler)
+                    if (savableGroup is not ISavableGroupHandler saveGroupHandler) continue;
+                    
+                    if (savableGroup is INestableSaveGroupHandler nestableSaveGroupHandler)
                     {
-                        combinedCaptureGroupSnapshots.AddRange(getRestoreSnapshotHandler.GetCaptureSnapshotGroupElements());
+                        combinedSavableGroupHandlers.AddRange(nestableSaveGroupHandler.GetSavableGroupHandlers());
                     }
-                    combinedCaptureGroupSnapshots.Add(captureSnapshotGroupElement);
+                    combinedSavableGroupHandlers.Add(saveGroupHandler);
                 }
                 
-                InternalCaptureSnapshot(combinedCaptureGroupSnapshots);
+                InternalCaptureSnapshot(combinedSavableGroupHandlers);
                 
                 return Task.CompletedTask;
             });
@@ -139,21 +148,15 @@ namespace SaveLoadSystem.Core
                     ModificationDate = DateTime.Now,
                     CustomData = _customMetaData
                 };
-                
-                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
-                {
-                    trackedSaveSceneManager.OnBeforeWriteToDisk();
-                }
+
+                OnBeforeWriteToDisk();
                 
                 await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, RootSaveData);
 
                 IsPersistent = true;
                 HasPendingData = false;
-                
-                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
-                {
-                    trackedSaveSceneManager.OnAfterWriteToDisk();
-                }
+
+                OnAfterWriteToDisk();
                 
                 Debug.Log("Write to disk completed!");
             });
@@ -165,39 +168,42 @@ namespace SaveLoadSystem.Core
             RestoreSnapshotForActiveScenes(loadType);
         }
         
-        public void Load(LoadType loadType, params IRestoreSnapshotGroupElement[] saveSceneManagersToLoad)
+        public void Load(LoadType loadType, params ILoadableGroup[] loadableGroups)
         {
             ReadFromDisk();
-            RestoreSnapshot(loadType, saveSceneManagersToLoad);
+            RestoreSnapshot(loadType, loadableGroups);
         }
 
         public void RestoreSnapshotForActiveScenes(LoadType loadType)
         {
-            RestoreSnapshot(loadType, _saveLoadManager.GetTrackedSaveSceneManagers().Cast<IRestoreSnapshotGroupElement>().ToArray());
+            RestoreSnapshot(loadType, _saveLoadManager.GetTrackedSaveSceneManagers().Cast<ILoadableGroup>().ToArray());
         }
 
-        public void RestoreSnapshot(LoadType loadType, params IRestoreSnapshotGroupElement[] restoreSnapshotGroupElements)
+        public void RestoreSnapshot(LoadType loadType, params ILoadableGroup[] loadableGroups)
         {
             _asyncQueue.Enqueue(() =>
             {
                 if (RootSaveData == null) return Task.CompletedTask;
 
-                var combinedRestoreGroupSnapshots = new List<IRestoreSnapshotGroupElement>();
-                foreach (var restoreSnapshotGroupElement in restoreSnapshotGroupElements)
+                //convert into required handlers
+                var combinedLoadGroupHandlers = new List<ILoadableGroupHandler>();
+                foreach (var loadableGroup in loadableGroups)
                 {
-                    if (restoreSnapshotGroupElement.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(restoreSnapshotGroupElement.SceneName).isLoaded)
+                    if (loadableGroup is not ILoadableGroupHandler loadableGroupHandler) continue;
+                    
+                    if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(loadableGroupHandler.SceneName).isLoaded)
                     {
-                        Debug.LogWarning($"Tried to apply a snapshot to the unloaded scene '{restoreSnapshotGroupElement.SceneName}'");
+                        Debug.LogWarning($"Tried to apply a snapshot to the unloaded scene '{loadableGroupHandler.SceneName}'");
                     }
                     
-                    if (restoreSnapshotGroupElement is IGetRestoreSnapshotGroupElementHandler getRestoreSnapshotHandler)
+                    if (loadableGroup is INestableLoadGroupHandler getRestoreSnapshotHandler)
                     {
-                        combinedRestoreGroupSnapshots.AddRange(getRestoreSnapshotHandler.GetRestoreSnapshotGroupElements());
+                        combinedLoadGroupHandlers.AddRange(getRestoreSnapshotHandler.GetLoadableGroupHandlers());
                     }
-                    combinedRestoreGroupSnapshots.Add(restoreSnapshotGroupElement);
+                    combinedLoadGroupHandlers.Add(loadableGroupHandler);
                 }
                 
-                InternalRestoreSnapshot(loadType, combinedRestoreGroupSnapshots);
+                InternalRestoreSnapshot(loadType, combinedLoadGroupHandlers);
                 return Task.CompletedTask;
             });
         }
@@ -256,11 +262,13 @@ namespace SaveLoadSystem.Core
             });
         }
         
+        //TODO: rework deletion (savable groups)
         public void DeleteActiveSceneSnapshotData()
         {
             DeleteSnapshotData(_saveLoadManager.GetTrackedSaveSceneManagers().ToArray());
         }
 
+        //TODO: rework deletion (savable groups)
         public void DeleteSnapshotData(params SimpleSceneSaveManager[] saveSceneManagersToWipe)
         {
             _asyncQueue.Enqueue(() =>
@@ -277,6 +285,7 @@ namespace SaveLoadSystem.Core
             });
         }
         
+        //TODO: rework deletion (savable groups)
         public void Delete(params SimpleSceneSaveManager[] saveSceneManagersToWipe)
         {
             foreach (var saveSceneManager in saveSceneManagersToWipe)
@@ -291,120 +300,187 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(async () =>
             {
-                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
-                {
-                    trackedSaveSceneManager.OnBeforeDeleteDiskData();
-                }
+                OnBeforeDeleteDiskData();
 
                 await SaveLoadUtility.DeleteAsync(_saveLoadManager, FileName);
 
                 IsPersistent = false;
-                
-                foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
-                {
-                    trackedSaveSceneManager.OnAfterDeleteDiskData();
-                }
+
+                OnAfterDeleteDiskData();
                 
                 Debug.Log("Delete Completed!");
             });
         }
+        
+        
+        #endregion
 
-        #region Private Methods
-
-        private void InternalCaptureSnapshot(List<ICaptureSnapshotGroupElement> saveGroupElements)
+        #region Private Events
+        
+        
+        private void OnBeforeWriteToDisk()
         {
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-            
-            foreach (var saveGroupElement in saveGroupElements)
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
-                if (saveGroupElement is IBeforeCaptureSnapshotHandler eventHandler)
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is ISaveMateBeforeWriteDiskHandler eventHandler)
                 {
-                    eventHandler.OnBeforeCaptureSnapshot();
+                    eventHandler.OnBeforeWriteToDisk();
                 }
             }
 
-            foreach (var saveGroupElement in saveGroupElements)
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
-                saveGroupElement.CaptureSnapshot(_saveLoadManager);
+                trackedSaveSceneManager.OnBeforeWriteToDisk();
             }
-            
-            HasPendingData = true;
-            
-            foreach (var saveSceneManager in saveGroupElements)
+        }
+
+        private void OnAfterWriteToDisk()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
-                if (saveSceneManager is IAfterCaptureSnapshotHandler eventHandler)
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is ISaveMateAfterWriteDiskHandler eventHandler)
                 {
-                    eventHandler.OnAfterCaptureSnapshot();
+                    eventHandler.OnAfterWriteToDisk();
                 }
             }
             
-            stopwatch.Stop();
-            if (saveGroupElements.Count == 0)
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
-                Debug.Log($"Performed Snapshotting for no scene!");
+                trackedSaveSceneManager.OnAfterWriteToDisk();
             }
-            else if (saveGroupElements.Count == 1)
+        }
+
+        private void OnBeforeDeleteDiskData()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
-                Debug.Log($"Snapshotting Completed for scene {saveGroupElements[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is ISaveMateBeforeDeleteDiskHandler eventHandler)
+                {
+                    eventHandler.OnBeforeDeleteDiskData();
+                }
             }
-            else
+            
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
             {
-                Debug.Log($"Snapshotting Completed for {saveGroupElements.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                trackedSaveSceneManager.OnBeforeDeleteDiskData();
             }
         }
         
-        private void InternalRestoreSnapshot(LoadType loadType, List<IRestoreSnapshotGroupElement> loadGroupElements)
+        private void OnAfterDeleteDiskData()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is ISaveMateAfterDeleteDiskHandler eventHandler)
+                {
+                    eventHandler.OnAfterDeleteDiskData();
+                }
+            }
+            
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
+            {
+                trackedSaveSceneManager.OnAfterDeleteDiskData();
+            }
+        }
+
+        
+        #endregion
+
+        #region Private Snapshots
+
+        
+        private void InternalCaptureSnapshot(List<ISavableGroupHandler> savableGroupHandlers)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             
-            //on before load event
-            foreach (var loadGroupElement in loadGroupElements)
+            //on before capture snapshot event
+            foreach (var savableGroupHandler in savableGroupHandlers)
             {
-                if (loadGroupElement is ISaveMateBeforeLoadHandler eventHandler)
-                {
-                    eventHandler.OnBeforeRestoreSnapshot();
-                }
+                savableGroupHandler.OnBeforeCaptureSnapshot();
             }
-            
-            GuidToCreatedNonUnityObjectLookup.PrepareLoading();
-            
-            foreach (var loadGroupElement in loadGroupElements)
+
+            //perform capture snapshot
+            foreach (var savableGroupHandler in savableGroupHandlers)
             {
-                loadGroupElement.OnPrepareSnapshotObjects(_saveLoadManager, loadType);
+                savableGroupHandler.CaptureSnapshot(_saveLoadManager);
             }
+            HasPendingData = true;
             
-            foreach (var loadGroupElement in loadGroupElements)
+            //on after capture snapshot event
+            foreach (var savableGroupHandler in savableGroupHandlers)
             {
-                loadGroupElement.RestoreSnapshot(_saveLoadManager, loadType);
-            }
-            
-            GuidToCreatedNonUnityObjectLookup.CompleteLoading();
-            
-            //on load completed event
-            foreach (var loadGroupElement in loadGroupElements)
-            {
-                if (loadGroupElement is ISaveMateAfterLoadHandler eventHandler)
-                {
-                    eventHandler.OnAfterRestoreSnapshot();
-                }
+                savableGroupHandler.OnAfterCaptureSnapshot();
             }
             
             stopwatch.Stop();
-            if (loadGroupElements.Count == 0)
+            if (savableGroupHandlers.Count == 0)
             {
-                Debug.Log($"Performed Loading for no scene!");
+                Debug.Log($"Performed Snapshotting for no scene!");
             }
-            else if (loadGroupElements.Count == 1)
+            else if (savableGroupHandlers.Count == 1)
             {
-                Debug.Log($"Loading Completed for scene {loadGroupElements[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                Debug.Log($"Snapshotting Completed for scene {savableGroupHandlers[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
             }
             else
             {
-                Debug.Log($"Loading Completed for {loadGroupElements.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                Debug.Log($"Snapshotting Completed for {savableGroupHandlers.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
             }
         }
+        
+        private void InternalRestoreSnapshot(LoadType loadType, List<ILoadableGroupHandler> loadableGroupHandlers)
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            
+            //on before restore snapshot event
+            foreach (var loadableGroupHandler in loadableGroupHandlers)
+            {
+                loadableGroupHandler.OnBeforeRestoreSnapshot();
+            }
+            
+            //perform restore snapshot
+            GuidToCreatedNonUnityObjectLookup.PrepareLoading();
+            foreach (var loadableGroupHandler in loadableGroupHandlers)
+            {
+                loadableGroupHandler.OnPrepareSnapshotObjects(_saveLoadManager, loadType);
+            }
+            
+            foreach (var loadableGroupHandler in loadableGroupHandlers)
+            {
+                loadableGroupHandler.RestoreSnapshot(_saveLoadManager, loadType);
+            }
+            GuidToCreatedNonUnityObjectLookup.CompleteLoading();
+            
+            //on after restore snapshot event
+            foreach (var loadableGroupHandler in loadableGroupHandlers)
+            {
+                loadableGroupHandler.OnAfterRestoreSnapshot();
+            }
+            
+            stopwatch.Stop();
+            if (loadableGroupHandlers.Count == 0)
+            {
+                Debug.Log($"Performed Loading for no scene!");
+            }
+            else if (loadableGroupHandlers.Count == 1)
+            {
+                Debug.Log($"Loading Completed for scene {loadableGroupHandlers[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+            }
+            else
+            {
+                Debug.Log($"Loading Completed for {loadableGroupHandlers.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+            }
+        }
+
+        
+        #endregion
+
+        #region Private Scene Loading
+
         
         private Task<AsyncOperation> UnloadSceneAsync(string sceneName)
         {
@@ -450,42 +526,49 @@ namespace SaveLoadSystem.Core
             return tcs.Task;
         }
 
+        
         #endregion
-    }
 
-    public class AsyncOperationQueue
-    {
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-        private readonly Queue<Func<Task>> _queue = new Queue<Func<Task>>();
+        #region Private Classes
 
-        // Enqueue a task to be executed
-        public void Enqueue(Func<Task> task)
+        
+        private class AsyncOperationQueue
         {
-            _queue.Enqueue(task);
+            private readonly SemaphoreSlim _semaphore = new(1, 1);
+            private readonly Queue<Func<Task>> _queue = new();
 
-            if (_queue.Count == 1)
+            // Enqueue a task to be executed
+            public void Enqueue(Func<Task> task)
             {
-                ProcessQueue();
-            }
-        }
+                _queue.Enqueue(task);
 
-        // Process the queue
-        private async void ProcessQueue()
-        {
-            await _semaphore.WaitAsync();
-
-            try
-            {
-                while (_queue.Count > 0)
+                if (_queue.Count == 1)
                 {
-                    var task = _queue.Dequeue();
-                    await task();
+                    ProcessQueue();
                 }
             }
-            finally
+
+            // Process the queue
+            private async void ProcessQueue()
             {
-                _semaphore.Release();
+                await _semaphore.WaitAsync();
+
+                try
+                {
+                    while (_queue.Count > 0)
+                    {
+                        var task = _queue.Dequeue();
+                        await task();
+                    }
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
             }
         }
+
+        
+        #endregion
     }
 }

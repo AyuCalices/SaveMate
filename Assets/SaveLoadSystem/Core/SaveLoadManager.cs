@@ -16,26 +16,26 @@ namespace SaveLoadSystem.Core
     public class SaveLoadManager : ScriptableObject, ISaveConfig, ISaveStrategy
     {
         [Header("Version")] 
-        [SerializeField] public int major;
-        [SerializeField] public int minor;
-        [SerializeField] public int patch;
+        [SerializeField] private int major;
+        [SerializeField] private int minor;
+        [SerializeField] private int patch;
         
         [Header("File Name")]
-        [SerializeField] public string defaultFileName;
-        [SerializeField] public string savePath;
-        [SerializeField] public string extensionName;
-        [SerializeField] public string metaDataExtensionName;
+        [SerializeField] private string defaultFileName;
+        [SerializeField] private string savePath;
+        [SerializeField] private string extensionName;
+        [SerializeField] private string metaDataExtensionName;
         
         [Header("Storage")]
-        [SerializeField] public SaveIntegrityType integrityCheckType;
-        [SerializeField] public SaveCompressionType compressionType;
-        [SerializeField] public SaveEncryptionType encryptionType;
-        [SerializeField] public string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
-        [SerializeField] public string defaultEncryptionIv = "abcdef9876543210";
+        [SerializeField] private SaveIntegrityType integrityCheckType;
+        [SerializeField] private SaveCompressionType compressionType;
+        [SerializeField] private SaveEncryptionType encryptionType;
+        [SerializeField] private string defaultEncryptionKey = "0123456789abcdef0123456789abcdef";
+        [SerializeField] private string defaultEncryptionIv = "abcdef9876543210";
 
         [Header("Other")] 
         [SerializeField] private AssetRegistry assetRegistry;
-        [SerializeField] public bool autoSaveOnSaveFocusSwap;
+        [SerializeField] private bool autoSaveOnSaveFocusSwap;
         
         public event Action<SaveFileContext, SaveFileContext> OnBeforeSaveFileContextChange;
         public event Action<SaveFileContext, SaveFileContext> OnAfterSaveFileContextChange;
@@ -113,7 +113,7 @@ namespace SaveLoadSystem.Core
         {
             SetFocus(fileName);
             
-            CurrentSaveFileContext.Load(loadType, GetTrackedSaveSceneManagers().Cast<IRestoreSnapshotGroupElement>().ToArray());
+            CurrentSaveFileContext.Load(loadType, GetTrackedSaveSceneManagers().Cast<ILoadableGroupHandler>().ToArray());
         }
 
         #endregion
@@ -140,7 +140,7 @@ namespace SaveLoadSystem.Core
                 }
             }
             
-            SwapFocus(new SaveFileContext(this, fileName));
+            SwapFocus(new SaveFileContext(this, assetRegistry, fileName));
         }
 
         public void ReleaseFocus()

@@ -9,9 +9,7 @@ using UnityEngine;
 namespace SaveLoadSystem.Core
 {
     [CreateAssetMenu]
-    public class ScriptableObjectSaveGroupElement : ScriptableObject, 
-        ICaptureSnapshotGroupElement, IBeforeCaptureSnapshotHandler, IAfterCaptureSnapshotHandler, 
-        IRestoreSnapshotGroupElement, ISaveMateBeforeLoadHandler, ISaveMateAfterLoadHandler
+    public class ScriptableObjectSaveGroupElement : ScriptableObject, ISavableGroupHandler, ILoadableGroupHandler
     {
         [SerializeField] private List<string> searchInFolders = new();
         [SerializeField] private List<ScriptableObject> pathBasedScriptableObjects = new();
@@ -77,13 +75,14 @@ namespace SaveLoadSystem.Core
         
         #endregion
 
-        #region CaptureSnapshot
-
+        #region Interface Implementation: ISavableGroupHandler
         
-        public void OnBeforeCaptureSnapshot()
+        
+        void ISavableGroupHandler.OnBeforeCaptureSnapshot()
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
+                // ReSharper disable once SuspiciousTypeConversion.Global
                 if (pathBasedScriptableObject is IBeforeCaptureSnapshotHandler handler)
                 {
                     handler.OnBeforeCaptureSnapshot();
@@ -92,6 +91,7 @@ namespace SaveLoadSystem.Core
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
+                // ReSharper disable once SuspiciousTypeConversion.Global
                 if (customAddedScriptableObject is IBeforeCaptureSnapshotHandler handler)
                 {
                     handler.OnBeforeCaptureSnapshot();
@@ -100,7 +100,7 @@ namespace SaveLoadSystem.Core
         }
         
 
-        public void CaptureSnapshot(SaveLoadManager saveLoadManager)
+        void ISavableGroupHandler.CaptureSnapshot(SaveLoadManager saveLoadManager)
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
@@ -113,12 +113,13 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        public void OnAfterCaptureSnapshot()
+        void ISavableGroupHandler.OnAfterCaptureSnapshot()
         {
             _savedScriptableObjectsLookup.Clear();
             
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
+                // ReSharper disable once SuspiciousTypeConversion.Global
                 if (pathBasedScriptableObject is IAfterCaptureSnapshotHandler handler)
                 {
                     handler.OnAfterCaptureSnapshot();
@@ -127,13 +128,20 @@ namespace SaveLoadSystem.Core
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
+                // ReSharper disable once SuspiciousTypeConversion.Global
                 if (customAddedScriptableObject is IAfterCaptureSnapshotHandler handler)
                 {
                     handler.OnAfterCaptureSnapshot();
                 }
             }
         }
+        
+        
+        #endregion
 
+        #region Private: ISavableGroupHandler
+
+        
         private void CaptureScriptableObjectSnapshot(SaveLoadManager saveLoadManager, ScriptableObject scriptableObject)
         {
             //make sure scriptable objects are only saved once each snapshot
@@ -161,15 +169,15 @@ namespace SaveLoadSystem.Core
 
         
         #endregion
-        
-        #region RestoreSnapshot
 
-        
-        public void OnBeforeRestoreSnapshot()
+        #region #region Interface Implementation: ILoadableGroupHandler
+
+        void ILoadableGroupHandler.OnBeforeRestoreSnapshot()
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                if (pathBasedScriptableObject is ISaveMateBeforeLoadHandler handler)
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (pathBasedScriptableObject is IBeforeRestoreSnapshotHandler handler)
                 {
                     handler.OnBeforeRestoreSnapshot();
                 }
@@ -177,16 +185,17 @@ namespace SaveLoadSystem.Core
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                if (customAddedScriptableObject is ISaveMateBeforeLoadHandler handler)
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (customAddedScriptableObject is IBeforeRestoreSnapshotHandler handler)
                 {
                     handler.OnBeforeRestoreSnapshot();
                 }
             }
         }
+        
+        void ILoadableGroupHandler.OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType) { }
 
-        public void OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType) { }
-
-        public void RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
+        void ILoadableGroupHandler.RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
@@ -198,6 +207,32 @@ namespace SaveLoadSystem.Core
                 RestoreScriptableObjectSnapshot(saveLoadManager, loadType, customAddedScriptableObject);
             }
         }
+        
+        void ILoadableGroupHandler.OnAfterRestoreSnapshot()
+        {
+            foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (pathBasedScriptableObject is IAfterRestoreSnapshotHandler handler)
+                {
+                    handler.OnAfterRestoreSnapshot();
+                }
+            }
+
+            foreach (var customAddedScriptableObject in customAddedScriptableObjects)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (customAddedScriptableObject is IAfterRestoreSnapshotHandler handler)
+                {
+                    handler.OnAfterRestoreSnapshot();
+                }
+            }
+        }
+        
+        
+        #endregion
+        
+        #region Private: ILoadableGroupHandler
 
         private void RestoreScriptableObjectSnapshot(SaveLoadManager saveLoadManager, LoadType loadType, ScriptableObject scriptableObject)
         {
@@ -235,25 +270,6 @@ namespace SaveLoadSystem.Core
             targetSavable.OnLoad(loadDataHandler);
                     
             saveContext.SoftLoadedObjects.Add(scriptableObject);
-        }
-
-        public void OnAfterRestoreSnapshot()
-        {
-            foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
-            {
-                if (pathBasedScriptableObject is ISaveMateAfterLoadHandler handler)
-                {
-                    handler.OnAfterRestoreSnapshot();
-                }
-            }
-
-            foreach (var customAddedScriptableObject in customAddedScriptableObjects)
-            {
-                if (customAddedScriptableObject is ISaveMateAfterLoadHandler handler)
-                {
-                    handler.OnAfterRestoreSnapshot();
-                }
-            }
         }
         
         private bool ScenesForGlobalLeafSaveDataAreLoaded(List<SimpleSceneSaveManager> requiredScenes, LeafSaveData leafSaveData)

@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 
 namespace SaveLoadSystem.Core.UnityComponent
 {
-    public class SceneSaveManager : SimpleSceneSaveManager, IGetCaptureSnapshotGroupElementHandler, IGetRestoreSnapshotGroupElementHandler
+    public class SceneSaveManager : SimpleSceneSaveManager, INestableSaveGroupHandler, INestableLoadGroupHandler
     {
         [SerializeField] private SaveLoadManager saveLoadManager;
         [SerializeField] private LoadType defaultLoadType;
@@ -109,9 +109,12 @@ namespace SaveLoadSystem.Core.UnityComponent
 
         #endregion
 
-        public List<ICaptureSnapshotGroupElement> GetCaptureSnapshotGroupElements()
+        #region Interface Implementation: INestableGroupHandler
+
+        
+        List<ISavableGroupHandler> INestableSaveGroupHandler.GetSavableGroupHandlers()
         {
-            var captureSnapshotGroupElements = new List<ICaptureSnapshotGroupElement>();
+            var captureSnapshotGroupElements = new List<ISavableGroupHandler>();
             
             if (scriptableObjectsToSave)
             {
@@ -126,26 +129,29 @@ namespace SaveLoadSystem.Core.UnityComponent
             return captureSnapshotGroupElements;
         }
 
-        public List<IRestoreSnapshotGroupElement> GetRestoreSnapshotGroupElements()
+        List<ILoadableGroupHandler> INestableLoadGroupHandler.GetLoadableGroupHandlers()
         {
-            var restoreSnapshotGroupElements = new List<IRestoreSnapshotGroupElement>();
+            var restoreSnapshotGroupElements = new List<ILoadableGroupHandler>();
             
-            if (additionallySaveDontDestroyOnLoad)
-            {
-                restoreSnapshotGroupElements.Add(SaveLoadManager.GetDontDestroyOnLoadSceneManager());
-            }
-
             if (scriptableObjectsToSave)
             {
                 restoreSnapshotGroupElements.Add(scriptableObjectsToSave);
             }
             
+            if (additionallySaveDontDestroyOnLoad)
+            {
+                restoreSnapshotGroupElements.Add(SaveLoadManager.GetDontDestroyOnLoadSceneManager());
+            }
+            
             return restoreSnapshotGroupElements;
         }
         
+        
+        #endregion
+        
         #region SaveLoad Methods
 
-
+        
         [ContextMenu("Capture Scene Snapshot")]
         public void CaptureSceneSnapshot()
         {
@@ -213,63 +219,45 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         #endregion
         
-        #region Event System
-        
-        //TODO: maybe swap to observer for internal visibillity (preferred, cause use should not call these event methods)
+        #region Event Inheritance
 
-        public override void OnBeforeCaptureSnapshot()
+        protected override void InternalOnBeforeCaptureSnapshot()
         {
-            base.OnBeforeCaptureSnapshot();
-            
             sceneManagerEvents.onBeforeSnapshot.Invoke();
         }
         
-        public override void OnAfterCaptureSnapshot()
+        protected override void InternalOnAfterCaptureSnapshot()
         {
-            base.OnAfterCaptureSnapshot();
-            
             sceneManagerEvents.onAfterSnapshot.Invoke();
         }
         
-        public override void OnBeforeRestoreSnapshot()
+        protected override void InternalOnBeforeRestoreSnapshot()
         {
-            base.OnBeforeRestoreSnapshot();
-            
             sceneManagerEvents.onBeforeLoad.Invoke();
         }
         
-        public override void OnAfterRestoreSnapshot()
+        protected override void InternalOnAfterRestoreSnapshot()
         {
-            base.OnAfterRestoreSnapshot();
-            
             sceneManagerEvents.onAfterLoad.Invoke();
         }
         
-        internal override void OnBeforeDeleteDiskData()
+        protected override void InternalOnBeforeDeleteDiskData()
         {
-            base.OnBeforeDeleteDiskData();
-            
             sceneManagerEvents.onBeforeDeleteDiskData.Invoke();
         }
         
-        internal override void OnAfterDeleteDiskData()
+        protected override void InternalOnAfterDeleteDiskData()
         {
-            base.OnAfterDeleteDiskData();
-            
             sceneManagerEvents.onAfterDeleteDiskData.Invoke();
         }
         
-        internal override void OnBeforeWriteToDisk()
+        protected override void InternalOnBeforeWriteToDisk()
         {
-            base.OnBeforeWriteToDisk();
-            
             sceneManagerEvents.onBeforeWriteToDisk.Invoke();
         }
         
-        internal override void OnAfterWriteToDisk()
+        protected override void InternalOnAfterWriteToDisk()
         {
-            base.OnAfterWriteToDisk();
-            
             sceneManagerEvents.onAfterWriteToDisk.Invoke();
         }
 
@@ -277,6 +265,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         #endregion
         
         #region Private Classes
+        
         
         [Serializable]
         private class SceneManagerEvents
