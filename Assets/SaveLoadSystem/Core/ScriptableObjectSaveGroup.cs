@@ -100,16 +100,16 @@ namespace SaveLoadSystem.Core
         }
         
 
-        void ISavableGroupHandler.CaptureSnapshot(SaveLoadManager saveLoadManager)
+        void ISavableGroupHandler.CaptureSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext)
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                CaptureScriptableObjectSnapshot(saveLoadManager, pathBasedScriptableObject);
+                CaptureScriptableObjectSnapshot(saveLoadManager, saveFileContext, pathBasedScriptableObject);
             }
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                CaptureScriptableObjectSnapshot(saveLoadManager, customAddedScriptableObject);
+                CaptureScriptableObjectSnapshot(saveLoadManager, saveFileContext, customAddedScriptableObject);
             }
         }
         
@@ -142,7 +142,7 @@ namespace SaveLoadSystem.Core
         #region Private: ISavableGroupHandler
 
         
-        private void CaptureScriptableObjectSnapshot(SaveLoadManager saveLoadManager, ScriptableObject scriptableObject)
+        private void CaptureScriptableObjectSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, ScriptableObject scriptableObject)
         {
             //make sure scriptable objects are only saved once each snapshot
             if (!_savedScriptableObjectsLookup.Add(scriptableObject)) return;
@@ -153,18 +153,16 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
-            var saveLink = saveLoadManager.CurrentSaveFileContext;
-            
             if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                 
             var leafSaveData = new LeafSaveData();
-            var branchSaveData = saveLink.RootSaveData.ScriptableObjectSaveData;
+            var branchSaveData = saveFileContext.RootSaveData.ScriptableObjectSaveData;
             branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
 
             targetSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, RootSaveData.ScriptableObjectDataName, 
-                saveLink, saveLoadManager));
+                saveFileContext, saveLoadManager));
                 
-            saveLink.SoftLoadedObjects.Remove(scriptableObject);
+            saveFileContext.SoftLoadedObjects.Remove(scriptableObject);
         }
 
         
@@ -193,18 +191,18 @@ namespace SaveLoadSystem.Core
             }
         }
         
-        void ILoadableGroupHandler.OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType) { }
+        void ILoadableGroupHandler.OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, LoadType loadType) { }
 
-        void ILoadableGroupHandler.RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
+        void ILoadableGroupHandler.RestoreSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, LoadType loadType)
         {
             foreach (var pathBasedScriptableObject in pathBasedScriptableObjects)
             {
-                RestoreScriptableObjectSnapshot(saveLoadManager, loadType, pathBasedScriptableObject);
+                RestoreScriptableObjectSnapshot(saveLoadManager, saveFileContext, loadType, pathBasedScriptableObject);
             }
 
             foreach (var customAddedScriptableObject in customAddedScriptableObjects)
             {
-                RestoreScriptableObjectSnapshot(saveLoadManager, loadType, customAddedScriptableObject);
+                RestoreScriptableObjectSnapshot(saveLoadManager, saveFileContext, loadType, customAddedScriptableObject);
             }
         }
         
@@ -234,12 +232,11 @@ namespace SaveLoadSystem.Core
         
         #region Private: ILoadableGroupHandler
 
-        private void RestoreScriptableObjectSnapshot(SaveLoadManager saveLoadManager, LoadType loadType, ScriptableObject scriptableObject)
+        private void RestoreScriptableObjectSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, 
+            LoadType loadType, ScriptableObject scriptableObject)
         {
-            var saveContext = saveLoadManager.CurrentSaveFileContext;
-
             //return if it cant be loaded due to soft loading
-            if (loadType != LoadType.Hard && saveContext.SoftLoadedObjects.Contains(scriptableObject)) return;
+            if (loadType != LoadType.Hard && saveFileContext.SoftLoadedObjects.Contains(scriptableObject)) return;
 
             if (!saveLoadManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out var guidPath))
             {
@@ -247,7 +244,7 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
-            var rootSaveData = saveContext.RootSaveData;
+            var rootSaveData = saveFileContext.RootSaveData;
             
             // Skip the scriptable object, if it contains references to scene's, that arent active
             if (rootSaveData.ScriptableObjectSaveData.Elements.TryGetValue(guidPath, out var leafSaveData))
@@ -264,12 +261,12 @@ namespace SaveLoadSystem.Core
             
             if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
                     
-            var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, RootSaveData.ScriptableObjectDataName, 
-                saveContext, saveLoadManager);
+            var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, 
+                RootSaveData.ScriptableObjectDataName, saveFileContext, saveLoadManager);
             
             targetSavable.OnLoad(loadDataHandler);
                     
-            saveContext.SoftLoadedObjects.Add(scriptableObject);
+            saveFileContext.SoftLoadedObjects.Add(scriptableObject);
         }
         
         private bool ScenesForGlobalLeafSaveDataAreLoaded(List<SimpleSceneSaveManager> requiredScenes, LeafSaveData leafSaveData)

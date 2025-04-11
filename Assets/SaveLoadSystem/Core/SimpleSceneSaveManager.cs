@@ -236,17 +236,15 @@ namespace SaveLoadSystem.Core
             InternalOnBeforeCaptureSnapshot();
         }
         
-        void ISavableGroupHandler.CaptureSnapshot(SaveLoadManager saveLoadManager)
+        void ISavableGroupHandler.CaptureSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext)
         {
-            var saveLink = saveLoadManager.CurrentSaveFileContext;
-            
             var sceneData = new SceneData 
             {
                 ActivePrefabs = GetExistingPrefabsGuid(saveLoadManager.GuidToSavablePrefabsLookup), 
-                ActiveSaveData = CreateBranchSaveData(saveLink, saveLoadManager)
+                ActiveSaveData = CreateBranchSaveData(saveFileContext, saveLoadManager)
             };
                 
-            saveLink.RootSaveData.SetSceneData(SceneName, sceneData);
+            saveFileContext.RootSaveData.SetSceneData(SceneName, sceneData);
         }
 
         void ISavableGroupHandler.OnAfterCaptureSnapshot()
@@ -288,7 +286,7 @@ namespace SaveLoadSystem.Core
                     branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                     
                     iSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, SceneName, saveFileContext, saveLoadManager));
-                    saveLoadManager.CurrentSaveFileContext.SoftLoadedObjects.Remove(componentContainer.unityObject);
+                    saveFileContext.SoftLoadedObjects.Remove(componentContainer.unityObject);
                 }
             }
 
@@ -317,22 +315,17 @@ namespace SaveLoadSystem.Core
             InternalOnBeforeRestoreSnapshot();
         }
         
-        void ILoadableGroupHandler.OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType)
+        void ILoadableGroupHandler.OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, LoadType loadType)
         {
-            var saveLink = saveLoadManager.CurrentSaveFileContext;
-            
             var currentSavePrefabGuidGroup = GetExistingPrefabsGuid(saveLoadManager.GuidToSavablePrefabsLookup);
-            SyncScenePrefabsOnLoad(saveLink.RootSaveData, saveLoadManager.GuidToSavablePrefabsLookup, currentSavePrefabGuidGroup);
+            SyncScenePrefabsOnLoad(saveFileContext.RootSaveData, saveLoadManager.GuidToSavablePrefabsLookup, currentSavePrefabGuidGroup);
         }
 
-        void ILoadableGroupHandler.RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType)
+        void ILoadableGroupHandler.RestoreSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, LoadType loadType)
         {
-            var saveLink = saveLoadManager.CurrentSaveFileContext;
-            
-            if (saveLink.RootSaveData.TryGetSceneData(SceneName, out var sceneData))
+            if (saveFileContext.RootSaveData.TryGetSceneData(SceneName, out var sceneData))
             {
-                LoadBranchSaveData(saveLink.RootSaveData, sceneData.ActiveSaveData, loadType, 
-                    saveLoadManager.CurrentSaveFileContext, saveLoadManager);
+                LoadBranchSaveData(saveFileContext, sceneData.ActiveSaveData, loadType, saveLoadManager);
             }
         }
         
@@ -395,8 +388,8 @@ namespace SaveLoadSystem.Core
             }
         }
 
-        private void LoadBranchSaveData(RootSaveData rootSaveData, BranchSaveData branchSaveData, LoadType loadType, 
-            SaveFileContext saveFileContext, SaveLoadManager saveLoadManager)
+        private void LoadBranchSaveData(SaveFileContext saveFileContext, BranchSaveData branchSaveData, LoadType loadType, 
+            SaveLoadManager saveLoadManager)
         {
             //iterate over GameObjects with savable component
             foreach (var savable in _trackedSavables.Values)
@@ -406,7 +399,7 @@ namespace SaveLoadSystem.Core
                 foreach (var savableComponent in savable.SavableLookup)
                 {
                     //return if it cant be loaded due to soft loading
-                    var softLoadedObjects = saveLoadManager.CurrentSaveFileContext.SoftLoadedObjects;
+                    var softLoadedObjects = saveFileContext.SoftLoadedObjects;
                     if (loadType != LoadType.Hard && softLoadedObjects.Contains(savableComponent.unityObject)) return;
                     
                     var componentGuidPath = new GuidPath(savableGuidPath, savableComponent.guid);
@@ -415,7 +408,7 @@ namespace SaveLoadSystem.Core
                     {
                         if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable iSavable)) return;
                     
-                        var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, SceneName, 
+                        var loadDataHandler = new LoadDataHandler(saveFileContext.RootSaveData, instanceSaveData, loadType, SceneName, 
                             saveFileContext, saveLoadManager);
                         
                         iSavable.OnLoad(loadDataHandler);
@@ -431,49 +424,9 @@ namespace SaveLoadSystem.Core
         #region Event Inheritance
         
         
-        protected virtual void InternalOnBeforeRestoreSnapshot() {}
-        
-        protected virtual void InternalOnAfterRestoreSnapshot() {}
-        
         protected virtual void InternalOnBeforeCaptureSnapshot() {}
         
-        protected virtual void InternalOnAfterCaptureSnapshot() { }
-        
-        internal void OnBeforeDeleteDiskData()
-        {
-            foreach (var savable in _trackedSavables.Values)
-            {
-                if (savable.IsUnityNull()) continue;
-                
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeDeleteDiskHandler>();
-                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
-                {
-                    saveMateBeforeLoadHandler.OnBeforeDeleteDiskData();
-                }
-            }
-
-            InternalOnBeforeDeleteDiskData();
-        }
-
-        protected virtual void InternalOnBeforeDeleteDiskData() { }
-
-        internal void OnAfterDeleteDiskData()
-        {
-            foreach (var savable in _trackedSavables.Values)
-            {
-                if (savable.IsUnityNull()) continue;
-                
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterDeleteDiskHandler>();
-                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
-                {
-                    saveMateBeforeLoadHandler.OnAfterDeleteDiskData();
-                }
-            }
-
-            InternalOnAfterDeleteDiskData();
-        }
-        
-        protected virtual void InternalOnAfterDeleteDiskData() { }
+        protected virtual void InternalOnAfterCaptureSnapshot() {}
         
         internal void OnBeforeWriteToDisk()
         {
@@ -481,7 +434,7 @@ namespace SaveLoadSystem.Core
             {
                 if (savable.IsUnityNull()) continue;
                 
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateBeforeWriteDiskHandler>();
+                var beforeLoadHandlers = savable.GetComponents<IBeforeWriteToDiskHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
                     saveMateBeforeLoadHandler.OnBeforeWriteToDisk();
@@ -499,7 +452,7 @@ namespace SaveLoadSystem.Core
             {
                 if (savable.IsUnityNull()) continue;
                 
-                var beforeLoadHandlers = savable.GetComponents<ISaveMateAfterWriteDiskHandler>();
+                var beforeLoadHandlers = savable.GetComponents<IAfterWriteToDiskHandler>();
                 foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
                 {
                     saveMateBeforeLoadHandler.OnAfterWriteToDisk();
@@ -509,7 +462,119 @@ namespace SaveLoadSystem.Core
             InternalOnAfterWriteToDisk();
         }
         
-        protected virtual void InternalOnAfterWriteToDisk() { }
+        protected virtual void InternalOnAfterWriteToDisk() {}
+
+        internal void OnBeforeReadFromDisk()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeReadFromDiskHandlers = savable.GetComponents<IBeforeReadFromDiskHandler>();
+                foreach (var beforeReadFromDiskHandler in beforeReadFromDiskHandlers)
+                {
+                    beforeReadFromDiskHandler.OnBeforeReadFromDisk();
+                }
+            }
+
+            InternalOnBeforeReadFromDisk();
+        }
+        
+        protected virtual void InternalOnBeforeReadFromDisk() {}
+
+        internal void OnAfterReadFromDisk()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var afterReadFromDiskHandlers = savable.GetComponents<IAfterReadFromDiskHandler>();
+                foreach (var afterReadFromDiskHandler in afterReadFromDiskHandlers)
+                {
+                    afterReadFromDiskHandler.OnAfterReadFromDisk();
+                }
+            }
+
+            InternalOnAfterReadFromDisk();
+        }
+        
+        protected virtual void InternalOnAfterReadFromDisk() {}
+        
+        protected virtual void InternalOnBeforeRestoreSnapshot() {}
+        
+        protected virtual void InternalOnAfterRestoreSnapshot() {}
+
+        internal void OnBeforeDeleteSnapshotData()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeDeleteSnapshotHandlers = savable.GetComponents<IBeforeDeleteSnapshotData>();
+                foreach (var saveMateBeforeLoadHandler in beforeDeleteSnapshotHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeDeleteSnapshotData();
+                }
+            }
+
+            InternalOnBeforeDeleteSnapshotData();
+        }
+        
+        protected virtual void InternalOnBeforeDeleteSnapshotData() { }
+        
+        internal void OnAfterDeleteSnapshotData()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var afterDeleteSnapshotHandlers = savable.GetComponents<IAfterDeleteSnapshotData>();
+                foreach (var afterDeleteSnapshotHandler in afterDeleteSnapshotHandlers)
+                {
+                    afterDeleteSnapshotHandler.OnAfterDeleteSnapshotData();
+                }
+            }
+
+            InternalOnAfterDeleteSnapshotData();
+        }
+        
+        protected virtual void InternalOnAfterDeleteSnapshotData() { }
+        
+        internal void OnBeforeDeleteDiskData()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeLoadHandlers = savable.GetComponents<IBeforeDeleteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnBeforeDeleteDiskData();
+                }
+            }
+
+            InternalOnBeforeDeleteDiskData();
+        }
+
+        protected virtual void InternalOnBeforeDeleteDiskData() { }
+
+        internal void OnAfterDeleteDiskData()
+        {
+            foreach (var savable in _trackedSavables.Values)
+            {
+                if (savable.IsUnityNull()) continue;
+                
+                var beforeLoadHandlers = savable.GetComponents<IAfterDeleteDiskHandler>();
+                foreach (var saveMateBeforeLoadHandler in beforeLoadHandlers)
+                {
+                    saveMateBeforeLoadHandler.OnAfterDeleteDiskData();
+                }
+            }
+
+            InternalOnAfterDeleteDiskData();
+        }
+        
+        protected virtual void InternalOnAfterDeleteDiskData() { }
 
         
         #endregion
@@ -604,7 +669,7 @@ namespace SaveLoadSystem.Core
         string SceneName { get; }
 
         void OnBeforeCaptureSnapshot();
-        void CaptureSnapshot(SaveLoadManager saveLoadManager);
+        void CaptureSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext);
         void OnAfterCaptureSnapshot();
     }
 
@@ -618,8 +683,8 @@ namespace SaveLoadSystem.Core
         string SceneName { get; }
 
         void OnBeforeRestoreSnapshot();
-        void OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, LoadType loadType);
-        void RestoreSnapshot(SaveLoadManager saveLoadManager, LoadType loadType);
+        void OnPrepareSnapshotObjects(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, LoadType loadType);
+        void RestoreSnapshot(SaveLoadManager saveLoadManager, SaveFileContext saveFileContext, LoadType loadType);
         void OnAfterRestoreSnapshot();
     }
 }

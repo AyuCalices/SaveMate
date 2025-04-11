@@ -1,6 +1,6 @@
 namespace SaveLoadSystem.Core.EventHandler
 {
-    public interface ISaveMateBeforeDeleteDiskHandler
+    public interface IBeforeDeleteDiskHandler
     {
         void OnBeforeDeleteDiskData();
     }

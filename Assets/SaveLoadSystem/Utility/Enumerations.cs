@@ -11,14 +11,18 @@ namespace SaveLoadSystem.Utility
     
     public enum SceneManagerEventType
     {
-        OnBeforeSnapshot,
-        OnAfterSnapshot,
-        OnBeforeLoad,
-        OnAfterLoad,
-        OnBeforeDeleteDiskData,
-        OnAfterDeleteDiskData,
-        OnBeforeWriteToDisk,
-        OnAfterWriteToDisk
+        BeforeSnapshot,
+        AfterSnapshot,
+        BeforeWriteToDisk,
+        AfterWriteToDisk,
+        BeforeReadFromDisk,
+        AfterReadFromDisk,
+        BeforeRestoreSnapshot,
+        AfterRestoreSnpashot,
+        BeforeDeleteSnapshotData,
+        AfterDeleteSnapshotData,
+        BeforeDeleteDiskData,
+        AfterDeleteDiskData,
     }
     
     public enum SaveIntegrityType

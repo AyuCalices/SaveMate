@@ -8,11 +8,11 @@ using UnityEngine;
 
 namespace SaveLoadSystem.Utility
 {
-    public static class SaveLoadUtility
+    internal static class SaveLoadUtility
     {
         #region Public
 
-        public static string[] FindAllSaveFiles(ISaveConfig saveConfig)
+        internal static string[] FindAllSaveFiles(ISaveConfig saveConfig)
         {
             string directoryPath = DirectoryPath(saveConfig);
             
@@ -24,19 +24,19 @@ namespace SaveLoadSystem.Utility
             return Array.Empty<string>();
         }
         
-        public static bool SaveDataExists(ISaveConfig saveConfig, string fileName)
+        internal static bool SaveDataExists(ISaveConfig saveConfig, string fileName)
         {
             string path = SaveDataPath(saveConfig, fileName);
             return File.Exists(path);
         }
         
-        public static bool MetaDataExists(ISaveConfig saveConfig, string fileName)
+        internal static bool MetaDataExists(ISaveConfig saveConfig, string fileName)
         {
             string path = MetaDataPath(saveConfig, fileName);
             return File.Exists(path);
         }
         
-        public static async Task WriteDataAsync<T>(ISaveConfig saveConfig, ISaveStrategy saveStrategy, string fileName, 
+        internal static async Task WriteDataAsync<T>(ISaveConfig saveConfig, ISaveStrategy saveStrategy, string fileName, 
             SaveMetaData saveMetaData, T saveData) where T : class
         {
             if (!Directory.Exists(DirectoryPath(saveConfig)))
@@ -72,7 +72,7 @@ namespace SaveLoadSystem.Utility
             }
         }
         
-        public static async Task DeleteAsync(ISaveConfig saveConfig, string fileName)
+        internal static async Task DeleteAsync(ISaveConfig saveConfig, string fileName)
         {
             var saveDataPath = SaveDataPath(saveConfig, fileName);
             var metaDataPath = MetaDataPath(saveConfig, fileName);
@@ -88,13 +88,13 @@ namespace SaveLoadSystem.Utility
             await Task.Run(() => File.Delete(metaDataPath));
         }
 
-        public static async Task<SaveMetaData> ReadMetaDataAsync(ISaveStrategy saveStrategy, ISaveConfig saveConfig, string fileName)
+        internal static async Task<SaveMetaData> ReadMetaDataAsync(ISaveStrategy saveStrategy, ISaveConfig saveConfig, string fileName)
         {
             var metaDataPath = MetaDataPath(saveConfig, fileName);
             return await ReadDataAsync<SaveMetaData>(saveStrategy, metaDataPath);
         }
         
-        public static async Task<RootSaveData> ReadSaveDataSecureAsync(ISaveStrategy saveStrategy, SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
+        internal static async Task<RootSaveData> ReadSaveDataSecureAsync(ISaveStrategy saveStrategy, SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
         {
             var metaData = await ReadMetaDataAsync(saveStrategy, saveConfig, fileName);
             if (metaData == null) return null;
@@ -115,7 +115,7 @@ namespace SaveLoadSystem.Utility
 
         private static string MetaDataPath(ISaveConfig saveConfig, string fileName) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath, $"{fileName}.{saveConfig.MetaDataExtensionName}");
 
-        private static string SaveDataPath(ISaveConfig saveConfig, string fileName) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath, $"{fileName}.{saveConfig.ExtensionName}");
+        private static string SaveDataPath(ISaveConfig saveConfig, string fileName) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath, $"{fileName}.{saveConfig.SaveDataExtensionName}");
 
         private static bool IsValidVersion(SaveMetaData metaData, SaveVersion currentVersion)
         {
@@ -178,7 +178,7 @@ namespace SaveLoadSystem.Utility
         /// </summary>
         /// <param name="length">The length of the ID to generate. Default is 5.</param>
         /// <returns>A random string ID.</returns>
-        public static string GenerateId(int length = 5)
+        internal static string GenerateId(int length = 5)
         {
             const string allowedChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789";
             
@@ -192,7 +192,7 @@ namespace SaveLoadSystem.Utility
             return new string(id);
         }
         
-        public static void CheckUniqueGuidOnInspectorInput<T>(
+        internal static void CheckUniqueGuidOnInspectorInput<T>(
             IEnumerable<T> items,
             Func<T, UnityEngine.Object> getUnityObject,
             Func<T, string> getGuid,

@@ -1,6 +1,6 @@
 namespace SaveLoadSystem.Core.EventHandler
 {
-    public interface ISaveMateAfterDeleteDiskHandler
+    public interface IAfterDeleteDiskHandler
     {
         void OnAfterDeleteDiskData();
     }

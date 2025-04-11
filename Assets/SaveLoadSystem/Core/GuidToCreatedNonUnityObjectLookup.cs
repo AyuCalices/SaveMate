@@ -78,5 +78,11 @@ namespace SaveLoadSystem.Core
         {
             _guidToCreatedNonUnityObjectLookup[guidPath] = new WeakReference<object>(obj);
         }
+
+        public void CLear()
+        {
+            _guidToCreatedNonUnityObjectLookup.Clear();
+            _hardResetLookup.Clear();
+        }
     }
 }

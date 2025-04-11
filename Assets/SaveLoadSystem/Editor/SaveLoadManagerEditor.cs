@@ -36,7 +36,7 @@ namespace SaveLoadSystem.Editor
 
                 if (Directory.Exists(path))
                 {
-                    DeleteFilesAtPath(path, saveLoadManager.ExtensionName);
+                    DeleteFilesAtPath(path, saveLoadManager.SaveDataExtensionName);
                     DeleteFilesAtPath(path, saveLoadManager.MetaDataExtensionName);
                 }
                 else
@@ -47,12 +47,12 @@ namespace SaveLoadSystem.Editor
             
             if (GUILayout.Button("Simple Save"))
             {
-                saveLoadManager.SimpleSaveActiveScenes();
+                saveLoadManager.SaveActiveScenes();
             }
             
             if (GUILayout.Button("Simple Load"))
             {
-                saveLoadManager.SimpleLoadActiveScenes();
+                saveLoadManager.LoadActiveScenes();
             }
         }
     

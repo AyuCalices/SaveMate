@@ -397,14 +397,8 @@ namespace SaveLoadSystem.Core
                 if (jObject != null)
                 {
                     reference = jObject.ToObject(type);
-                    if (reference != null)
-                    {
-                        _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
-                        return true;
-                    }
-
-                    Debug.LogError($"Failed to convert JObject to {type} for GUID path: {guidPath.ToString()}. The resulting object is null.");
-                    return false;
+                    _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);
+                    return true;
                 }
 
                 Debug.LogError($"Wasn't able to find the object of type '{type.FullName}' for GUID path '{guidPath.ToString()}' inside the save data!");

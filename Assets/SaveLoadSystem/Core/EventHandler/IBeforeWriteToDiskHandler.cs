@@ -1,6 +1,6 @@
 namespace SaveLoadSystem.Core.EventHandler
 {
-    public interface ISaveMateBeforeWriteDiskHandler
+    public interface IBeforeWriteToDiskHandler
     {
         void OnBeforeWriteToDisk();
     }

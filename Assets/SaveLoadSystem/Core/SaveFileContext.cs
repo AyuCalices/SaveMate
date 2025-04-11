@@ -17,7 +17,6 @@ namespace SaveLoadSystem.Core
 {
     public enum LoadType { Hard, Soft }
     
-    //TODO: implement a system to add things similar to the PlayerPrefs, but with reference support
     public class SaveFileContext
     {
         public string FileName { get; }
@@ -68,7 +67,7 @@ namespace SaveLoadSystem.Core
         #region Public Methods
         
         
-        public void SetCustomMetaData(string identifier, object data)
+        internal void SaveCustomMetaData(string identifier, object data)
         {
             _asyncQueue.Enqueue(() =>
             {
@@ -76,35 +75,36 @@ namespace SaveLoadSystem.Core
                 return Task.CompletedTask;
             });
         }
-
-        public T GetCustomMetaData<T>(string identifier)
+        
+        internal bool TryLoadCustomMetaData<T>(string identifier, out T obj)
         {
-            if (_customMetaData?[identifier] == null)
+            obj = default;
+
+            if (_customMetaData == null)
             {
-                return default;
+                Debug.LogError($"{nameof(SaveFileContext)} not Initialized!");
             }
             
-            return _customMetaData[identifier].ToObject<T>();
-        }
-        
-        public void SaveActiveScenes()
-        {
-            CaptureSnapshotForActiveScenes();
-            WriteToDisk();
+            if (_customMetaData[identifier] == null)
+            {
+                Debug.LogError($"Wasn't able to find the object of type '{typeof(T).FullName}' for identifier '{identifier}' inside the meta data!");
+                return false;
+            }
+
+            try
+            {
+                obj = _customMetaData[identifier].ToObject<T>();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error serializing object of type '{typeof(T).FullName}' using '{nameof(Newtonsoft.Json)}'. " +
+                               $"Exception: {e.GetType().Name} - {e.Message}\n{e.StackTrace}");
+                throw;
+            }
         }
 
-        public void Save(params ISavableGroup[] savableGroups)
-        {
-            CaptureSnapshot(savableGroups.ToArray());
-            WriteToDisk();
-        }
-        
-        public void CaptureSnapshotForActiveScenes()
-        {
-            CaptureSnapshot(_saveLoadManager.GetTrackedSaveSceneManagers().Cast<ISavableGroup>().ToArray());
-        }
-
-        public void CaptureSnapshot(params ISavableGroup[] savableGroups)
+        internal void CaptureSnapshot(params ISavableGroup[] savableGroups)
         {
             _asyncQueue.Enqueue(() =>
             {
@@ -132,13 +132,13 @@ namespace SaveLoadSystem.Core
             });
         }
         
-        public void WriteToDisk()
+        internal void WriteToDisk()
         {
             _asyncQueue.Enqueue(async () =>
             {
                 if (!HasPendingData)
                 {
-                    Debug.LogWarning("Aborted attempt to save without pending data!");
+                    Debug.LogWarning($"[Save Mate] {nameof(WriteToDisk)} aborted: No pending data to save!");
                     return;
                 }
                 
@@ -158,32 +158,47 @@ namespace SaveLoadSystem.Core
 
                 OnAfterWriteToDisk();
                 
-                Debug.Log("Write to disk completed!");
+                Debug.Log($"[Save Mate] {nameof(WriteToDisk)} successful!");
             });
         }
         
-        public void LoadActiveScenes(LoadType loadType)
+        internal void ReadFromDisk()
         {
-            ReadFromDisk();
-            RestoreSnapshotForActiveScenes(loadType);
-        }
-        
-        public void Load(LoadType loadType, params ILoadableGroup[] loadableGroups)
-        {
-            ReadFromDisk();
-            RestoreSnapshot(loadType, loadableGroups);
+            _asyncQueue.Enqueue(async () =>
+            {
+                if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
+                    || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
+                
+                //only load saveData, if it is persistent and not initialized
+                if (IsPersistent && RootSaveData == null)
+                {
+                    OnBeforeReadFromDisk();
+                    
+                    RootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    GuidToCreatedNonUnityObjectLookup = new GuidToCreatedNonUnityObjectLookup();
+                    SavedNonUnityObjectToGuidLookup = new ConditionalWeakTable<object, string>();
+                    SoftLoadedObjects = new HashSet<object>();
+                    
+                    OnAfterReadFromDisk();
+                    
+                    Debug.Log($"[Save Mate] {nameof(ReadFromDisk)} successful!");
+                }
+                else
+                {
+                    Debug.LogWarning($"[Save Mate] '{nameof(ReadFromDisk)}' aborted: No persistent save data found on disk.");
+                }
+            });
         }
 
-        public void RestoreSnapshotForActiveScenes(LoadType loadType)
-        {
-            RestoreSnapshot(loadType, _saveLoadManager.GetTrackedSaveSceneManagers().Cast<ILoadableGroup>().ToArray());
-        }
-
-        public void RestoreSnapshot(LoadType loadType, params ILoadableGroup[] loadableGroups)
+        internal void RestoreSnapshot(LoadType loadType, params ILoadableGroup[] loadableGroups)
         {
             _asyncQueue.Enqueue(() =>
             {
-                if (RootSaveData == null) return Task.CompletedTask;
+                if (RootSaveData == null)
+                {
+                    Debug.LogWarning($"[Save Mate] {nameof(RestoreSnapshot)} aborted: No save data found in memory. Ensure '{nameof(ReadFromDisk)}' was called before attempting to load.");
+                    return Task.CompletedTask;
+                }
 
                 //convert into required handlers
                 var combinedLoadGroupHandlers = new List<ILoadableGroupHandler>();
@@ -193,7 +208,8 @@ namespace SaveLoadSystem.Core
                     
                     if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(loadableGroupHandler.SceneName).isLoaded)
                     {
-                        Debug.LogWarning($"Tried to apply a snapshot to the unloaded scene '{loadableGroupHandler.SceneName}'");
+                        Debug.LogWarning($"[Save Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{loadableGroupHandler.SceneName}': scene is not currently loaded.");
+                        continue;
                     }
                     
                     if (loadableGroup is INestableLoadGroupHandler getRestoreSnapshotHandler)
@@ -208,95 +224,27 @@ namespace SaveLoadSystem.Core
             });
         }
 
-        public void ReadFromDisk()
-        {
-            _asyncQueue.Enqueue(async () =>
-            {
-                if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
-                    || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
-                
-                //only load saveData, if it is persistent and not initialized
-                if (IsPersistent && RootSaveData == null)
-                {
-                    RootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
-                    GuidToCreatedNonUnityObjectLookup = new GuidToCreatedNonUnityObjectLookup();
-                    SavedNonUnityObjectToGuidLookup = new ConditionalWeakTable<object, string>();
-                    SoftLoadedObjects = new HashSet<object>();
-                    
-                    Debug.Log("Read from disk completed");
-                }
-            });
-        }
-        
-        public void ReloadScenes()
-        {
-            ReloadScenes(_saveLoadManager.GetTrackedSaveSceneManagers().ToArray());
-        }
-
-        /// <summary>
-        /// data will be applied after awake
-        /// </summary>
-        /// <param name="loadType"></param>
-        /// <param name="scenesToLoad"></param>
-        public void ReloadScenes(params SimpleSceneSaveManager[] scenesToLoad)
-        {
-            _asyncQueue.Enqueue(async () =>
-            {
-                //buffer save paths, because they will be null later on the scene array
-                var sceneNamesToLoad = new string[scenesToLoad.Length];
-                for (var index = 0; index < scenesToLoad.Length; index++)
-                {
-                    sceneNamesToLoad[index] = scenesToLoad[index].SceneName;
-                }
-
-                //async reload scene and continue, when all are loaded
-                var loadMode = SceneManager.sceneCount == 1 ? LoadSceneMode.Single : LoadSceneMode.Additive;
-                if (SceneManager.sceneCount > 1)
-                {
-                    var unloadTasks = sceneNamesToLoad.Select(UnloadSceneAsync).ToList();
-                    await Task.WhenAll(unloadTasks);
-                }
-                
-                var loadTasks = sceneNamesToLoad.Select(name => LoadSceneAsync(name, loadMode)).ToList();
-                await Task.WhenAll(loadTasks);
-            });
-        }
-        
-        //TODO: rework deletion (savable groups)
-        public void DeleteActiveSceneSnapshotData()
-        {
-            DeleteSnapshotData(_saveLoadManager.GetTrackedSaveSceneManagers().ToArray());
-        }
-
-        //TODO: rework deletion (savable groups)
-        public void DeleteSnapshotData(params SimpleSceneSaveManager[] saveSceneManagersToWipe)
+        internal void DeleteSnapshotData()
         {
             _asyncQueue.Enqueue(() =>
             {
                 if (RootSaveData == null) return Task.CompletedTask;
+                
+                OnBeforeDeleteSnapshotData();
 
-                foreach (var saveSceneManager in saveSceneManagersToWipe)
-                {
-                    RootSaveData.RemoveSceneData(saveSceneManager.SceneName);
-                }
+                RootSaveData.Clear();
+                GuidToCreatedNonUnityObjectLookup.CLear();
+                SavedNonUnityObjectToGuidLookup.Clear();
+                SoftLoadedObjects.Clear();
                 HasPendingData = true;
+                
+                OnAfterDeleteSnapshotData();
 
                 return Task.CompletedTask;
             });
         }
         
-        //TODO: rework deletion (savable groups)
-        public void Delete(params SimpleSceneSaveManager[] saveSceneManagersToWipe)
-        {
-            foreach (var saveSceneManager in saveSceneManagersToWipe)
-            {
-                DeleteSnapshotData(saveSceneManager);
-            }
-
-            DeleteDiskData();
-        }
-        
-        public void DeleteDiskData()
+        internal void DeleteDiskData()
         {
             _asyncQueue.Enqueue(async () =>
             {
@@ -316,14 +264,29 @@ namespace SaveLoadSystem.Core
         #endregion
 
         #region Private Events
+
+        private void OnBeforeCaptureSnapshot(List<ISavableGroupHandler> savableGroupHandlers)
+        {
+            foreach (var savableGroupHandler in savableGroupHandlers)
+            {
+                savableGroupHandler.OnBeforeCaptureSnapshot();
+            }
+        }
         
+        private void OnAfterCaptureSnapshot(List<ISavableGroupHandler> savableGroupHandlers)
+        {
+            foreach (var savableGroupHandler in savableGroupHandlers)
+            {
+                savableGroupHandler.OnAfterCaptureSnapshot();
+            }
+        }
         
         private void OnBeforeWriteToDisk()
         {
             foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
                 // ReSharper disable once SuspiciousTypeConversion.Global
-                if (scriptableObjectSavable.unityObject is ISaveMateBeforeWriteDiskHandler eventHandler)
+                if (scriptableObjectSavable.unityObject is IBeforeWriteToDiskHandler eventHandler)
                 {
                     eventHandler.OnBeforeWriteToDisk();
                 }
@@ -340,7 +303,7 @@ namespace SaveLoadSystem.Core
             foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
                 // ReSharper disable once SuspiciousTypeConversion.Global
-                if (scriptableObjectSavable.unityObject is ISaveMateAfterWriteDiskHandler eventHandler)
+                if (scriptableObjectSavable.unityObject is IAfterWriteToDiskHandler eventHandler)
                 {
                     eventHandler.OnAfterWriteToDisk();
                 }
@@ -351,13 +314,97 @@ namespace SaveLoadSystem.Core
                 trackedSaveSceneManager.OnAfterWriteToDisk();
             }
         }
+        
+        private void OnBeforeReadFromDisk()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is IBeforeReadFromDiskHandler eventHandler)
+                {
+                    eventHandler.OnBeforeReadFromDisk();
+                }
+            }
+
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
+            {
+                trackedSaveSceneManager.OnBeforeReadFromDisk();
+            }
+        }
+
+        private void OnAfterReadFromDisk()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is IAfterReadFromDiskHandler eventHandler)
+                {
+                    eventHandler.OnAfterReadFromDisk();
+                }
+            }
+            
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
+            {
+                trackedSaveSceneManager.OnAfterReadFromDisk();
+            }
+        }
+        
+        private void OnBeforeRestoreSnapshot(List<ILoadableGroupHandler> loadableGroupHandlers)
+        {
+            foreach (var loadableGroupHandler in loadableGroupHandlers)
+            {
+                loadableGroupHandler.OnBeforeRestoreSnapshot();
+            }
+        }
+        
+        private void OnAfterRestoreSnapshot(List<ILoadableGroupHandler> loadableGroupHandlers)
+        {
+            foreach (var loadableGroupHandler in loadableGroupHandlers)
+            {
+                loadableGroupHandler.OnAfterRestoreSnapshot();
+            }
+        }
+
+        private void OnBeforeDeleteSnapshotData()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is IBeforeDeleteSnapshotData eventHandler)
+                {
+                    eventHandler.OnBeforeDeleteSnapshotData();
+                }
+            }
+            
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
+            {
+                trackedSaveSceneManager.OnBeforeDeleteSnapshotData();
+            }
+        }
+
+        private void OnAfterDeleteSnapshotData()
+        {
+            foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (scriptableObjectSavable.unityObject is IAfterDeleteSnapshotData eventHandler)
+                {
+                    eventHandler.OnAfterDeleteSnapshotData();
+                }
+            }
+            
+            foreach (var trackedSaveSceneManager in _saveLoadManager.GetTrackedSaveSceneManagers())
+            {
+                trackedSaveSceneManager.OnAfterDeleteSnapshotData();
+            }
+        }
 
         private void OnBeforeDeleteDiskData()
         {
             foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
                 // ReSharper disable once SuspiciousTypeConversion.Global
-                if (scriptableObjectSavable.unityObject is ISaveMateBeforeDeleteDiskHandler eventHandler)
+                if (scriptableObjectSavable.unityObject is IBeforeDeleteDiskHandler eventHandler)
                 {
                     eventHandler.OnBeforeDeleteDiskData();
                 }
@@ -374,7 +421,7 @@ namespace SaveLoadSystem.Core
             foreach (var scriptableObjectSavable in _assetRegistry.ScriptableObjectSavables)
             {
                 // ReSharper disable once SuspiciousTypeConversion.Global
-                if (scriptableObjectSavable.unityObject is ISaveMateAfterDeleteDiskHandler eventHandler)
+                if (scriptableObjectSavable.unityObject is IAfterDeleteDiskHandler eventHandler)
                 {
                     eventHandler.OnAfterDeleteDiskData();
                 }
@@ -397,24 +444,15 @@ namespace SaveLoadSystem.Core
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             
-            //on before capture snapshot event
-            foreach (var savableGroupHandler in savableGroupHandlers)
-            {
-                savableGroupHandler.OnBeforeCaptureSnapshot();
-            }
+            OnBeforeCaptureSnapshot(savableGroupHandlers);
 
-            //perform capture snapshot
             foreach (var savableGroupHandler in savableGroupHandlers)
             {
-                savableGroupHandler.CaptureSnapshot(_saveLoadManager);
+                savableGroupHandler.CaptureSnapshot(_saveLoadManager, this);
             }
             HasPendingData = true;
             
-            //on after capture snapshot event
-            foreach (var savableGroupHandler in savableGroupHandlers)
-            {
-                savableGroupHandler.OnAfterCaptureSnapshot();
-            }
+            OnAfterCaptureSnapshot(savableGroupHandlers);
             
             stopwatch.Stop();
             if (savableGroupHandlers.Count == 0)
@@ -436,30 +474,23 @@ namespace SaveLoadSystem.Core
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             
-            //on before restore snapshot event
-            foreach (var loadableGroupHandler in loadableGroupHandlers)
-            {
-                loadableGroupHandler.OnBeforeRestoreSnapshot();
-            }
+            OnBeforeRestoreSnapshot(loadableGroupHandlers);
             
-            //perform restore snapshot
             GuidToCreatedNonUnityObjectLookup.PrepareLoading();
+            
             foreach (var loadableGroupHandler in loadableGroupHandlers)
             {
-                loadableGroupHandler.OnPrepareSnapshotObjects(_saveLoadManager, loadType);
+                loadableGroupHandler.OnPrepareSnapshotObjects(_saveLoadManager, this, loadType);
             }
             
             foreach (var loadableGroupHandler in loadableGroupHandlers)
             {
-                loadableGroupHandler.RestoreSnapshot(_saveLoadManager, loadType);
+                loadableGroupHandler.RestoreSnapshot(_saveLoadManager, this, loadType);
             }
+            
             GuidToCreatedNonUnityObjectLookup.CompleteLoading();
             
-            //on after restore snapshot event
-            foreach (var loadableGroupHandler in loadableGroupHandlers)
-            {
-                loadableGroupHandler.OnAfterRestoreSnapshot();
-            }
+            OnAfterRestoreSnapshot(loadableGroupHandlers);
             
             stopwatch.Stop();
             if (loadableGroupHandlers.Count == 0)
@@ -481,6 +512,28 @@ namespace SaveLoadSystem.Core
 
         #region Private Scene Loading
 
+        
+        //TODO: test
+        internal async void ReloadScenes(params SimpleSceneSaveManager[] scenesToLoad)
+        {
+            //buffer save paths, because they will be null later on the scene array
+            var sceneNamesToLoad = new string[scenesToLoad.Length];
+            for (var index = 0; index < scenesToLoad.Length; index++)
+            {
+                sceneNamesToLoad[index] = scenesToLoad[index].SceneName;
+            }
+
+            //async reload scene and continue, when all are loaded
+            var loadMode = SceneManager.sceneCount == 1 ? LoadSceneMode.Single : LoadSceneMode.Additive;
+            if (SceneManager.sceneCount > 1)
+            {
+                var unloadTasks = sceneNamesToLoad.Select(UnloadSceneAsync).ToList();
+                await Task.WhenAll(unloadTasks);
+            }
+                
+            var loadTasks = sceneNamesToLoad.Select(name => LoadSceneAsync(name, loadMode)).ToList();
+            await Task.WhenAll(loadTasks);
+        }
         
         private Task<AsyncOperation> UnloadSceneAsync(string sceneName)
         {

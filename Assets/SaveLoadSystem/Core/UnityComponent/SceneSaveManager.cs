@@ -74,15 +74,15 @@ namespace SaveLoadSystem.Core.UnityComponent
                     CaptureSceneSnapshot();
                     break;
                 case SaveSceneManagerDestroyType.SnapshotActiveScenes:
-                    saveLoadManager.CurrentSaveFileContext.CaptureSnapshotForActiveScenes();
+                    saveLoadManager.CaptureSnapshotActiveScenes();
                     break;
                 case SaveSceneManagerDestroyType.SaveSingleScene:
-                    saveLoadManager.CurrentSaveFileContext.Save(this);
+                    saveLoadManager.Save(this);
                     break;
                 case SaveSceneManagerDestroyType.SaveActiveScenes:
                     if (!_hasSavedActiveScenesThisFrame)
                     {
-                        saveLoadManager.CurrentSaveFileContext.SaveActiveScenes();
+                        saveLoadManager.SaveActiveScenes();
                         _hasSavedActiveScenesThisFrame = true;
                     }
                     break;
@@ -102,7 +102,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             if (saveActiveScenesOnApplicationQuit && !_hasSavedActiveScenesThisFrame)
             {
-                saveLoadManager.CurrentSaveFileContext.SaveActiveScenes();
+                saveLoadManager.SaveActiveScenes();
                 _hasSavedActiveScenesThisFrame = true;
             }
         }
@@ -155,59 +155,59 @@ namespace SaveLoadSystem.Core.UnityComponent
         [ContextMenu("Capture Scene Snapshot")]
         public void CaptureSceneSnapshot()
         {
-            saveLoadManager.CurrentSaveFileContext.CaptureSnapshot(this);
+            saveLoadManager.CaptureSnapshot(this);
         }
 
         [ContextMenu("Write To Disk")]
         public void WriteToDisk()
         {
-            saveLoadManager.CurrentSaveFileContext.WriteToDisk();
+            saveLoadManager.WriteToDisk();
         }
         
         [ContextMenu("Save Scene")]
         public void SaveScene()
         {
-            saveLoadManager.CurrentSaveFileContext.Save(this);
+            saveLoadManager.Save(this);
         }
 
         [ContextMenu("Restore Scene Snapshot")]
         public void RestoreSceneSnapshot()
         {
-            saveLoadManager.CurrentSaveFileContext.RestoreSnapshot(defaultLoadType, this);
+            saveLoadManager.RestoreSnapshot(defaultLoadType, this);
         }
         
         public void RestoreSceneSnapshot(LoadType loadType)
         {
-            saveLoadManager.CurrentSaveFileContext.RestoreSnapshot(loadType, this);
+            saveLoadManager.RestoreSnapshot(loadType, this);
         }
         
         [ContextMenu("Load Scene")]
         public void LoadScene()
         {
-            saveLoadManager.CurrentSaveFileContext.Load(defaultLoadType, this);
+            saveLoadManager.Load(defaultLoadType, this);
         }
         
         public void LoadScene(LoadType loadType)
         {
-            saveLoadManager.CurrentSaveFileContext.Load(loadType, this);
+            saveLoadManager.Load(loadType, this);
         }
         
         [ContextMenu("Delete Scene Snapshot Data")]
         public void DeleteSceneSnapshotData()
         {
-            saveLoadManager.CurrentSaveFileContext.DeleteSnapshotData(this);
+            saveLoadManager.DeleteSnapshotData(SceneName);
         }
         
-        [ContextMenu("Delete Scene Data")]
-        public void DeleteSceneData()
+        [ContextMenu("Delete Scene Disk Data")]
+        public void DeleteSceneDiskData()
         {
-            saveLoadManager.CurrentSaveFileContext.Delete(this);
+            saveLoadManager.DeleteDiskData(SceneName);
         }
 
         [ContextMenu("Reload Scene")]
         public void ReloadScene()
         {
-            saveLoadManager.CurrentSaveFileContext.ReloadScenes(this);
+            saveLoadManager.ReloadScenes(this);
         }
         
         [ContextMenu("UnloadScene")]
@@ -223,32 +223,12 @@ namespace SaveLoadSystem.Core.UnityComponent
 
         protected override void InternalOnBeforeCaptureSnapshot()
         {
-            sceneManagerEvents.onBeforeSnapshot.Invoke();
+            sceneManagerEvents.onBeforeCaptureSnapshot.Invoke();
         }
         
         protected override void InternalOnAfterCaptureSnapshot()
         {
-            sceneManagerEvents.onAfterSnapshot.Invoke();
-        }
-        
-        protected override void InternalOnBeforeRestoreSnapshot()
-        {
-            sceneManagerEvents.onBeforeLoad.Invoke();
-        }
-        
-        protected override void InternalOnAfterRestoreSnapshot()
-        {
-            sceneManagerEvents.onAfterLoad.Invoke();
-        }
-        
-        protected override void InternalOnBeforeDeleteDiskData()
-        {
-            sceneManagerEvents.onBeforeDeleteDiskData.Invoke();
-        }
-        
-        protected override void InternalOnAfterDeleteDiskData()
-        {
-            sceneManagerEvents.onAfterDeleteDiskData.Invoke();
+            sceneManagerEvents.onAfterCaptureSnapshot.Invoke();
         }
         
         protected override void InternalOnBeforeWriteToDisk()
@@ -260,6 +240,46 @@ namespace SaveLoadSystem.Core.UnityComponent
         {
             sceneManagerEvents.onAfterWriteToDisk.Invoke();
         }
+        
+        protected override void InternalOnBeforeReadFromDisk()
+        {
+            sceneManagerEvents.onBeforeReadFromDisk.Invoke();
+        }
+        
+        protected override void InternalOnAfterReadFromDisk()
+        {
+            sceneManagerEvents.onAfterReadFromDisk.Invoke();
+        }
+        
+        protected override void InternalOnBeforeRestoreSnapshot()
+        {
+            sceneManagerEvents.onBeforeRestoreSnapshot.Invoke();
+        }
+        
+        protected override void InternalOnAfterRestoreSnapshot()
+        {
+            sceneManagerEvents.onAfterRestoreSnapshot.Invoke();
+        }
+        
+        protected override void InternalOnBeforeDeleteSnapshotData()
+        {
+            sceneManagerEvents.onBeforeDeleteSnapshotData.Invoke();
+        }
+        
+        protected override void InternalOnAfterDeleteSnapshotData()
+        {
+            sceneManagerEvents.onAfterDeleteSnapshotData.Invoke();
+        }
+        
+        protected override void InternalOnBeforeDeleteDiskData()
+        {
+            sceneManagerEvents.onBeforeDeleteDiskData.Invoke();
+        }
+        
+        protected override void InternalOnAfterDeleteDiskData()
+        {
+            sceneManagerEvents.onAfterDeleteDiskData.Invoke();
+        }
 
         
         #endregion
@@ -270,17 +290,23 @@ namespace SaveLoadSystem.Core.UnityComponent
         [Serializable]
         private class SceneManagerEvents
         {
-            public UnityEvent onBeforeSnapshot;
-            public UnityEvent onAfterSnapshot;
-            
-            public UnityEvent onBeforeLoad;
-            public UnityEvent onAfterLoad;
-            
-            public UnityEvent onBeforeDeleteDiskData;
-            public UnityEvent onAfterDeleteDiskData;
+            public UnityEvent onBeforeCaptureSnapshot;
+            public UnityEvent onAfterCaptureSnapshot;
             
             public UnityEvent onBeforeWriteToDisk;
             public UnityEvent onAfterWriteToDisk;
+
+            public UnityEvent onBeforeReadFromDisk;
+            public UnityEvent onAfterReadFromDisk;
+            
+            public UnityEvent onBeforeRestoreSnapshot;
+            public UnityEvent onAfterRestoreSnapshot;
+            
+            public UnityEvent onBeforeDeleteSnapshotData;
+            public UnityEvent onAfterDeleteSnapshotData;
+            
+            public UnityEvent onBeforeDeleteDiskData;
+            public UnityEvent onAfterDeleteDiskData;
         }
         
         public void RegisterAction(UnityAction action, SceneManagerEventType firstEventType, params SceneManagerEventType[] additionalEventTypes)
@@ -289,30 +315,48 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 switch (selectionViewEventType)
                 {
-                    case SceneManagerEventType.OnBeforeSnapshot:
-                        sceneManagerEvents.onBeforeSnapshot.AddListener(action);
+                    case SceneManagerEventType.BeforeSnapshot:
+                        sceneManagerEvents.onBeforeCaptureSnapshot.AddListener(action);
                         break;
-                    case SceneManagerEventType.OnAfterSnapshot:
-                        sceneManagerEvents.onAfterSnapshot.AddListener(action);
+                    case SceneManagerEventType.AfterSnapshot:
+                        sceneManagerEvents.onAfterCaptureSnapshot.AddListener(action);
                         break;
-                    case SceneManagerEventType.OnBeforeLoad:
-                        sceneManagerEvents.onBeforeLoad.AddListener(action);
-                        break;
-                    case SceneManagerEventType.OnAfterLoad:
-                        sceneManagerEvents.onAfterLoad.AddListener(action);
-                        break;
-                    case SceneManagerEventType.OnBeforeDeleteDiskData:
-                        sceneManagerEvents.onBeforeDeleteDiskData.AddListener(action);
-                        break;
-                    case SceneManagerEventType.OnAfterDeleteDiskData:
-                        sceneManagerEvents.onAfterDeleteDiskData.AddListener(action);
-                        break;
-                    case SceneManagerEventType.OnBeforeWriteToDisk:
+                    
+                    case SceneManagerEventType.BeforeWriteToDisk:
                         sceneManagerEvents.onBeforeWriteToDisk.AddListener(action);
                         break;
-                    case SceneManagerEventType.OnAfterWriteToDisk:
+                    case SceneManagerEventType.AfterWriteToDisk:
                         sceneManagerEvents.onAfterWriteToDisk.AddListener(action);
                         break;
+                    
+                    case SceneManagerEventType.BeforeReadFromDisk:
+                        sceneManagerEvents.onBeforeReadFromDisk.AddListener(action);
+                        break;
+                    case SceneManagerEventType.AfterReadFromDisk:
+                        sceneManagerEvents.onAfterReadFromDisk.AddListener(action);
+                        break;
+                    
+                    case SceneManagerEventType.BeforeRestoreSnapshot:
+                        sceneManagerEvents.onBeforeRestoreSnapshot.AddListener(action);
+                        break;
+                    case SceneManagerEventType.AfterRestoreSnpashot:
+                        sceneManagerEvents.onAfterRestoreSnapshot.AddListener(action);
+                        break;
+                    
+                    case SceneManagerEventType.BeforeDeleteSnapshotData:
+                        sceneManagerEvents.onBeforeDeleteSnapshotData.AddListener(action);
+                        break;
+                    case SceneManagerEventType.AfterDeleteSnapshotData:
+                        sceneManagerEvents.onAfterDeleteSnapshotData.AddListener(action);
+                        break;
+                    
+                    case SceneManagerEventType.BeforeDeleteDiskData:
+                        sceneManagerEvents.onBeforeDeleteDiskData.AddListener(action);
+                        break;
+                    case SceneManagerEventType.AfterDeleteDiskData:
+                        sceneManagerEvents.onAfterDeleteDiskData.AddListener(action);
+                        break;
+                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -325,30 +369,48 @@ namespace SaveLoadSystem.Core.UnityComponent
             {
                 switch (selectionViewEventType)
                 {
-                    case SceneManagerEventType.OnBeforeSnapshot:
-                        sceneManagerEvents.onBeforeSnapshot.RemoveListener(action);
+                    case SceneManagerEventType.BeforeSnapshot:
+                        sceneManagerEvents.onBeforeCaptureSnapshot.RemoveListener(action);
                         break;
-                    case SceneManagerEventType.OnAfterSnapshot:
-                        sceneManagerEvents.onAfterSnapshot.RemoveListener(action);
+                    case SceneManagerEventType.AfterSnapshot:
+                        sceneManagerEvents.onAfterCaptureSnapshot.RemoveListener(action);
                         break;
-                    case SceneManagerEventType.OnBeforeLoad:
-                        sceneManagerEvents.onBeforeLoad.RemoveListener(action);
-                        break;
-                    case SceneManagerEventType.OnAfterLoad:
-                        sceneManagerEvents.onAfterLoad.RemoveListener(action);
-                        break;
-                    case SceneManagerEventType.OnBeforeDeleteDiskData:
-                        sceneManagerEvents.onBeforeDeleteDiskData.RemoveListener(action);
-                        break;
-                    case SceneManagerEventType.OnAfterDeleteDiskData:
-                        sceneManagerEvents.onAfterDeleteDiskData.RemoveListener(action);
-                        break;
-                    case SceneManagerEventType.OnBeforeWriteToDisk:
+                    
+                    case SceneManagerEventType.BeforeWriteToDisk:
                         sceneManagerEvents.onBeforeWriteToDisk.RemoveListener(action);
                         break;
-                    case SceneManagerEventType.OnAfterWriteToDisk:
+                    case SceneManagerEventType.AfterWriteToDisk:
                         sceneManagerEvents.onAfterWriteToDisk.RemoveListener(action);
                         break;
+                    
+                    case SceneManagerEventType.BeforeReadFromDisk:
+                        sceneManagerEvents.onBeforeReadFromDisk.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.AfterReadFromDisk:
+                        sceneManagerEvents.onAfterReadFromDisk.RemoveListener(action);
+                        break;
+                    
+                    case SceneManagerEventType.BeforeRestoreSnapshot:
+                        sceneManagerEvents.onBeforeRestoreSnapshot.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.AfterRestoreSnpashot:
+                        sceneManagerEvents.onAfterRestoreSnapshot.RemoveListener(action);
+                        break;
+                    
+                    case SceneManagerEventType.BeforeDeleteSnapshotData:
+                        sceneManagerEvents.onBeforeDeleteSnapshotData.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.AfterDeleteSnapshotData:
+                        sceneManagerEvents.onAfterDeleteSnapshotData.RemoveListener(action);
+                        break;
+                    
+                    case SceneManagerEventType.BeforeDeleteDiskData:
+                        sceneManagerEvents.onBeforeDeleteDiskData.RemoveListener(action);
+                        break;
+                    case SceneManagerEventType.AfterDeleteDiskData:
+                        sceneManagerEvents.onAfterDeleteDiskData.RemoveListener(action);
+                        break;
+                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }

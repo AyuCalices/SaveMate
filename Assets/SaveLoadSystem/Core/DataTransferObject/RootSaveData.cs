@@ -20,9 +20,10 @@ namespace SaveLoadSystem.Core.DataTransferObject
             return SceneDataLookup.TryGetValue(sceneName, out sceneData);
         }
 
-        public void RemoveSceneData(string sceneName)
+        public void Clear()
         {
-            SceneDataLookup.Remove(sceneName);
+            ScriptableObjectSaveData = new();
+            SceneDataLookup.Clear();
         }
     }
 }
