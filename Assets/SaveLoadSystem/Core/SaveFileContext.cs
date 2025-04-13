@@ -119,7 +119,7 @@ namespace SaveLoadSystem.Core
                 {
                     if (savableGroup is not ISavableGroupHandler savableGroupHandler) continue;
                     
-                    if (savableGroupHandler.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(savableGroupHandler.SceneName).isLoaded)
+                    if (savableGroupHandler.SceneName != "DontDestroyOnLoad" && UnityUtility.IsSceneUnloaded(savableGroupHandler.SceneName))
                     {
                         Debug.LogWarning($"[Save Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{savableGroupHandler.SceneName}': scene is not currently loaded.");
                         continue;
@@ -213,7 +213,7 @@ namespace SaveLoadSystem.Core
                 {
                     if (loadableGroup is not ILoadableGroupHandler loadableGroupHandler) continue;
                     
-                    if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(loadableGroupHandler.SceneName).isLoaded)
+                    if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && UnityUtility.IsSceneUnloaded(loadableGroupHandler.SceneName))
                     {
                         Debug.LogWarning($"[Save Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{loadableGroupHandler.SceneName}': scene is not currently loaded.");
                         continue;

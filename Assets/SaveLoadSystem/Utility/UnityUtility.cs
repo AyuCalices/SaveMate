@@ -106,5 +106,34 @@ namespace SaveLoadSystem.Utility
 
             return results;
         }
+        
+        /// <summary>
+        /// Checks if the scene is completely gone — not loaded and not in the SceneManager at all.
+        /// </summary>
+        public static bool IsSceneUnloaded(string sceneName)
+        {
+            return IsSceneUnloaded(SceneManager.GetSceneByName(sceneName));
+        }
+        
+        /// <summary>
+        /// Checks if the scene is completely gone — not loaded and not in the SceneManager at all.
+        /// </summary>
+        public static bool IsSceneUnloaded(Scene scene)
+        {
+            return !scene.isLoaded && !IsSceneInManager(scene);
+        }
+
+        /// <summary>
+        /// Internal helper: determines whether the scene is still tracked by the SceneManager.
+        /// </summary>
+        private static bool IsSceneInManager(Scene scene)
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                if (SceneManager.GetSceneAt(i) == scene)
+                    return true;
+            }
+            return false;
+        }
     }
 }
