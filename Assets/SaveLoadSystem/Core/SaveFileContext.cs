@@ -117,13 +117,19 @@ namespace SaveLoadSystem.Core
                 var combinedSavableGroupHandlers = new List<ISavableGroupHandler>();
                 foreach (var savableGroup in savableGroups)
                 {
-                    if (savableGroup is not ISavableGroupHandler saveGroupHandler) continue;
+                    if (savableGroup is not ISavableGroupHandler savableGroupHandler) continue;
+                    
+                    if (savableGroupHandler.SceneName != "DontDestroyOnLoad" && !SceneManager.GetSceneByName(savableGroupHandler.SceneName).isLoaded)
+                    {
+                        Debug.LogWarning($"[Save Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{savableGroupHandler.SceneName}': scene is not currently loaded.");
+                        continue;
+                    }
                     
                     if (savableGroup is INestableSaveGroupHandler nestableSaveGroupHandler)
                     {
                         combinedSavableGroupHandlers.AddRange(nestableSaveGroupHandler.GetSavableGroupHandlers());
                     }
-                    combinedSavableGroupHandlers.Add(saveGroupHandler);
+                    combinedSavableGroupHandlers.Add(savableGroupHandler);
                 }
                 
                 InternalCaptureSnapshot(combinedSavableGroupHandlers);
@@ -168,6 +174,11 @@ namespace SaveLoadSystem.Core
             {
                 if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
                     || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
+
+                if (!IsPersistent)
+                {
+                    Debug.LogWarning($"[Save Mate] '{nameof(ReadFromDisk)}' aborted: No persistent save data found on disk.");
+                }
                 
                 //only load saveData, if it is persistent and not initialized
                 if (IsPersistent && RootSaveData == null)
@@ -182,10 +193,6 @@ namespace SaveLoadSystem.Core
                     OnAfterReadFromDisk();
                     
                     Debug.Log($"[Save Mate] {nameof(ReadFromDisk)} successful!");
-                }
-                else
-                {
-                    Debug.LogWarning($"[Save Mate] '{nameof(ReadFromDisk)}' aborted: No persistent save data found on disk.");
                 }
             });
         }

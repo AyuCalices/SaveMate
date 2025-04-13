@@ -5,12 +5,12 @@ namespace SaveLoadSystem.Core.DataTransferObject
 {
     public class LeafSaveData
     {
-        private Dictionary<string, GuidPath> _references;
-        public Dictionary<string, GuidPath> References
+        private Dictionary<string, GuidPath?> _references;
+        public Dictionary<string, GuidPath?> References
         {
             get 
             { 
-                _references ??= new Dictionary<string, GuidPath>();
+                _references ??= new Dictionary<string, GuidPath?>();
                 return _references;
             }
             set => _references = value;

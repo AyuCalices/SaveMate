@@ -1,4 +1,5 @@
 using System;
+using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
@@ -12,6 +13,7 @@ namespace SaveLoadSystem.Core
     /// The <see cref="LoadDataHandler"/> class is responsible for managing the deserialization and retrieval of
     /// serialized data, as well as handling reference building for complex object graphs.
     /// </summary>
+    /// TODO: debugs must be more descriptive, where it came from
     public readonly struct LoadDataHandler
     {
         //save data container
@@ -77,10 +79,23 @@ namespace SaveLoadSystem.Core
 
         private bool TryLoadValue(Type type, string identifier, out object value)
         {
+            if (_leafSaveData == null || !_leafSaveData.Values.TryGetValue(identifier, out var saveData))
+            {
+                Debug.LogError($"Wasn't able to find the save data for the identifier: '{identifier}'. Requested object type: '{type.FullName}'!");
+                value = null;
+                return false;
+            }
+            
+            //null data content handling
+            if (saveData.Type == JTokenType.Null)
+            {
+                value = default;
+                return true;     
+            }
+            
             //unity object handling
             if (typeof(Object).IsAssignableFrom(type))
             {
-                //TODO: check, if this is really the case
                 Debug.LogError($"You can't load an object of type {typeof(Object)} as a value!");
                 value = default;
                 return false;
@@ -99,28 +114,13 @@ namespace SaveLoadSystem.Core
                 var res = TryLoadValueWithConverter(type, identifier, out value);
                 return res;
             }
-            
-            //TODO: implement try catch and error messages
-            //serialization handling
-            if (_leafSaveData.Values[identifier] == null)
-            {
-                value = default;
-                return false;     
-            }
 
-            value = _leafSaveData.Values[identifier].ToObject(type);
+            value = saveData.ToObject(type);
             return true;
         }
         
-        private bool TryLoadValueSavable(Type type, string identifier, out object value)
+        private bool TryLoadValueSavable(Type type, JToken saveData, out object value)
         {
-            if (_leafSaveData == null || !_leafSaveData.Values.TryGetValue(identifier, out var saveData))
-            {
-                Debug.LogError($"Wasn't able to find the save data for the identifier: '{identifier}'. Requested object type: '{type.FullName}'!");
-                value = null;
-                return false;
-            }
-            
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
             var loadDataHandler = new LoadDataHandler(_rootSaveData, saveDataBuffer, _loadType, _sceneName, 
                 _saveFileContext, _saveLoadManager);
@@ -131,15 +131,8 @@ namespace SaveLoadSystem.Core
             return true;
         }
         
-        private bool TryLoadValueWithConverter(Type type, string identifier, out object value)
+        private bool TryLoadValueWithConverter(Type type, JToken saveData, out object value)
         {
-            if (_leafSaveData == null || !_leafSaveData.Values.TryGetValue(identifier, out var saveData))
-            {
-                Debug.LogError($"Wasn't able to find the save data for the identifier: '{identifier}'. Requested object type: '{type.FullName}'!");
-                value = null;
-                return false;
-            }
-            
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
             var loadDataHandler = new LoadDataHandler(_rootSaveData, saveDataBuffer, _loadType, _sceneName, 
                 _saveFileContext, _saveLoadManager);
@@ -173,34 +166,40 @@ namespace SaveLoadSystem.Core
             if (!TryGetGuidPath(identifier, out var guidPath))
                 return false;
 
+            if (!guidPath.HasValue)
+            {
+                reference = null;
+                return true;
+            }
+
             // Handle Unity type references
             if (typeof(ScriptableObject).IsAssignableFrom(type))
             {
-                return TryGetScriptableObjectReference(guidPath, out reference);
+                return TryGetScriptableObjectReference(guidPath.Value, out reference);
             }
 
             if (type == typeof(GameObject))
             {
-                return TryGetGameObjectReference(guidPath, obj => obj, out reference);
+                return TryGetGameObjectReference(guidPath.Value, obj => obj, out reference);
             }
 
             if (type == typeof(Transform))
             {
-                return TryGetGameObjectReference(guidPath, obj => obj.transform, out reference);
+                return TryGetGameObjectReference(guidPath.Value, obj => obj.transform, out reference);
             }
 
             if (type == typeof(RectTransform))
             {
-                return TryGetGameObjectReference(guidPath, obj => (RectTransform)obj.transform, out reference);
+                return TryGetGameObjectReference(guidPath.Value, obj => (RectTransform)obj.transform, out reference);
             }
 
             if (typeof(Component).IsAssignableFrom(type))
             {
-                return TryGetComponentReference(type, guidPath, out reference);
+                return TryGetComponentReference(type, guidPath.Value, out reference);
             }
 
             // Try to load a created object or create a new one
-            return TryGetCreatedObject(type, guidPath, out reference) || CreateObject(type, guidPath, out reference);
+            return TryGetCreatedObject(type, guidPath.Value, out reference) || CreateObject(type, guidPath.Value, out reference);
         }
 
         private bool TryGetScriptableObjectReference(GuidPath guidPath, out object reference)
@@ -253,7 +252,7 @@ namespace SaveLoadSystem.Core
             return false;
         }
         
-        private bool TryGetGuidPath(string identifier, out GuidPath guidPath)
+        private bool TryGetGuidPath(string identifier, out GuidPath? guidPath)
         {
             if (!_leafSaveData.References.TryGetValue(identifier, out guidPath))
             {

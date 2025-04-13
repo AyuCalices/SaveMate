@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
 using SaveLoadSystem.Core.SerializeStrategy;
@@ -21,10 +22,11 @@ namespace SaveLoadSystem.Core
         [SerializeField] private int patch;
         
         [Header("File Name")]
-        [SerializeField] private string defaultFileName;
+        [SerializeField] private string defaultFileName = "defaultFileName";
         [SerializeField] private string savePath;
         [SerializeField] private string saveDataExtensionName = "savedata";
         [SerializeField] private string metaDataExtensionName = "metadata";
+        [SerializeField] private Formatting jsonFormatting = Formatting.None;
         
         [Header("Storage")]
         [SerializeField] private SaveIntegrityType integrityCheckType;
@@ -40,6 +42,7 @@ namespace SaveLoadSystem.Core
         public event Action<SaveFileContext, SaveFileContext> OnAfterSaveFileContextChange;
         
         public SaveVersion SaveVersion => new(major, minor, patch);
+        public JsonSerializerSettings JsonSerializerSettings { get; set; } = new();
         public string SavePath
         {
             get => savePath;
@@ -57,8 +60,7 @@ namespace SaveLoadSystem.Core
             get => metaDataExtensionName;
             set => metaDataExtensionName = value;
         }
-
-
+        
         private string _activeSaveFile;
         private SaveFileContext _currentSaveFileContext;
         private byte[] _aesKey = Array.Empty<byte>();
@@ -129,13 +131,9 @@ namespace SaveLoadSystem.Core
         
         #endregion
 
-        public void SetNewtonsoftJsonSettings()
-        {
-            throw new NotImplementedException();
-        }
-
         #region Encryption
 
+        
         public void SetAesEncryption(byte[] aesKey, byte[] aesIv)
         {
             _aesKey = aesKey;
@@ -148,10 +146,12 @@ namespace SaveLoadSystem.Core
             _aesIv = Array.Empty<byte>();
         }
 
+        
         #endregion
 
         #region MetaData
 
+        
         //TODO: optimization possible: cache and update all meta data for direct use of SaveFileContext
         public async void FetchAllMetaData(Action<SaveMetaData[]> onAllMetaDataFound)
         {
@@ -181,7 +181,6 @@ namespace SaveLoadSystem.Core
             
             onMetaDataFound.Invoke(metaData);
         }
-        
         
         public async Task<SaveMetaData> FetchMetaData(string saveName)
         {
@@ -369,7 +368,8 @@ namespace SaveLoadSystem.Core
 
         #region DeleteSnapshotData
 
-        //TODO: documentary: make sure, that snapshots doesnt affect meta data in any way
+        
+        //TODO: make sure in documentary, that snapshots doesnt affect meta data in any way
         //wont delete meta data
         public void DeleteSnapshotData()
         {
@@ -493,7 +493,7 @@ namespace SaveLoadSystem.Core
 
         ISerializationStrategy ISaveStrategy.GetSerializationStrategy()
         {
-            return new JsonSerializeStrategy();
+            return new JsonSerializeStrategy(jsonFormatting, JsonSerializerSettings);
         }
 
         IEncryptionStrategy ISaveStrategy.GetEncryptionStrategy()

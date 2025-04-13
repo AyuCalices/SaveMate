@@ -19,7 +19,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         [SerializeField] private bool additionallySaveDontDestroyOnLoad;
 
         [Header("Unity Lifecycle Events")] 
-        [SerializeField] private bool loadSceneOnEnable;
+        [SerializeField] private bool loadSceneOnEnable;        //TODO: exchange with enum similar to saveSceneOnDisable
         [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDisable;
         [SerializeField] private bool saveActiveScenesOnApplicationQuit;
         

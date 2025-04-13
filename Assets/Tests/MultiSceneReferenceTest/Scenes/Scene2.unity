@@ -172,31 +172,43 @@ MonoBehaviour:
   scriptableObjectsToSave: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
   additionallySaveDontDestroyOnLoad: 0
   loadSceneOnEnable: 1
-  saveSceneOnDisable: 3
+  saveSceneOnDisable: 0
   saveActiveScenesOnApplicationQuit: 0
   sceneManagerEvents:
-    onBeforeSnapshot:
+    onBeforeCaptureSnapshot:
       m_PersistentCalls:
         m_Calls: []
-    onAfterSnapshot:
-      m_PersistentCalls:
-        m_Calls: []
-    onBeforeLoad:
-      m_PersistentCalls:
-        m_Calls: []
-    onAfterLoad:
-      m_PersistentCalls:
-        m_Calls: []
-    onBeforeDeleteDiskData:
-      m_PersistentCalls:
-        m_Calls: []
-    onAfterDeleteDiskData:
+    onAfterCaptureSnapshot:
       m_PersistentCalls:
         m_Calls: []
     onBeforeWriteToDisk:
       m_PersistentCalls:
         m_Calls: []
     onAfterWriteToDisk:
+      m_PersistentCalls:
+        m_Calls: []
+    onBeforeReadFromDisk:
+      m_PersistentCalls:
+        m_Calls: []
+    onAfterReadFromDisk:
+      m_PersistentCalls:
+        m_Calls: []
+    onBeforeRestoreSnapshot:
+      m_PersistentCalls:
+        m_Calls: []
+    onAfterRestoreSnapshot:
+      m_PersistentCalls:
+        m_Calls: []
+    onBeforeDeleteSnapshotData:
+      m_PersistentCalls:
+        m_Calls: []
+    onAfterDeleteSnapshotData:
+      m_PersistentCalls:
+        m_Calls: []
+    onBeforeDeleteDiskData:
+      m_PersistentCalls:
+        m_Calls: []
+    onAfterDeleteDiskData:
       m_PersistentCalls:
         m_Calls: []
 --- !u!1 &1655517213

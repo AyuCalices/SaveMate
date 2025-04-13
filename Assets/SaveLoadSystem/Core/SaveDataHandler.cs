@@ -1,4 +1,3 @@
-using System;
 using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.Converter;
 using SaveLoadSystem.Core.DataTransferObject;
@@ -35,9 +34,9 @@ namespace SaveLoadSystem.Core
             _saveLoadManager = saveLoadManagers;
         }
 
-        public void Save(string uniqueIdentifier, object obj)
+        public void Save<T>(string uniqueIdentifier, T obj)
         {
-            if (obj.GetType().IsValueType || obj is string)
+            if (typeof(T).IsValueType || obj is string)
             {
                 SaveAsValue(uniqueIdentifier, obj);
             }
@@ -53,15 +52,17 @@ namespace SaveLoadSystem.Core
         /// </summary>
         /// <param name="uniqueIdentifier">The unique identifier for the object to be serialized.</param>
         /// <param name="obj">The object to be serialized and added to the buffer.</param>
-        public void SaveAsValue(string uniqueIdentifier, object obj)
+        public void SaveAsValue<T>(string uniqueIdentifier, T obj)
         {
-            if (obj is Object)
+            if (obj.IsUnityNull())
+            {
+                _leafSaveData.Values[uniqueIdentifier] = null;
+            }
+            else if (obj is UnityEngine.Object)
             {
                 Debug.LogError($"You can't save an object of type {typeof(Object)} as a value!");
-                return;
             }
-            
-            if (obj is ISavable savable)
+            else if (obj is ISavable savable)
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
@@ -69,27 +70,27 @@ namespace SaveLoadSystem.Core
                 
                 savable.OnSave(saveDataHandler);
                 
-                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(leafSaveData));
+                _leafSaveData.Values[uniqueIdentifier] = JToken.FromObject(leafSaveData);
             }
-            else if (ConverterServiceProvider.ExistsAndCreate(obj.GetType()))
+            else if (ConverterServiceProvider.ExistsAndCreate(typeof(T)))
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
                 var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
 
-                ConverterServiceProvider.GetConverter(obj.GetType()).Save(obj, saveDataHandler);
+                ConverterServiceProvider.GetConverter(typeof(T)).Save(obj, saveDataHandler);
                 
-                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(leafSaveData));
+                _leafSaveData.Values[uniqueIdentifier] = JToken.FromObject(leafSaveData);
             }
             else
             {
-                _leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(obj));
+                _leafSaveData.Values[uniqueIdentifier] = JToken.FromObject(obj);
             }
         }
         
-        public void SaveAsReferencable(string uniqueIdentifier, object obj)
+        public void SaveAsReferencable<T>(string uniqueIdentifier, T obj)
         {
-            _leafSaveData.References.Add(uniqueIdentifier, ConvertToPath(uniqueIdentifier, obj));
+            _leafSaveData.References[uniqueIdentifier] = ConvertToPath(uniqueIdentifier, obj);
         }
         
         /// <summary>
@@ -99,12 +100,11 @@ namespace SaveLoadSystem.Core
         /// <param name="objectToSave">The object to convert to a GUID path.</param>
         /// <param name="guidPath">The resulting GUID path if the conversion is successful.</param>
         /// <returns><c>true</c> if the object was successfully converted to a GUID path; otherwise, <c>false</c>.</returns>
-        private GuidPath ConvertToPath(string uniqueIdentifier, object objectToSave)
+        private GuidPath? ConvertToPath<T>(string uniqueIdentifier, T objectToSave)
         {
-            if (objectToSave == null)
+            if (objectToSave.IsUnityNull())
             {
-                //TODO: debug
-                return default;
+                return null;
             }
             
             //search for a unity reference
@@ -117,8 +117,7 @@ namespace SaveLoadSystem.Core
                 
                 //TODO: debug
             }
-
-            if (objectToSave is GameObject gameObject)
+            else if (objectToSave is GameObject gameObject)
             {
                 if (GetGameObjectGuidPath(gameObject, out var convertToPath))
                 {
@@ -127,8 +126,7 @@ namespace SaveLoadSystem.Core
                 
                 //TODO: debug
             }
-
-            if (objectToSave is ScriptableObject scriptableObject)
+            else if (objectToSave is ScriptableObject scriptableObject)
             {
                 if (_saveLoadManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
                 {
@@ -137,26 +135,30 @@ namespace SaveLoadSystem.Core
                 
                 //TODO: debug
             }
-            
-            //make sure there is a unique id for each Non-Unity-Object
-            if (!_saveFileContext.SavedNonUnityObjectToGuidLookup.TryGetValue(objectToSave, out var stringPath))
-            {
-                guidPath = new GuidPath(_guidPath, uniqueIdentifier);
-                
-                _saveFileContext.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
-                _saveFileContext.GuidToCreatedNonUnityObjectLookup.Upsert(guidPath, objectToSave);
-            }
             else
             {
-                guidPath = GuidPath.FromString(stringPath);
-            }
+                //make sure there is a unique id for each Non-Unity-Object
+                if (!_saveFileContext.SavedNonUnityObjectToGuidLookup.TryGetValue(objectToSave, out var stringPath))
+                {
+                    guidPath = new GuidPath(_guidPath, uniqueIdentifier);
+                
+                    _saveFileContext.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
+                    _saveFileContext.GuidToCreatedNonUnityObjectLookup.Upsert(guidPath, objectToSave);
+                }
+                else
+                {
+                    guidPath = GuidPath.FromString(stringPath);
+                }
 
-            if (guidPath.SceneName == _sceneName)
-            {
-                UpsertNonUnityObject(objectToSave, guidPath);
+                if (guidPath.SceneName == _sceneName)
+                {
+                    UpsertNonUnityObject(objectToSave, guidPath);
+                }
+            
+                return guidPath;
             }
             
-            return guidPath;
+            return null;
         }
 
         private bool GetGameObjectGuidPath(GameObject gameObject, out GuidPath convertToPath)
@@ -197,7 +199,7 @@ namespace SaveLoadSystem.Core
             return false;
         }
 
-        private void UpsertNonUnityObject(object objectToSave, GuidPath guidPath)
+        private void UpsertNonUnityObject<T>(T objectToSave, GuidPath guidPath)
         {
             if (objectToSave is ISavable)
             {
@@ -208,14 +210,14 @@ namespace SaveLoadSystem.Core
             
                 targetSavable.OnSave(new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager));
             }
-            else if (ConverterServiceProvider.ExistsAndCreate(objectToSave.GetType()))
+            else if (ConverterServiceProvider.ExistsAndCreate(typeof(T)))
             {
                 var leafSaveData = new LeafSaveData();
                 
                 _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                         
                 var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager);
-                ConverterServiceProvider.GetConverter(objectToSave.GetType()).Save(objectToSave, saveDataHandler);
+                ConverterServiceProvider.GetConverter(typeof(T)).Save(objectToSave, saveDataHandler);
             }
             else
             {

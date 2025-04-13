@@ -8,9 +8,18 @@ namespace SaveLoadSystem.Core.SerializeStrategy
 {
     public class JsonSerializeStrategy : ISerializationStrategy
     {
+        private readonly Formatting _newtonsoftJsonFormatting;
+        private readonly JsonSerializerSettings _settings;
+
+        public JsonSerializeStrategy(Formatting newtonsoftJsonFormatting, JsonSerializerSettings settings)
+        {
+            _newtonsoftJsonFormatting = newtonsoftJsonFormatting;
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        }
+        
         public async Task<byte[]> SerializeAsync(object data)
         {
-            string jsonString = JsonConvert.SerializeObject(data, Formatting.Indented);
+            string jsonString = JsonConvert.SerializeObject(data, _newtonsoftJsonFormatting, _settings);
 
             // Using a memory stream to write bytes asynchronously
             using (MemoryStream memoryStream = new MemoryStream())

@@ -273,8 +273,12 @@ namespace SaveLoadSystem.Core
         {
             foreach (var referenceGuidPath in leafSaveData.References.Values)
             {
-                if (!requiredScenes.Exists(x => x.SceneName == referenceGuidPath.SceneName) && 
-                    referenceGuidPath.SceneName != RootSaveData.ScriptableObjectDataName) return false;
+                if (!referenceGuidPath.HasValue) return false;
+                
+                var sceneNameMatchExists = requiredScenes.Exists(x => x.SceneName == referenceGuidPath.Value.SceneName);
+                var isNotScriptableObject = referenceGuidPath.Value.SceneName != RootSaveData.ScriptableObjectDataName;
+                
+                if (!sceneNameMatchExists && isNotScriptableObject) return false;
             }
 
             return true;
