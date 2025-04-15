@@ -9,8 +9,8 @@ namespace SaveLoadSystem.Editor
     {
         private SerializedProperty _sceneGuidProperty;
         private SerializedProperty _prefabPathProperty;
-        private SerializedProperty _customSpawningProperty;
-        private SerializedProperty _currentSavableListProperty;
+        private SerializedProperty _disablePrefabSpawningProperty;
+        private SerializedProperty _saveStateHandlersProperty;
         private SerializedProperty _savableReferenceListProperty;
         
         private static bool _showCurrentSavableList;
@@ -22,8 +22,8 @@ namespace SaveLoadSystem.Editor
         {
             _sceneGuidProperty = serializedObject.FindProperty("sceneGuid");
             _prefabPathProperty = serializedObject.FindProperty("prefabGuid");
-            _customSpawningProperty = serializedObject.FindProperty("dynamicPrefabSpawningDisabled");
-            _currentSavableListProperty = serializedObject.FindProperty("savableLookup");
+            _disablePrefabSpawningProperty = serializedObject.FindProperty("disablePrefabSpawning");
+            _saveStateHandlersProperty = serializedObject.FindProperty("saveStateHandlers");
             _savableReferenceListProperty = serializedObject.FindProperty("duplicateComponentLookup");
         }
         
@@ -47,7 +47,7 @@ namespace SaveLoadSystem.Editor
             
             if (_prefabPathProperty.FindPropertyRelative("value").stringValue != string.Empty)
             {
-                EditorGUILayout.PropertyField(_customSpawningProperty);
+                EditorGUILayout.PropertyField(_disablePrefabSpawningProperty);
             }
             
             // Disable editing
@@ -55,7 +55,7 @@ namespace SaveLoadSystem.Editor
             EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
             
-            ComponentContainerListLayout(_currentSavableListProperty.FindPropertyRelative("values"), "Tracked ISavables", ref _showCurrentSavableList);
+            ComponentContainerListLayout(_saveStateHandlersProperty.FindPropertyRelative("values"), "Tracked ISavables", ref _showCurrentSavableList);
             ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components (No ISavables)", ref _showSavableReferenceList);
 
             serializedObject.ApplyModifiedProperties();

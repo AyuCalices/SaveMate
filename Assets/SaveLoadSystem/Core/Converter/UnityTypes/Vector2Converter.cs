@@ -6,21 +6,21 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     [UsedImplicitly]
     public class Vector2Converter : BaseConverter<Vector2>
     {
-        protected override void OnSave(Vector2 input, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(Vector2 input, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("x", input.x);
-            saveDataHandler.Save("y", input.y);
+            createSnapshotHandler.Save("x", input.x);
+            createSnapshotHandler.Save("y", input.y);
         }
 
-        protected override Vector2 OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override Vector2 OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new Vector2();
         }
 
-        protected override void OnLoad(Vector2 input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(Vector2 input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("x", out input.x);
-            loadDataHandler.TryLoad("y", out input.y);
+            restoreSnapshotHandler.TryLoad("x", out input.x);
+            restoreSnapshotHandler.TryLoad("y", out input.y);
         }
     }
 }

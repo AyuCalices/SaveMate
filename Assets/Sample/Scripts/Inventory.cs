@@ -7,10 +7,9 @@ using UnityEngine;
 namespace Sample.Scripts
 {
     [CreateAssetMenu]
-    public class Inventory : ScriptableObject, ISavable
+    public class Inventory : ScriptableObject, ISaveStateHandler
     {
         [SerializeField] private List<Item> items;
-        [SerializeField] private int test = 5;
 
         public int ItemCount => items.Count;
 
@@ -59,15 +58,15 @@ namespace Sample.Scripts
             OnItemRemoved?.Invoke(itemToRemove);
         }
     
-        public void OnSave(SaveDataHandler saveDataHandler)
+        public void OnCaptureState(CreateSnapshotHandler createSnapshotHandler)
         {
             items ??= new List<Item>();
-            saveDataHandler.Save("items", items);
+            createSnapshotHandler.Save("items", items);
         }
 
-        public void OnLoad(LoadDataHandler loadDataHandler)
+        public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("items", out items);
+            restoreSnapshotHandler.TryLoad("items", out items);
         }
     }
 }

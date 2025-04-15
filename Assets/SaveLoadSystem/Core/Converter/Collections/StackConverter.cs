@@ -6,29 +6,29 @@ namespace SaveLoadSystem.Core.Converter.Collections
     [UsedImplicitly]
     public class StackConverter<T> : BaseConverter<Stack<T>>
     {
-        protected override void OnSave(Stack<T> input, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(Stack<T> input, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("count", input.Count);
+            createSnapshotHandler.Save("count", input.Count);
             
             var saveElements = input.ToArray();
             for (var index = 0; index < saveElements.Length; index++)
             {
-                saveDataHandler.Save(index.ToString(), saveElements[index]);
+                createSnapshotHandler.Save(index.ToString(), saveElements[index]);
             }
         }
 
-        protected override Stack<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override Stack<T> OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new Stack<T>();
         }
 
-        protected override void OnLoad(Stack<T> input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(Stack<T> input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("count", out int count);
+            restoreSnapshotHandler.TryLoad("count", out int count);
             
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
+                if (restoreSnapshotHandler.TryLoad<T>(index.ToString(), out var obj))
                 {
                     input.Push(obj);
                 }

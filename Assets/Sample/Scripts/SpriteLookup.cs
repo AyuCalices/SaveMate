@@ -6,14 +6,14 @@ using UnityEngine;
 namespace Sample.Scripts
 {
     [CreateAssetMenu]
-    public class SpriteLookup : ScriptableObject, ISavable
+    public class SpriteLookup : ScriptableObject, ISaveStateHandler
     {
         [SerializeField] private List<Sprite> sprites = new();
 
         public List<Sprite> Sprites => sprites;
         
-        public void OnSave(SaveDataHandler saveDataHandler) { }
+        public void OnCaptureState(CreateSnapshotHandler createSnapshotHandler) { }
 
-        public void OnLoad(LoadDataHandler loadDataHandler) { }
+        public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler) { }
     }
 }

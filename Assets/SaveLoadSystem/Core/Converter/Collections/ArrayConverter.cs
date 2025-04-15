@@ -8,56 +8,56 @@ namespace SaveLoadSystem.Core.Converter.Collections
     [UsedImplicitly]
     public class ArrayConverter<T> : BaseConverter<T>
     {
-        protected override void OnSave(T data, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(T data, CreateSnapshotHandler createSnapshotHandler)
         {
             if (data is not Array array) throw new ArgumentException("Data must be an array.");
             
-            // Save the rank (number of dimensions)
-            saveDataHandler.Save("rank", array.Rank);
+            // OnCaptureState the rank (number of dimensions)
+            createSnapshotHandler.Save("rank", array.Rank);
             
-            // Save the lengths of each dimension
+            // OnCaptureState the lengths of each dimension
             for (int i = 0; i < array.Rank; i++)
             {
-                saveDataHandler.Save($"dimension_{i}", array.GetLength(i));
+                createSnapshotHandler.Save($"dimension_{i}", array.GetLength(i));
             }
 
-            // Save each element of the array using its indices as a key
+            // OnCaptureState each element of the array using its indices as a key
             foreach (var indices in GetIndices(array))
             {
                 var key = string.Join(",", indices); // Create a string key from indices
-                saveDataHandler.Save(key, array.GetValue(indices));
+                createSnapshotHandler.Save(key, array.GetValue(indices));
             }
         }
 
-        protected override T OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override T OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             var elementType = typeof(T).GetElementType();
             if (elementType == null) throw new ArgumentException("T must be an array type.");
             
-            // Load the rank and dimensions
-            loadDataHandler.TryLoad("rank", out int rank);
+            // OnRestoreState the rank and dimensions
+            restoreSnapshotHandler.TryLoad("rank", out int rank);
             var dimensions = new int[rank];
             for (int i = 0; i < rank; i++)
             {
-                loadDataHandler.TryLoad($"dimension_{i}", out dimensions[i]);
+                restoreSnapshotHandler.TryLoad($"dimension_{i}", out dimensions[i]);
             }
 
             // Create the array with the loaded dimensions
             return (T)(object)Array.CreateInstance(elementType, dimensions);
         }
 
-        protected override void OnLoad(T input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(T input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
             var elementType = typeof(T).GetElementType();
             if (elementType == null) throw new ArgumentException("T must be an array type.");
             
             if (input is not Array array) throw new ArgumentException("Data must be an array.");
             
-            // Load each element using its indices as the key
+            // OnRestoreState each element using its indices as the key
             foreach (var indices in GetIndices(array))
             {
                 var key = string.Join(",", indices); // Use the same key format
-                if (loadDataHandler.TryLoad(elementType, key, out var value))
+                if (restoreSnapshotHandler.TryLoad(elementType, key, out var value))
                 {
                     array.SetValue(value, indices);
                 }

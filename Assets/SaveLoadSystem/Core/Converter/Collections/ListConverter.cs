@@ -6,28 +6,28 @@ namespace SaveLoadSystem.Core.Converter.Collections
     [UsedImplicitly]
     public class ListConverter<T> : BaseConverter<List<T>>
     {
-        protected override void OnSave(List<T> data, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(List<T> data, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("count", data.Count);
+            createSnapshotHandler.Save("count", data.Count);
             
             for (var index = 0; index < data.Count; index++)
             {
-                saveDataHandler.Save(index.ToString(), data[index]);
+                createSnapshotHandler.Save(index.ToString(), data[index]);
             }
         }
 
-        protected override List<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override List<T> OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new List<T>();
         }
 
-        protected override void OnLoad(List<T> input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(List<T> input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("count", out int count);
+            restoreSnapshotHandler.TryLoad("count", out int count);
             
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad<T>(index.ToString(), out var obj))
+                if (restoreSnapshotHandler.TryLoad<T>(index.ToString(), out var obj))
                 {
                     input.Add(obj);
                 }

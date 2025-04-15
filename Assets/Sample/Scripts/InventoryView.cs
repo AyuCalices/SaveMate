@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Sample.Scripts
 {
-    public class InventoryView : MonoBehaviour, ISavable
+    public class InventoryView : MonoBehaviour, ISaveStateHandler
     {
         [SerializeField] private Inventory inventory;
         [SerializeField] private InventoryElement inventoryElementPrefab;
@@ -40,14 +40,14 @@ namespace Sample.Scripts
             Destroy(foundInventoryElement.gameObject);
         }
     
-        public void OnSave(SaveDataHandler saveDataHandler)
+        public void OnCaptureState(CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("content", _instantiatedInventoryElements);
+            createSnapshotHandler.Save("content", _instantiatedInventoryElements);
         }
 
-        public void OnLoad(LoadDataHandler loadDataHandler)
+        public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("content", out _instantiatedInventoryElements);
+            restoreSnapshotHandler.TryLoad("content", out _instantiatedInventoryElements);
         }
     }
 }

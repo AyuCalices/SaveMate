@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.DataTransferObject;
+using SaveLoadSystem.Core.SaveStrategies;
 using UnityEngine;
 
 namespace SaveLoadSystem.Utility
@@ -49,7 +50,13 @@ namespace SaveLoadSystem.Utility
                 var serializedSaveData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveData);
                 var compressedSaveData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedSaveData);
                 var encryptedSaveData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedSaveData);
-                saveMetaData.CustomData.Add("Checksum", saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedSaveData));
+                
+                var strategy = saveStrategy.GetIntegrityStrategy();
+                if (strategy != null)
+                {
+                    saveMetaData.CustomData.Add("Checksum", strategy.ComputeChecksum(encryptedSaveData));
+                }
+                
                 
                 // Prepare meta data
                 var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveMetaData);
@@ -79,7 +86,7 @@ namespace SaveLoadSystem.Utility
             if (!MetaDataExists(saveConfig, fileName) ||
                 !SaveDataExists(saveConfig, fileName))
             {
-                Debug.LogWarning("Save data or meta data file not found.");
+                Debug.LogWarning("OnCaptureState data or meta data file not found.");
                 return;
             }
             
@@ -103,9 +110,13 @@ namespace SaveLoadSystem.Utility
             
             var saveDataPath = SaveDataPath(saveConfig, fileName);
 
-            var checksum = metaData.CustomData.GetValue("Checksum")!.ToObject<string>();
-            
-            return await ReadDataAsync<RootSaveData>(saveStrategy, saveDataPath, checksum);
+            var value = metaData.CustomData.GetValue("Checksum");
+            if (value is { HasValues: true })
+            {
+                return await ReadDataAsync<RootSaveData>(saveStrategy, saveDataPath, value.ToObject<string>());
+            }
+
+            return await ReadDataAsync<RootSaveData>(saveStrategy, saveDataPath);
         }
 
         #endregion
@@ -139,7 +150,7 @@ namespace SaveLoadSystem.Utility
         {
             if (!File.Exists(saveDataPath))
             {
-                Debug.LogError("Save file not found in " + saveDataPath);
+                Debug.LogError("OnCaptureState file not found in " + saveDataPath);
                 return null;
             }
     

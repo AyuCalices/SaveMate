@@ -5,7 +5,7 @@ using SaveLoadSystem.Core;
 using SaveLoadSystem.Core.UnityComponent.SavableConverter;
 using UnityEngine;
 
-public class Reference2 : Singleton<Reference2>, ISavable
+public class Reference2 : Singleton<Reference2>, ISaveStateHandler
 {
     [SerializeField] private Inventory inventory;
     [SerializeField] private List<ItemGenerator> spawnableItems;
@@ -37,20 +37,20 @@ public class Reference2 : Singleton<Reference2>, ISavable
         return spawnableItems[randomItemGenerator].GenerateItem();
     }
 
-    public void OnSave(SaveDataHandler saveDataHandler)
+    public void OnCaptureState(CreateSnapshotHandler createSnapshotHandler)
     {
-        saveDataHandler.Save("StoredItem", storedItem);
-        saveDataHandler.Save("OtherItem", otherItem);
+        createSnapshotHandler.Save("StoredItem", storedItem);
+        createSnapshotHandler.Save("OtherItem", otherItem);
     }
 
-    public void OnLoad(LoadDataHandler loadDataHandler)
+    public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
     {
-        if (loadDataHandler.TryLoad("StoredItem", out Item storedItem))
+        if (restoreSnapshotHandler.TryLoad("StoredItem", out Item storedItem))
         {
             this.storedItem = storedItem;
         }
         
-        if (loadDataHandler.TryLoad("OtherItem", out Item otherItem))
+        if (restoreSnapshotHandler.TryLoad("OtherItem", out Item otherItem))
         {
             this.otherItem = otherItem;
         }

@@ -45,12 +45,12 @@ namespace SaveLoadSystem.Editor
                 }
             }
             
-            if (GUILayout.Button("Simple Save"))
+            if (GUILayout.Button("Save Active Scenes"))
             {
                 saveLoadManager.SaveActiveScenes();
             }
             
-            if (GUILayout.Button("Simple Load"))
+            if (GUILayout.Button("Load Active Scenes"))
             {
                 saveLoadManager.LoadActiveScenes();
             }

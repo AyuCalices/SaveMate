@@ -6,30 +6,30 @@ namespace SaveLoadSystem.Core.Converter.Collections
     [UsedImplicitly]
     public class QueueConverter<T> : BaseConverter<Queue<T>>
     {
-        protected override void OnSave(Queue<T> input, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(Queue<T> input, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("count", input.Count);
+            createSnapshotHandler.Save("count", input.Count);
             
             var saveElements = input.ToArray();
             
             for (var index = 0; index < saveElements.Length; index++)
             {
-                saveDataHandler.Save(index.ToString(), saveElements[index]);
+                createSnapshotHandler.Save(index.ToString(), saveElements[index]);
             }
         }
 
-        protected override Queue<T> OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override Queue<T> OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new Queue<T>();
         }
 
-        protected override void OnLoad(Queue<T> input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(Queue<T> input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("count", out int count);
+            restoreSnapshotHandler.TryLoad("count", out int count);
             
             for (var index = 0; index < count; index++)
             {
-                if (loadDataHandler.TryLoad<T>( index.ToString(), out var targetObject))
+                if (restoreSnapshotHandler.TryLoad<T>( index.ToString(), out var targetObject))
                 {
                     input.Enqueue(targetObject);
                 }

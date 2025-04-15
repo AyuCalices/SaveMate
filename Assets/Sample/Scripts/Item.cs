@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Sample.Scripts
 {
     [Serializable]
-    public class Item : ISavable
+    public class Item : ISaveStateHandler
     {
         public SpriteLookup spriteLookup;
         public Sprite sprite;
@@ -21,23 +21,23 @@ namespace Sample.Scripts
             this.itemName = itemName;
         }
 
-        public void OnSave(SaveDataHandler saveDataHandler)
+        public void OnCaptureState(CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("spriteLookup", spriteLookup);
-            saveDataHandler.Save("sprite", sprite.name);
-            saveDataHandler.Save("itemName", itemName);
+            createSnapshotHandler.Save("spriteLookup", spriteLookup);
+            createSnapshotHandler.Save("sprite", sprite.name);
+            createSnapshotHandler.Save("itemName", itemName);
         }
 
-        public void OnLoad(LoadDataHandler loadDataHandler)
+        public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("spriteLookup", out spriteLookup);
+            restoreSnapshotHandler.TryLoad("spriteLookup", out spriteLookup);
 
-            if (loadDataHandler.TryLoad("sprite", out string spriteName))
+            if (restoreSnapshotHandler.TryLoad("sprite", out string spriteName))
             {
                 sprite = spriteLookup.Sprites.Find(x => x.name == spriteName);
             }
             
-            loadDataHandler.TryLoad("itemName", out itemName);
+            restoreSnapshotHandler.TryLoad("itemName", out itemName);
         }
     }
 }

@@ -6,25 +6,25 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     [UsedImplicitly]
     public class Color32Converter : BaseConverter<Color32>
     {
-        protected override void OnSave(Color32 input, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(Color32 input, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("r", input.r);
-            saveDataHandler.Save("g", input.g);
-            saveDataHandler.Save("b", input.b);
-            saveDataHandler.Save("a", input.a);
+            createSnapshotHandler.Save("r", input.r);
+            createSnapshotHandler.Save("g", input.g);
+            createSnapshotHandler.Save("b", input.b);
+            createSnapshotHandler.Save("a", input.a);
         }
 
-        protected override Color32 OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override Color32 OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new Color32();
         }
 
-        protected override void OnLoad(Color32 input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(Color32 input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("r", out input.r);
-            loadDataHandler.TryLoad("g", out input.g);
-            loadDataHandler.TryLoad("b", out input.b);
-            loadDataHandler.TryLoad("a", out input.a);
+            restoreSnapshotHandler.TryLoad("r", out input.r);
+            restoreSnapshotHandler.TryLoad("g", out input.g);
+            restoreSnapshotHandler.TryLoad("b", out input.b);
+            restoreSnapshotHandler.TryLoad("a", out input.a);
         }
     }
 }

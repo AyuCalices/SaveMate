@@ -7,21 +7,21 @@ namespace Sample.Scripts
     [UsedImplicitly]
     public class ItemConverter : BaseConverter<Item>
     {
-        protected override void OnSave(Item input, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(Item input, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("sprite", input.sprite);
-            saveDataHandler.Save("name", input.itemName);
+            createSnapshotHandler.Save("sprite", input.sprite);
+            createSnapshotHandler.Save("name", input.itemName);
         }
 
-        protected override Item OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override Item OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new Item();
         }
 
-        protected override void OnLoad(Item input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(Item input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("sprite", out input.sprite);
-            loadDataHandler.TryLoad("name", out input.itemName);
+            restoreSnapshotHandler.TryLoad("sprite", out input.sprite);
+            restoreSnapshotHandler.TryLoad("name", out input.itemName);
         }
     }
 }

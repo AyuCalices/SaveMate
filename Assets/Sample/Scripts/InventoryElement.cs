@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Sample.Scripts
 {
-    public class InventoryElement : MonoBehaviour, IAfterRestoreSnapshotHandler, ISavable
+    public class InventoryElement : MonoBehaviour, IAfterRestoreSnapshotHandler, ISaveStateHandler
     {
         [SerializeField] private Image image;
         [SerializeField] private Text itemName;
@@ -29,14 +29,14 @@ namespace Sample.Scripts
             
         }
 
-        public void OnSave(SaveDataHandler saveDataHandler)
+        public void OnCaptureState(CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("item", ContainedItem);
+            createSnapshotHandler.Save("item", ContainedItem);
         }
 
-        public void OnLoad(LoadDataHandler loadDataHandler)
+        public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            if (loadDataHandler.TryLoad("item", out Item item))
+            if (restoreSnapshotHandler.TryLoad("item", out Item item))
             {
                 ContainedItem = item;
             }

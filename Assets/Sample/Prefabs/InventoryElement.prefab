@@ -171,19 +171,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dynamicPrefabSpawningDisabled: 0
+  disablePrefabSpawning: 0
   prefabGuid:
     value: Prefab_InventoryElement_YE1q4
     valid: 1
   sceneGuid:
     value: 
     valid: 1
-  savableLookup:
-    values:
-    - guid: Component_InventoryElement_Jfq2X
-      unityObject: {fileID: 486862100594609039}
-    - guid: Component_InventoryElement_8r6p8
-      unityObject: {fileID: 2918653190320057826}
+  saveStateHandlers:
+    values: []
   duplicateComponentLookup:
     values: []
 --- !u!114 &486862100594609039

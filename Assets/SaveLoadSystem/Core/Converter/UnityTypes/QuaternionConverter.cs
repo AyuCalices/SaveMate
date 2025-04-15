@@ -6,25 +6,25 @@ namespace SaveLoadSystem.Core.Converter.UnityTypes
     [UsedImplicitly]
     public class QuaternionConverter : BaseConverter<Quaternion>
     {
-        protected override void OnSave(Quaternion input, SaveDataHandler saveDataHandler)
+        protected override void OnCaptureState(Quaternion input, CreateSnapshotHandler createSnapshotHandler)
         {
-            saveDataHandler.Save("x", input.x);
-            saveDataHandler.Save("y", input.y);
-            saveDataHandler.Save("z", input.z);
-            saveDataHandler.Save("w", input.w);
+            createSnapshotHandler.Save("x", input.x);
+            createSnapshotHandler.Save("y", input.y);
+            createSnapshotHandler.Save("z", input.z);
+            createSnapshotHandler.Save("w", input.w);
         }
 
-        protected override Quaternion OnCreateInstanceForLoad(LoadDataHandler loadDataHandler)
+        protected override Quaternion OnCreateStateObject(RestoreSnapshotHandler restoreSnapshotHandler)
         {
             return new Quaternion();
         }
 
-        protected override void OnLoad(Quaternion input, LoadDataHandler loadDataHandler)
+        protected override void OnRestoreState(Quaternion input, RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            loadDataHandler.TryLoad("x", out input.x);
-            loadDataHandler.TryLoad("y", out input.y);
-            loadDataHandler.TryLoad("z", out input.z);
-            loadDataHandler.TryLoad("w", out input.w);
+            restoreSnapshotHandler.TryLoad("x", out input.x);
+            restoreSnapshotHandler.TryLoad("y", out input.y);
+            restoreSnapshotHandler.TryLoad("z", out input.z);
+            restoreSnapshotHandler.TryLoad("w", out input.w);
         }
     }
 }

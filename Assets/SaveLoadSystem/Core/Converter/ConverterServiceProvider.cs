@@ -5,7 +5,7 @@ using SaveLoadSystem.Core.Converter.Collections;
 
 namespace SaveLoadSystem.Core.Converter
 {
-    public static class ConverterServiceProvider
+    internal static class ConverterServiceProvider
     {
         private static readonly HashSet<(Type Type, Type HandledType)> UsableConverterLookup = new();
         private static readonly Dictionary<Type, IConverter> CreatedConverterLookup = new();
@@ -42,12 +42,12 @@ namespace SaveLoadSystem.Core.Converter
             }
         }
         
-        public static bool ExistsAndCreate<T>()
+        internal static bool ExistsAndCreate<T>()
         {
             return ExistsAndCreate(typeof(T));
         }
 
-        public static bool ExistsAndCreate(Type type)
+        internal static bool ExistsAndCreate(Type type)
         {
             // Check if the converter already exists in the lookup
             if (CreatedConverterLookup.ContainsKey(type))
@@ -69,12 +69,12 @@ namespace SaveLoadSystem.Core.Converter
             return true;
         }
 
-        public static IConverter GetConverter<T>()
+        internal static IConverter GetConverter<T>()
         {
             return GetConverter(typeof(T));
         }
 
-        public static IConverter GetConverter(Type type)
+        internal static IConverter GetConverter(Type type)
         {
             // Check if the converter already exists in the lookup
             if (CreatedConverterLookup.TryGetValue(type, out var converter))
@@ -123,36 +123,5 @@ namespace SaveLoadSystem.Core.Converter
 
             return null; // No matching converter found
         }
-    }
-
-    public abstract class BaseConverter<T> : IConverter
-    {
-        public void Save(object input, SaveDataHandler saveDataHandler)
-        {
-            OnSave((T)input, saveDataHandler);
-        }
-
-        protected abstract void OnSave(T input, SaveDataHandler saveDataHandler);
-        
-        public object CreateInstanceForLoad(LoadDataHandler loadDataHandler)
-        {
-            return OnCreateInstanceForLoad(loadDataHandler);
-        }
-
-        protected abstract T OnCreateInstanceForLoad(LoadDataHandler loadDataHandler);
-
-        public void Load(object input, LoadDataHandler loadDataHandler)
-        {
-            OnLoad((T)input, loadDataHandler);
-        }
-
-        protected abstract void OnLoad(T input, LoadDataHandler loadDataHandler);
-    }
-
-    public interface IConverter
-    {
-        void Save(object input, SaveDataHandler saveDataHandler);
-        object CreateInstanceForLoad(LoadDataHandler loadDataHandler);
-        void Load(object input, LoadDataHandler loadDataHandler);
     }
 }

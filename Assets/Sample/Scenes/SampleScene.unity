@@ -1336,17 +1336,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dynamicPrefabSpawningDisabled: 0
+  disablePrefabSpawning: 0
   prefabGuid:
     value: 
     valid: 1
   sceneGuid:
     value: GameObject_Canvas_pcuDj
     valid: 1
-  savableLookup:
-    values:
-    - guid: Component_Canvas_ty9eH
-      unityObject: {fileID: 1042050944}
+  saveStateHandlers:
+    values: []
   duplicateComponentLookup:
     values: []
 --- !u!1 &1073139036
@@ -2858,14 +2856,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dynamicPrefabSpawningDisabled: 0
+  disablePrefabSpawning: 0
   prefabGuid:
     value: 
     valid: 1
   sceneGuid:
     value: GameObject_Content_XP29K
     valid: 1
-  savableLookup:
+  saveStateHandlers:
     values: []
   duplicateComponentLookup:
     values: []
