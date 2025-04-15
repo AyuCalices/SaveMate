@@ -1,177 +1,57 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
-using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.DataTransferObject;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 
 namespace SaveLoadSystem.Utility
 {
     internal static class SaveLoadUtility
     {
-        #region Public
-
-        internal static string[] FindAllSaveFiles(ISaveConfig saveConfig)
+        public const string ScriptableObjectDataName = "ScriptableObjects";
+        
+        /// <summary>
+        /// Checks if a GameObject has been destroyed.
+        /// </summary>
+        /// <param name="gameObject">GameObject reference to check for destructedness</param>
+        /// <returns>If the game object has been marked as destroyed by UnityEngine</returns>
+        internal static bool IsDestroyed(this GameObject gameObject)
         {
-            string directoryPath = DirectoryPath(saveConfig);
-            
-            if (Directory.Exists(directoryPath))
-            {
-                return Directory.GetFiles(directoryPath, $"*.{saveConfig.MetaDataExtensionName}");
-            }
-
-            return Array.Empty<string>();
+            // UnityEngine overloads the == operator for the GameObject type
+            // and returns null when the object has been destroyed, but 
+            // actually the object is still there but has not been cleaned up yet
+            // if we test both we can determine if the object has been destroyed.
+            return gameObject == null && !ReferenceEquals(gameObject, null);
         }
         
-        internal static bool SaveDataExists(ISaveConfig saveConfig, string fileName)
+        /// <summary>
+        /// Checks if a UnityEngine.Object is null, taking into account Unity's special null handling.
+        /// </summary>
+        /// <typeparam name="T">Type of the UnityEngine.Object</typeparam>
+        /// <param name="obj">The object to check</param>
+        /// <returns>True if the object is null or has been destroyed, otherwise false.</returns>
+        internal static bool IsUnityNull<T>(this T obj)
         {
-            string path = SaveDataPath(saveConfig, fileName);
-            return File.Exists(path);
+            return obj == null || obj.Equals(null);
         }
         
-        internal static bool MetaDataExists(ISaveConfig saveConfig, string fileName)
+        /// <summary>
+        /// Changes made to serialized fields via script in Edit mode are not automatically saved.
+        /// Unity only persists modifications made through the Inspector unless explicitly marked as dirty.
+        /// </summary>
+        internal static void SetDirty(Object target)
         {
-            string path = MetaDataPath(saveConfig, fileName);
-            return File.Exists(path);
+#if UNITY_EDITOR
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorUtility.SetDirty(target);
+            }
+#endif
         }
         
-        internal static async Task WriteDataAsync<T>(ISaveConfig saveConfig, ISaveStrategy saveStrategy, string fileName, 
-            SaveMetaData saveMetaData, T saveData) where T : class
-        {
-            if (!Directory.Exists(DirectoryPath(saveConfig)))
-            {
-                Directory.CreateDirectory(DirectoryPath(saveConfig));
-            }
-            
-            try
-            {
-                // Prepare save data
-                var serializedSaveData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveData);
-                var compressedSaveData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedSaveData);
-                var encryptedSaveData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedSaveData);
-                saveMetaData.Checksum = saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedSaveData);
-                
-                // Prepare meta data
-                var serializedData = await saveStrategy.GetSerializationStrategy().SerializeAsync(saveMetaData);
-                var compressedData = await saveStrategy.GetCompressionStrategy().CompressAsync(serializedData);
-                var encryptedData = await saveStrategy.GetEncryptionStrategy().EncryptAsync(compressedData);
-                
-                // Write to disk
-                var metaDataPath = MetaDataPath(saveConfig, fileName);
-                await using var metaDataStream = new FileStream(metaDataPath, FileMode.Create);
-                await metaDataStream.WriteAsync(encryptedData, 0, encryptedData.Length);
-                
-                var saveDataPath = SaveDataPath(saveConfig, fileName);
-                await using var saveDataStream = new FileStream(saveDataPath, FileMode.Create);
-                await saveDataStream.WriteAsync(encryptedSaveData, 0, encryptedSaveData.Length);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
-            }
-        }
-        
-        internal static async Task DeleteAsync(ISaveConfig saveConfig, string fileName)
-        {
-            var saveDataPath = SaveDataPath(saveConfig, fileName);
-            var metaDataPath = MetaDataPath(saveConfig, fileName);
+        #region Id Handling
 
-            if (!MetaDataExists(saveConfig, fileName) ||
-                !SaveDataExists(saveConfig, fileName))
-            {
-                Debug.LogWarning("Save data or meta data file not found.");
-                return;
-            }
-            
-            await Task.Run(() => File.Delete(saveDataPath));
-            await Task.Run(() => File.Delete(metaDataPath));
-        }
-
-        internal static async Task<SaveMetaData> ReadMetaDataAsync(ISaveStrategy saveStrategy, ISaveConfig saveConfig, string fileName)
-        {
-            var metaDataPath = MetaDataPath(saveConfig, fileName);
-            return await ReadDataAsync<SaveMetaData>(saveStrategy, metaDataPath);
-        }
-        
-        internal static async Task<RootSaveData> ReadSaveDataSecureAsync(ISaveStrategy saveStrategy, SaveVersion saveVersion, ISaveConfig saveConfig, string fileName)
-        {
-            var metaData = await ReadMetaDataAsync(saveStrategy, saveConfig, fileName);
-            if (metaData == null) return null;
-            
-            //check save version
-            if (!IsValidVersion(metaData, saveVersion)) return null;
-            
-            var saveDataPath = SaveDataPath(saveConfig, fileName);
-            return await ReadDataAsync<RootSaveData>(saveStrategy, saveDataPath, metaData.Checksum);
-        }
-
-        #endregion
-        
-
-        #region Private
-
-        private static string DirectoryPath(ISaveConfig saveConfig) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath) + Path.AltDirectorySeparatorChar;
-
-        private static string MetaDataPath(ISaveConfig saveConfig, string fileName) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath, $"{fileName}.{saveConfig.MetaDataExtensionName}");
-
-        private static string SaveDataPath(ISaveConfig saveConfig, string fileName) => Path.Combine(Application.persistentDataPath, saveConfig.SavePath, $"{fileName}.{saveConfig.SaveDataExtensionName}");
-
-        private static bool IsValidVersion(SaveMetaData metaData, SaveVersion currentVersion)
-        {
-            if (metaData.SaveVersion < currentVersion)
-            {
-                Debug.LogWarning($"The version of the loaded save '{metaData.SaveVersion}' is older than the local version '{currentVersion}'");
-                return false;
-            }
-            if (metaData.SaveVersion > currentVersion)
-            {
-                Debug.LogWarning($"The version of the loaded save '{metaData.SaveVersion}' is newer than the local version '{currentVersion}'");
-                return false;
-            }
-
-            return true;
-        }
-
-        private static async Task<T> ReadDataAsync<T>(ISaveStrategy saveStrategy, string saveDataPath, string checksum = null) where T : class
-        {
-            if (!File.Exists(saveDataPath))
-            {
-                Debug.LogError("Save file not found in " + saveDataPath);
-                return null;
-            }
-    
-            try
-            {
-                byte[] encryptedData;
-                
-                await using (FileStream fileStream = new FileStream(saveDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, useAsync: true))
-                {
-                    encryptedData = new byte[fileStream.Length];
-                    var readAsync = await fileStream.ReadAsync(encryptedData, 0, encryptedData.Length);
-
-                    if (checksum != null)
-                    {
-                        if (checksum != saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedData))
-                        {
-                            Debug.LogError("The save data didn't pass the data integrity check!");
-                            return null;
-                        }
-                    }
-                }
-                
-                var decryptedData = await saveStrategy.GetEncryptionStrategy().DecryptAsync(encryptedData);
-                var serializedData = await saveStrategy.GetCompressionStrategy().DecompressAsync(decryptedData);
-                return (T)await saveStrategy.GetSerializationStrategy().DeserializeAsync(serializedData, typeof(T));
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError("An error occurred: " + ex.Message);
-                return null;
-            }
-        }
-
-        #endregion
         
         /// <summary>
         /// Generates a random ID of the specified length.
@@ -192,11 +72,8 @@ namespace SaveLoadSystem.Utility
             return new string(id);
         }
         
-        internal static void CheckUniqueGuidOnInspectorInput<T>(
-            IEnumerable<T> items,
-            Func<T, UnityEngine.Object> getUnityObject,
-            Func<T, string> getGuid,
-            string errorMessagePrefix)
+        internal static void CheckUniqueGuidOnInspectorInput<T>(IEnumerable<T> items, 
+            Func<T, UnityEngine.Object> getUnityObject, Func<T, string> getGuid, string errorMessagePrefix)
         {
             var guidLookup = new Dictionary<string, (bool Duplicated, HashSet<string> HashSet)>();
 
@@ -228,5 +105,129 @@ namespace SaveLoadSystem.Utility
                 }
             }
         }
+
+        
+        #endregion
+
+        #region Type Condition
+
+        
+        internal static bool ContainsType<T>(Type type) where T : class
+        {
+            return typeof(T).IsAssignableFrom(type);
+        }
+        
+        internal static List<Component> GetComponentsWithTypeCondition(GameObject gameObject, params Func<Type, bool>[] collectionConditions)
+        {
+            var componentsWithAttribute = new List<Component>();
+            var allComponents = gameObject.GetComponents<Component>();
+
+            foreach (var component in allComponents)
+            {
+                if (component == null) continue;
+                
+                var componentType = component.GetType();
+                foreach (Func<Type,bool> condition in collectionConditions)
+                {
+                    if (condition.Invoke(componentType) && !componentsWithAttribute.Contains(component))
+                    {
+                        componentsWithAttribute.Add(component);
+                    }
+                }
+            }
+
+            return componentsWithAttribute;
+        }
+
+        
+        #endregion
+
+        #region Duplicate Component
+
+        
+        /// <summary>
+        /// Finds and returns all components that are attached multiple times to the given GameObject.
+        /// </summary>
+        /// <param name="gameObject">The GameObject to check.</param>
+        /// <returns>A flat list of all components that are added multiple times.</returns>
+        internal static List<Component> GetDuplicateComponents(GameObject gameObject)
+        {
+            if (gameObject == null)
+            {
+                Debug.LogError("Provided GameObject is null.");
+                return null;
+            }
+
+            // Dictionary to track the count of each component type
+            var componentMap = new Dictionary<System.Type, List<Component>>();
+
+            // Get all components on the GameObject
+            var allComponents = gameObject.GetComponents<Component>();
+
+            // Populate the dictionary with component types and their instances
+            foreach (var component in allComponents)
+            {
+                if (component == null) // Handle missing components
+                    continue;
+
+                System.Type type = component.GetType();
+                if (!componentMap.ContainsKey(type))
+                {
+                    componentMap[type] = new List<Component>();
+                }
+
+                componentMap[type].Add(component);
+            }
+
+            // Collect components that occur more than once
+            var duplicates = new List<Component>();
+            foreach (var kvp in componentMap)
+            {
+                if (kvp.Value.Count > 1) // More than one instance of this component type
+                {
+                    duplicates.AddRange(kvp.Value);
+                }
+            }
+
+            return duplicates;
+        }
+        
+
+        #endregion
+
+        #region Scene Handling
+
+        
+        /// <summary>
+        /// Checks if the scene is completely gone — not loaded and not in the SceneManager at all.
+        /// </summary>
+        internal static bool IsSceneUnloaded(string sceneName)
+        {
+            return IsSceneUnloaded(SceneManager.GetSceneByName(sceneName));
+        }
+        
+        /// <summary>
+        /// Checks if the scene is completely gone — not loaded and not in the SceneManager at all.
+        /// </summary>
+        private static bool IsSceneUnloaded(Scene scene)
+        {
+            return !scene.isLoaded && !IsSceneInManager(scene);
+        }
+
+        /// <summary>
+        /// Internal helper: determines whether the scene is still tracked by the SceneManager.
+        /// </summary>
+        private static bool IsSceneInManager(Scene scene)
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                if (SceneManager.GetSceneAt(i) == scene)
+                    return true;
+            }
+            return false;
+        }
+
+        
+        #endregion
     }
 }

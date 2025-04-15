@@ -79,7 +79,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             CheckUniqueISavableGuidOnInspectorInput();
             CheckUniqueDuplicateComponentGuidOnInspectorInput();
             
-            UnityUtility.SetDirty(this);
+            SaveLoadUtility.SetDirty(this);
         }
         
         /*
@@ -91,7 +91,7 @@ namespace SaveLoadSystem.Core.UnityComponent
             UpdateSavableComponents();
             UpdateSavableReferenceComponents();
             
-            UnityUtility.SetDirty(this);
+            SaveLoadUtility.SetDirty(this);
         }
         
         private void RegisterToSceneManager()
@@ -158,7 +158,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         private void UpdateSavableComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
-            var foundElements = TypeUtility.GetComponentsWithTypeCondition(gameObject, TypeUtility.ContainsType<ISavable>);
+            var foundElements = SaveLoadUtility.GetComponentsWithTypeCondition(gameObject, SaveLoadUtility.ContainsType<ISavable>);
             
             //update removed elements and those that are kept 
             for (var index = SavableLookup.Count - 1; index >= 0; index--)
@@ -191,7 +191,7 @@ namespace SaveLoadSystem.Core.UnityComponent
         
         private void UpdateSavableReferenceComponents()
         {
-            var duplicates = UnityUtility.GetDuplicateComponents(gameObject);
+            var duplicates = SaveLoadUtility.GetDuplicateComponents(gameObject);
 
             //remove duplicates, that implement the savable component: all savables need an id
             for (var index = duplicates.Count - 1; index >= 0; index--)

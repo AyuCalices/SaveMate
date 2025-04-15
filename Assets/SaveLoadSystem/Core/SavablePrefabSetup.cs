@@ -59,7 +59,7 @@ namespace SaveLoadSystem.Core
             {
                 CleanupSavablePrefabs(assetRegistries);
                 PostprocessPrefabs(assetRegistries, importedAssets);
-                assetRegistries.ForEach(UnityUtility.SetDirty);
+                assetRegistries.ForEach(SaveLoadUtility.SetDirty);
             }
         }
         

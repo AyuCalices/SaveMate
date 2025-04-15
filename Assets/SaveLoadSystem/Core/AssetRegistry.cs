@@ -36,7 +36,7 @@ namespace SaveLoadSystem.Core
             FixMissingScriptableObjectGuid();
             UpdateScriptableObjectGuidOnInspectorInput();
             
-            UnityUtility.SetDirty(this);
+            SaveLoadUtility.SetDirty(this);
         }
         
         private void FixMissingScriptableObjectGuid()
@@ -77,7 +77,7 @@ namespace SaveLoadSystem.Core
             var id = GenerateUniquePrefabGuid(scriptableObject);
             ScriptableObjectSavables.Add(new UnityObjectIdentification(id, scriptableObject));
             
-            UnityUtility.SetDirty(this);
+            SaveLoadUtility.SetDirty(this);
         }
 
         #endregion
@@ -127,7 +127,7 @@ namespace SaveLoadSystem.Core
             InitializeUniquePrefabGuid(savable);
             PrefabSavables.Add(savable);
 
-            UnityUtility.SetDirty(this);
+            SaveLoadUtility.SetDirty(this);
         }
 
         #endregion

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.EventHandler;
 using SaveLoadSystem.Utility;
@@ -20,15 +19,13 @@ namespace SaveLoadSystem.Core
     public class SaveFileContext
     {
         public string FileName { get; }
-        public bool HasPendingData { get; private set; }
-        public bool IsPersistent { get; private set; }
+        private bool IsPersistent => SaveFileUtility.MetaDataExists(_saveLoadManager, FileName) && SaveFileUtility.SaveDataExists(_saveLoadManager, FileName);
 
         private readonly SaveLoadManager _saveLoadManager;
         private readonly AssetRegistry _assetRegistry;
-        private readonly AsyncOperationQueue _asyncQueue;
         
-        private JObject _customMetaData;
-        private SaveMetaData _metaData;
+        private readonly AsyncOperationQueue _asyncQueue;
+        private bool _hasPendingData;
         
         internal RootSaveData RootSaveData;
         internal GuidToCreatedNonUnityObjectLookup GuidToCreatedNonUnityObjectLookup;
@@ -42,67 +39,11 @@ namespace SaveLoadSystem.Core
             _assetRegistry = assetRegistry;
             _asyncQueue = new AsyncOperationQueue();
             FileName = fileName;
-
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            _asyncQueue.Enqueue(async () =>
-            {
-                if (SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName) && SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName))
-                {
-                    _metaData = await SaveLoadUtility.ReadMetaDataAsync(_saveLoadManager, _saveLoadManager, FileName);
-                    IsPersistent = true;
-                    _customMetaData = _metaData.CustomData;
-                }
-                else
-                {
-                    _customMetaData = new();
-                }
-            });
         }
 
 
         #region Public Methods
         
-        
-        internal void SaveCustomMetaData(string identifier, object data)
-        {
-            _asyncQueue.Enqueue(() =>
-            {
-                _customMetaData.Add(identifier, JToken.FromObject(data));
-                return Task.CompletedTask;
-            });
-        }
-        
-        internal bool TryLoadCustomMetaData<T>(string identifier, out T obj)
-        {
-            obj = default;
-
-            if (_customMetaData == null)
-            {
-                Debug.LogError($"{nameof(SaveFileContext)} not Initialized!");
-            }
-            
-            if (_customMetaData[identifier] == null)
-            {
-                Debug.LogError($"Wasn't able to find the object of type '{typeof(T).FullName}' for identifier '{identifier}' inside the meta data!");
-                return false;
-            }
-
-            try
-            {
-                obj = _customMetaData[identifier].ToObject<T>();
-                return true;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"Error serializing object of type '{typeof(T).FullName}' using '{nameof(Newtonsoft.Json)}'. " +
-                               $"Exception: {e.GetType().Name} - {e.Message}\n{e.StackTrace}");
-                throw;
-            }
-        }
 
         internal void CaptureSnapshot(params ISavableGroup[] savableGroups)
         {
@@ -119,7 +60,7 @@ namespace SaveLoadSystem.Core
                 {
                     if (savableGroup is not ISavableGroupHandler savableGroupHandler) continue;
                     
-                    if (savableGroupHandler.SceneName != "DontDestroyOnLoad" && UnityUtility.IsSceneUnloaded(savableGroupHandler.SceneName))
+                    if (savableGroupHandler.SceneName != "DontDestroyOnLoad" && SaveLoadUtility.IsSceneUnloaded(savableGroupHandler.SceneName))
                     {
                         Debug.LogWarning($"[Save Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{savableGroupHandler.SceneName}': scene is not currently loaded.");
                         continue;
@@ -142,25 +83,24 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(async () =>
             {
-                if (!HasPendingData)
+                if (!_hasPendingData)
                 {
-                    Debug.LogWarning($"[Save Mate] {nameof(WriteToDisk)} aborted: No pending data to save!");
+                    Debug.LogWarning($"[Save Mate] {nameof(WriteToDisk)} aborted: No pending data to save on disk!");
                     return;
                 }
                 
-                _metaData = new SaveMetaData()
+                OnBeforeWriteToDisk();
+                
+                var metaData = new SaveMetaData()
                 {
                     SaveVersion = _saveLoadManager.SaveVersion,
                     ModificationDate = DateTime.Now,
-                    CustomData = _customMetaData
+                    CustomData = _saveLoadManager.CustomMetaData
                 };
-
-                OnBeforeWriteToDisk();
                 
-                await SaveLoadUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, _metaData, RootSaveData);
+                await SaveFileUtility.WriteDataAsync(_saveLoadManager, _saveLoadManager, FileName, metaData, RootSaveData);
 
-                IsPersistent = true;
-                HasPendingData = false;
+                _hasPendingData = false;
 
                 OnAfterWriteToDisk();
                 
@@ -172,8 +112,8 @@ namespace SaveLoadSystem.Core
         {
             _asyncQueue.Enqueue(async () =>
             {
-                if (!SaveLoadUtility.SaveDataExists(_saveLoadManager, FileName) 
-                    || !SaveLoadUtility.MetaDataExists(_saveLoadManager, FileName)) return;
+                if (!SaveFileUtility.SaveDataExists(_saveLoadManager, FileName) 
+                    || !SaveFileUtility.MetaDataExists(_saveLoadManager, FileName)) return;
 
                 if (!IsPersistent)
                 {
@@ -185,7 +125,7 @@ namespace SaveLoadSystem.Core
                 {
                     OnBeforeReadFromDisk();
                     
-                    RootSaveData = await SaveLoadUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
+                    RootSaveData = await SaveFileUtility.ReadSaveDataSecureAsync(_saveLoadManager, _saveLoadManager.SaveVersion, _saveLoadManager, FileName);
                     GuidToCreatedNonUnityObjectLookup = new GuidToCreatedNonUnityObjectLookup();
                     SavedNonUnityObjectToGuidLookup = new ConditionalWeakTable<object, string>();
                     SoftLoadedObjects = new HashSet<object>();
@@ -213,7 +153,7 @@ namespace SaveLoadSystem.Core
                 {
                     if (loadableGroup is not ILoadableGroupHandler loadableGroupHandler) continue;
                     
-                    if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && UnityUtility.IsSceneUnloaded(loadableGroupHandler.SceneName))
+                    if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && SaveLoadUtility.IsSceneUnloaded(loadableGroupHandler.SceneName))
                     {
                         Debug.LogWarning($"[Save Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{loadableGroupHandler.SceneName}': scene is not currently loaded.");
                         continue;
@@ -243,7 +183,7 @@ namespace SaveLoadSystem.Core
                 GuidToCreatedNonUnityObjectLookup.CLear();
                 SavedNonUnityObjectToGuidLookup.Clear();
                 SoftLoadedObjects.Clear();
-                HasPendingData = true;
+                _hasPendingData = true;
                 
                 OnAfterDeleteSnapshotData();
 
@@ -257,9 +197,7 @@ namespace SaveLoadSystem.Core
             {
                 OnBeforeDeleteDiskData();
 
-                await SaveLoadUtility.DeleteAsync(_saveLoadManager, FileName);
-
-                IsPersistent = false;
+                await SaveFileUtility.DeleteAsync(_saveLoadManager, FileName);
 
                 OnAfterDeleteDiskData();
                 
@@ -457,7 +395,7 @@ namespace SaveLoadSystem.Core
             {
                 savableGroupHandler.CaptureSnapshot(_saveLoadManager, this);
             }
-            HasPendingData = true;
+            _hasPendingData = true;
             
             OnAfterCaptureSnapshot(savableGroupHandlers);
             
@@ -520,7 +458,6 @@ namespace SaveLoadSystem.Core
         #region Private Scene Loading
 
         
-        //TODO: test
         internal async void ReloadScenes(params SimpleSceneSaveManager[] scenesToLoad)
         {
             //buffer save paths, because they will be null later on the scene array

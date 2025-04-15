@@ -19,5 +19,10 @@ namespace SaveLoadSystem.Core.DataTransferObject
         {
             Elements[guidPath] = leafSaveData;
         }
+
+        public void Clear()
+        {
+            Elements.Clear();
+        }
     }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SaveLoadSystem.Core.DataTransferObject;
 using SaveLoadSystem.Core.Integrity;
 using SaveLoadSystem.Core.SerializeStrategy;
@@ -74,7 +75,9 @@ namespace SaveLoadSystem.Core
         internal readonly Dictionary<GuidPath, ScriptableObject> GuidToScriptableObjectLookup = new();
         internal readonly Dictionary<ScriptableObject, GuidPath> ScriptableObjectToGuidLookup = new();
         internal readonly Dictionary<string, Savable> GuidToSavablePrefabsLookup = new();
-
+        
+        //saving
+        internal readonly JObject CustomMetaData = new();
         
         #region Unity Lifecycle
 
@@ -85,7 +88,7 @@ namespace SaveLoadSystem.Core
             
             foreach (var scriptableObjectSavable in assetRegistry.ScriptableObjectSavables)
             {
-                var guidPath = new GuidPath(RootSaveData.ScriptableObjectDataName, scriptableObjectSavable.guid);
+                var guidPath = new GuidPath(SaveLoadUtility.ScriptableObjectDataName, scriptableObjectSavable.guid);
                 ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
                 GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
             }
@@ -125,7 +128,7 @@ namespace SaveLoadSystem.Core
         
         public string[] GetAllSaveFiles()
         {
-            return SaveLoadUtility.FindAllSaveFiles(this);
+            return SaveFileUtility.FindAllSaveFiles(this);
         }
         
         
@@ -150,9 +153,8 @@ namespace SaveLoadSystem.Core
         #endregion
 
         #region MetaData
-
         
-        //TODO: optimization possible: cache and update all meta data for direct use of SaveFileContext
+        
         public async void FetchAllMetaData(Action<SaveMetaData[]> onAllMetaDataFound)
         {
             var saveMetaData = await FetchAllMetaData();
@@ -184,33 +186,32 @@ namespace SaveLoadSystem.Core
         
         public async Task<SaveMetaData> FetchMetaData(string saveName)
         {
-            return await SaveLoadUtility.ReadMetaDataAsync(this, this, saveName);
+            return await SaveFileUtility.ReadMetaDataAsync(this, this, saveName);
         }
         
-        //TODO: maybe support value saving through doubled object saving in save file with same id
-        public void QuickSaveMetaData(string identifier, object obj)
+        public void AddOrUpdateSaveInfo(string identifier, object obj)
         {
-            QuickSaveMetaData(_activeSaveFile, identifier, obj);
+            CustomMetaData[identifier] = JToken.FromObject(obj);
         }
 
-        public void QuickSaveMetaData(string fileName, string identifier, object obj)
+        public bool RemoveSaveInfo(string identifier)
         {
-            UpdateSaveFileContext(fileName);
-
-            _currentSaveFileContext.SaveCustomMetaData(identifier, obj);
+            return CustomMetaData.Remove(identifier);
         }
         
-        public bool TryQuickLoadMetaData<T>(string identifier, out T obj)
+        public bool TryGetSaveInfo<T>(SaveMetaData saveMetaData, string identifier, out T obj)
         {
-            return TryQuickLoadMetaData(_activeSaveFile, identifier, out obj);
-        }
+            obj = default;
 
-        public bool TryQuickLoadMetaData<T>(string fileName, string identifier, out T obj)
-        {
-            UpdateSaveFileContext(fileName);
-
-            //TODO: will result in error: SaveFileContext not initialized!
-            return _currentSaveFileContext.TryLoadCustomMetaData(identifier, out obj);
+            var customMetaData = saveMetaData.CustomData;
+            if (customMetaData?[identifier] == null)
+            {
+                Debug.LogWarning($"Wasn't able to find the object of type '{typeof(T).FullName}' for identifier '{identifier}' inside the meta data!");
+                return false;
+            }
+            
+            obj = customMetaData[identifier].ToObject<T>();
+            return true;
         }
 
         

@@ -353,13 +353,13 @@ namespace SaveLoadSystem.Core
         private bool TryGetLeafSaveData(GuidPath guidPath, out LeafSaveData leafSaveData)
         {
             leafSaveData = default;
-            if (guidPath.SceneName == RootSaveData.ScriptableObjectDataName)
+            if (guidPath.SceneName == SaveLoadUtility.ScriptableObjectDataName)
             {
                 if (!_rootSaveData.ScriptableObjectSaveData.TryGetLeafSaveData(guidPath, out leafSaveData)) return false;
             }
             else
             {
-                if (!_rootSaveData.SceneDataLookup.TryGetValue(guidPath.SceneName, out var sceneData)) return false;
+                if (!_rootSaveData.TryGetSceneData(guidPath.SceneName, out var sceneData)) return false;
 
                 if (!sceneData.ActiveSaveData.TryGetLeafSaveData(guidPath, out leafSaveData)) return false;
             }
@@ -370,7 +370,7 @@ namespace SaveLoadSystem.Core
         private bool CreateObjectISavable(LoadDataHandler loadDataHandler, Type type, GuidPath guidPath, out object reference)
         {
             reference = Activator.CreateInstance(type);
-            if (!TypeUtility.TryConvertTo(reference, out ISavable objectSavable))
+            if (reference is not ISavable objectSavable)
                 return false;
 
             _saveFileContext.GuidToCreatedNonUnityObjectLookup.Add(_loadType, guidPath, reference);

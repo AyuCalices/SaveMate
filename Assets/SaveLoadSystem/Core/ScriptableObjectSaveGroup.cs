@@ -15,7 +15,8 @@ namespace SaveLoadSystem.Core
         [SerializeField] private List<ScriptableObject> pathBasedScriptableObjects = new();
         [SerializeField] private List<ScriptableObject> customAddedScriptableObjects = new();
         
-        public string SceneName => RootSaveData.ScriptableObjectDataName;
+        public string SceneName => SaveLoadUtility.ScriptableObjectDataName;
+        
         
         private static readonly HashSet<ScriptableObject> _savedScriptableObjectsLookup = new();
 
@@ -27,7 +28,7 @@ namespace SaveLoadSystem.Core
         {
             UpdateFolderSelectScriptableObject();
             
-            UnityUtility.SetDirty(this);
+            SaveLoadUtility.SetDirty(this);
         }
 
         private void UpdateFolderSelectScriptableObject()
@@ -153,13 +154,13 @@ namespace SaveLoadSystem.Core
                 return;
             }
             
-            if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
+            if (scriptableObject is not ISavable targetSavable) return;
                 
             var leafSaveData = new LeafSaveData();
             var branchSaveData = saveFileContext.RootSaveData.ScriptableObjectSaveData;
             branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
 
-            targetSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, RootSaveData.ScriptableObjectDataName, 
+            targetSavable.OnSave(new SaveDataHandler(branchSaveData, leafSaveData, guidPath, SaveLoadUtility.ScriptableObjectDataName, 
                 saveFileContext, saveLoadManager));
                 
             saveFileContext.SoftLoadedObjects.Remove(scriptableObject);
@@ -247,7 +248,7 @@ namespace SaveLoadSystem.Core
             var rootSaveData = saveFileContext.RootSaveData;
             
             // Skip the scriptable object, if it contains references to scene's, that arent active
-            if (rootSaveData.ScriptableObjectSaveData.Elements.TryGetValue(guidPath, out var leafSaveData))
+            if (rootSaveData.ScriptableObjectSaveData.TryGetLeafSaveData(guidPath, out var leafSaveData))
             {
                 if (!ScenesForGlobalLeafSaveDataAreLoaded(saveLoadManager.GetTrackedSaveSceneManagers(), leafSaveData))
                 {
@@ -259,10 +260,10 @@ namespace SaveLoadSystem.Core
             //restore snapshot data
             if (!rootSaveData.ScriptableObjectSaveData.TryGetLeafSaveData(guidPath, out var instanceSaveData)) return;
             
-            if (!TypeUtility.TryConvertTo(scriptableObject, out ISavable targetSavable)) return;
+            if (scriptableObject is not ISavable targetSavable) return;
                     
             var loadDataHandler = new LoadDataHandler(rootSaveData, instanceSaveData, loadType, 
-                RootSaveData.ScriptableObjectDataName, saveFileContext, saveLoadManager);
+                SaveLoadUtility.ScriptableObjectDataName, saveFileContext, saveLoadManager);
             
             targetSavable.OnLoad(loadDataHandler);
                     
@@ -276,7 +277,7 @@ namespace SaveLoadSystem.Core
                 if (!referenceGuidPath.HasValue) return false;
                 
                 var sceneNameMatchExists = requiredScenes.Exists(x => x.SceneName == referenceGuidPath.Value.SceneName);
-                var isNotScriptableObject = referenceGuidPath.Value.SceneName != RootSaveData.ScriptableObjectDataName;
+                var isNotScriptableObject = referenceGuidPath.Value.SceneName != SaveLoadUtility.ScriptableObjectDataName;
                 
                 if (!sceneNameMatchExists && isNotScriptableObject) return false;
             }

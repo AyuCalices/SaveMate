@@ -244,7 +244,7 @@ namespace SaveLoadSystem.Core
                 ActiveSaveData = CreateBranchSaveData(saveFileContext, saveLoadManager)
             };
                 
-            saveFileContext.RootSaveData.SetSceneData(SceneName, sceneData);
+            saveFileContext.RootSaveData.UpsertSceneData(SceneName, sceneData);
         }
 
         void ISavableGroupHandler.OnAfterCaptureSnapshot()
@@ -279,7 +279,7 @@ namespace SaveLoadSystem.Core
                 var savableGuidPath = new GuidPath(SceneName, saveObject.SceneGuid);
                 foreach (var componentContainer in saveObject.SavableLookup)
                 {
-                    if (!TypeUtility.TryConvertTo(componentContainer.unityObject, out ISavable iSavable)) continue;
+                    if (componentContainer.unityObject is not ISavable iSavable) continue;
             
                     var guidPath = new GuidPath(savableGuidPath, componentContainer.guid);
                     var leafSaveData = new LeafSaveData();
@@ -406,7 +406,7 @@ namespace SaveLoadSystem.Core
 
                     if (branchSaveData.TryGetLeafSaveData(componentGuidPath, out var instanceSaveData))
                     {
-                        if (!TypeUtility.TryConvertTo(savableComponent.unityObject, out ISavable iSavable)) return;
+                        if (savableComponent.unityObject is not ISavable iSavable) return;
                     
                         var loadDataHandler = new LoadDataHandler(saveFileContext.RootSaveData, instanceSaveData, loadType, SceneName, 
                             saveFileContext, saveLoadManager);

@@ -7,7 +7,6 @@ namespace SaveLoadSystem.Core.DataTransferObject
     {
         public SaveVersion SaveVersion { get; set; }
         public DateTime ModificationDate { get; set; }
-        public string Checksum { get; set; }
         public JObject CustomData { get; set; } = new();
     }
 }

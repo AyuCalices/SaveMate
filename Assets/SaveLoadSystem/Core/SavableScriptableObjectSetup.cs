@@ -60,7 +60,7 @@ namespace SaveLoadSystem.Core
             {
                 CleanupSavableScriptableObjects(assetRegistries);
                 PostprocessScriptableObjects(assetRegistries, importedAssets);
-                assetRegistries.ForEach(UnityUtility.SetDirty);
+                assetRegistries.ForEach(SaveLoadUtility.SetDirty);
             }
         }
         

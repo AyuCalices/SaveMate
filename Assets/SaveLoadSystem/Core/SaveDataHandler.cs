@@ -76,7 +76,8 @@ namespace SaveLoadSystem.Core
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
                 var leafSaveData = new LeafSaveData();
-                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, newPath, _sceneName, _saveFileContext, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, newPath, _sceneName, 
+                    _saveFileContext, _saveLoadManager);
 
                 ConverterServiceProvider.GetConverter(typeof(T)).Save(obj, saveDataHandler);
                 
@@ -201,14 +202,13 @@ namespace SaveLoadSystem.Core
 
         private void UpsertNonUnityObject<T>(T objectToSave, GuidPath guidPath)
         {
-            if (objectToSave is ISavable)
+            if (objectToSave is ISavable targetSavable)
             {
-                if (!TypeUtility.TryConvertTo(objectToSave, out ISavable targetSavable)) return;
-                
                 var leafSaveData = new LeafSaveData();
                 _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
             
-                targetSavable.OnSave(new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager));
+                targetSavable.OnSave(new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, 
+                    _saveFileContext, _saveLoadManager));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(typeof(T)))
             {
@@ -216,7 +216,8 @@ namespace SaveLoadSystem.Core
                 
                 _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
                         
-                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, _saveFileContext, _saveLoadManager);
+                var saveDataHandler = new SaveDataHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, 
+                    _saveFileContext, _saveLoadManager);
                 ConverterServiceProvider.GetConverter(typeof(T)).Save(objectToSave, saveDataHandler);
             }
             else
