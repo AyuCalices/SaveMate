@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using SaveMate.Core.DataTransferObject;
 using SaveMate.Core.EventHandler;
 using SaveMate.Core.SavableGroupInterfaces;
-using SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot;
 using SaveMate.Core.SaveComponents.ManagingScope;
 using SaveMate.Core.SaveComponents.SceneScope;
 using SaveMate.Core.StateSnapshot;
@@ -12,8 +11,8 @@ using UnityEngine;
 
 namespace SaveMate.Core.SaveComponents.AssetScope
 {
-    [CreateAssetMenu]
-    public class ScriptableObjectSaveGroupElement : ScriptableObject, ISavableGroupHandler, ILoadableGroupHandler
+    [CreateAssetMenu(fileName = "ScriptableObjectSaveGroup", menuName = "Save Mate/Scriptable Object Save Group")]
+    public class ScriptableObjectSaveGroup : ScriptableObject, ISavableGroupHandler, ILoadableGroupHandler
     {
         [SerializeField] private List<string> searchInFolders = new();
         [SerializeField] private List<ScriptableObject> pathBasedScriptableObjects = new();
@@ -265,7 +264,7 @@ namespace SaveMate.Core.SaveComponents.AssetScope
             
             if (scriptableObject is not ISaveStateHandler targetSavable) return;
                     
-            var loadDataHandler = new RestoreSnapshotHandler(rootSaveData, instanceSaveData, loadType, 
+            var loadDataHandler = new RestoreSnapshotHandler(rootSaveData, instanceSaveData, loadType, "ScriptableObject: " + scriptableObject.name, 
                 SaveLoadUtility.ScriptableObjectDataName, saveFileContext, saveMateManager);
             
             targetSavable.OnRestoreState(loadDataHandler);

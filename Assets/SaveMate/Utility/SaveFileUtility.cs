@@ -54,7 +54,7 @@ namespace SaveMate.Utility
                 var strategy = saveStrategy.GetIntegrityStrategy();
                 if (strategy != null)
                 {
-                    saveMetaData.CustomData.Add("Checksum", strategy.ComputeChecksum(encryptedSaveData));
+                    saveMetaData.CustomData["Checksum"] = strategy.ComputeChecksum(encryptedSaveData);
                 }
                 
                 

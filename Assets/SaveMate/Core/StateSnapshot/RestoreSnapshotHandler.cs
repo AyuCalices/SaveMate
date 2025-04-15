@@ -1,6 +1,8 @@
 using System;
 using Newtonsoft.Json.Linq;
 using SaveMate.Core.DataTransferObject;
+using SaveMate.Core.SaveComponents.AssetScope;
+using SaveMate.Core.SaveComponents.GameObjectScope;
 using SaveMate.Core.SaveComponents.ManagingScope;
 using SaveMate.Core.StateSnapshot.Converter;
 using SaveMate.Utility;
@@ -13,7 +15,6 @@ namespace SaveMate.Core.StateSnapshot
     /// The <see cref="RestoreSnapshotHandler"/> class is responsible for managing the deserialization and retrieval of
     /// serialized data, as well as handling reference building for complex object graphs.
     /// </summary>
-    /// TODO: debugs must be more descriptive, where it came from
     public readonly struct RestoreSnapshotHandler
     {
         //save data container
@@ -21,19 +22,21 @@ namespace SaveMate.Core.StateSnapshot
         private readonly LeafSaveData _leafSaveData;
 
         private readonly LoadType _loadType;
+        private readonly string _sceneOrigin;
         private readonly string _sceneName;
 
         //reference lookups
         private readonly SaveMateManager _saveMateManager;
         private readonly SaveFileContext _saveFileContext;
 
-        public RestoreSnapshotHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, LoadType loadType, string sceneName, 
+        public RestoreSnapshotHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, LoadType loadType, string sceneOrigin, string sceneName, 
             SaveFileContext saveFileContext, SaveMateManager saveMateManager)
         {
             _rootSaveData = rootSaveData;
             _leafSaveData = leafSaveData;
 
             _loadType = loadType;
+            _sceneOrigin = sceneOrigin;
             _sceneName = sceneName;
 
             _saveMateManager = saveMateManager;
@@ -81,7 +84,8 @@ namespace SaveMate.Core.StateSnapshot
         {
             if (_leafSaveData == null || !_leafSaveData.Values.TryGetValue(identifier, out var saveData))
             {
-                Debug.LogError($"Wasn't able to find the save data for the identifier: '{identifier}'. Requested object type: '{type.FullName}'!");
+                Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                 $"Wasn't able to find save data for object type: '{type.FullName}'!");
                 value = null;
                 return false;
             }
@@ -96,7 +100,8 @@ namespace SaveMate.Core.StateSnapshot
             //unity object handling
             if (typeof(Object).IsAssignableFrom(type))
             {
-                Debug.LogError($"You can't load an object of type {typeof(Object)} as a value!");
+                Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                 $"You tried to load an object of type {typeof(Object)} as a value! This is not allowed!");
                 value = default;
                 return false;
             }
@@ -104,14 +109,14 @@ namespace SaveMate.Core.StateSnapshot
             //savable handling
             if (typeof(ISaveStateHandler).IsAssignableFrom(type))
             {
-                var res = TryLoadValueSavable(type, identifier, out value);
+                var res = TryLoadValueSavable(type, $"{_sceneOrigin}/{identifier}", saveData, out value);
                 return res;
             }
 
             //converter handling
             if (ConverterServiceProvider.ExistsAndCreate(type))
             {
-                var res = TryLoadValueWithConverter(type, identifier, out value);
+                var res = TryLoadValueWithConverter(type, $"{_sceneOrigin}/{identifier}", saveData, out value);
                 return res;
             }
 
@@ -119,10 +124,10 @@ namespace SaveMate.Core.StateSnapshot
             return true;
         }
         
-        private bool TryLoadValueSavable(Type type, JToken saveData, out object value)
+        private bool TryLoadValueSavable(Type type, string newSceneOrigin, JToken saveData, out object value)
         {
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
-            var loadDataHandler = new RestoreSnapshotHandler(_rootSaveData, saveDataBuffer, _loadType, _sceneName, 
+            var loadDataHandler = new RestoreSnapshotHandler(_rootSaveData, saveDataBuffer, _loadType, newSceneOrigin, _sceneName, 
                 _saveFileContext, _saveMateManager);
 
             value = Activator.CreateInstance(type);
@@ -131,10 +136,10 @@ namespace SaveMate.Core.StateSnapshot
             return true;
         }
         
-        private bool TryLoadValueWithConverter(Type type, JToken saveData, out object value)
+        private bool TryLoadValueWithConverter(Type type, string newSceneOrigin, JToken saveData, out object value)
         {
             var saveDataBuffer = saveData.ToObject<LeafSaveData>();
-            var loadDataHandler = new RestoreSnapshotHandler(_rootSaveData, saveDataBuffer, _loadType, _sceneName, 
+            var loadDataHandler = new RestoreSnapshotHandler(_rootSaveData, saveDataBuffer, _loadType, newSceneOrigin, _sceneName, 
                 _saveFileContext, _saveMateManager);
 
             var convertable = ConverterServiceProvider.GetConverter(type);
@@ -175,34 +180,47 @@ namespace SaveMate.Core.StateSnapshot
             // Handle Unity type references
             if (typeof(ScriptableObject).IsAssignableFrom(type))
             {
-                return TryGetScriptableObjectReference(guidPath.Value, out reference);
+                return TryGetScriptableObjectReference(guidPath.Value, identifier, out reference);
             }
 
             if (type == typeof(GameObject))
             {
-                return TryGetGameObjectReference(guidPath.Value, obj => obj, out reference);
+                return TryGetGameObjectReference(guidPath.Value, identifier, obj => obj, out reference);
             }
 
             if (type == typeof(Transform))
             {
-                return TryGetGameObjectReference(guidPath.Value, obj => obj.transform, out reference);
+                return TryGetGameObjectReference(guidPath.Value, identifier, obj => obj.transform, out reference);
             }
 
             if (type == typeof(RectTransform))
             {
-                return TryGetGameObjectReference(guidPath.Value, obj => (RectTransform)obj.transform, out reference);
+                return TryGetGameObjectReference(guidPath.Value, identifier, obj => (RectTransform)obj.transform, out reference);
             }
 
             if (typeof(Component).IsAssignableFrom(type))
             {
-                return TryGetComponentReference(type, guidPath.Value, out reference);
+                return TryGetComponentReference(type, guidPath.Value, identifier, out reference);
             }
 
             // Try to load a created object or create a new one
-            return TryGetCreatedObject(type, guidPath.Value, out reference) || CreateObject(type, guidPath.Value, out reference);
+            return TryGetCreatedObject(type, guidPath.Value, identifier, out reference) || 
+                   CreateObject(type, guidPath.Value, identifier, out reference);
+        }
+        
+        private bool TryGetGuidPath(string identifier, out GuidPath? guidPath)
+        {
+            if (!_leafSaveData.References.TryGetValue(identifier, out guidPath))
+            {
+                Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                 $"Wasn't able to find save data");
+                return false;
+            }
+            
+            return true;
         }
 
-        private bool TryGetScriptableObjectReference(GuidPath guidPath, out object reference)
+        private bool TryGetScriptableObjectReference(GuidPath guidPath, string identifier, out object reference)
         {
             reference = null;
             
@@ -212,11 +230,13 @@ namespace SaveMate.Core.StateSnapshot
                 return true;
             }
             
-            Debug.LogError($"Wasn't able to find the '{nameof(ScriptableObject)}' for the GUID: '{guidPath.ToString()}'!");
+            Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                             $"Wasn't able to find the requested {nameof(ScriptableObject)}. " +
+                             $"Please make sure your it is added to the {nameof(AssetRegistry)}!");
             return false;
         }
 
-        private bool TryGetGameObjectReference<T>(GuidPath guidPath, Func<GameObject, T> convertAction, out object reference)
+        private bool TryGetGameObjectReference<T>(GuidPath guidPath, string identifier, Func<GameObject, T> convertAction, out object reference)
         {
             reference = null;
             
@@ -226,11 +246,13 @@ namespace SaveMate.Core.StateSnapshot
                 return true;
             }
             
-            Debug.LogError($"Wasn't able to find the '{nameof(T)}' for the GUID: '{guidPath.ToString()}'!");
+            Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                             $"Wasn't able to find the object {nameof(T)}. Please make sure it is referencable by " +
+                             $"adding the '{nameof(Savable)}' component to the related {nameof(GameObject)}!");
             return false;
         }
 
-        private bool TryGetComponentReference(Type type, GuidPath guidPath, out object reference)
+        private bool TryGetComponentReference(Type type, GuidPath guidPath, string identifier, out object reference)
         {
             reference = null;
 
@@ -248,19 +270,10 @@ namespace SaveMate.Core.StateSnapshot
                 return true;
             }
             
-            Debug.LogError($"Wasn't able to find the {nameof(Component)} of type '{type.FullName}' for the GUID: '{guidPath.ToString()}'!");
+            Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                             $"Wasn't able to find the requested type '{type.Name}'. Please make sure it is referencable by " +
+                             $"adding the '{nameof(Savable)}' component to the related {nameof(GameObject)}!");
             return false;
-        }
-        
-        private bool TryGetGuidPath(string identifier, out GuidPath? guidPath)
-        {
-            if (!_leafSaveData.References.TryGetValue(identifier, out guidPath))
-            {
-                Debug.LogError($"Wasn't able to find save data for the identifier: '{identifier}'!");
-                return false;
-            }
-            
-            return true;
         }
         
         private bool GetGuidPathGameObject(GuidPath guidPath, out GameObject gameObject)
@@ -301,7 +314,7 @@ namespace SaveMate.Core.StateSnapshot
             return false;
         }
 
-        private bool TryGetCreatedObject(Type type, GuidPath guidPath, out object reference)
+        private bool TryGetCreatedObject(Type type, GuidPath guidPath, string identifier, out object reference)
         {
             reference = default;
             
@@ -309,8 +322,9 @@ namespace SaveMate.Core.StateSnapshot
             {
                 if (reference.GetType() != type)
                 {
-                    Debug.LogWarning($"The requested object was already created as type '{reference.GetType()}'. " +
-                                     $"You tried to return it as type '{type}', which is not allowed. Please use matching types.");
+                    Debug.LogWarning($"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                     $"The requested object was already created as type '{reference.GetType().Name}'. " +
+                                     $"You tried to return it with a different type, which is not allowed!");
                     return false;
                 }
                 
@@ -320,17 +334,18 @@ namespace SaveMate.Core.StateSnapshot
             return false;
         }
 
-        private bool CreateObject(Type type, GuidPath guidPath, out object reference)
+        private bool CreateObject(Type type, GuidPath guidPath, string identifier, out object reference)
         {
             reference = null;
 
             if (!TryGetLeafSaveData(guidPath, out var leafSaveData))
             {
-                Debug.LogError($"Wasn't able to find the save data for the GUID: '{guidPath.ToString()}'. Requested object type: '{type.FullName}'!");
+                Debug.LogWarning($"[SaveMate - Internal Error] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                 $"Wasn't able to find the save data object. This is likely a bug!");
                 return false;
             }
             
-            var loadDataHandler = new RestoreSnapshotHandler(_rootSaveData, leafSaveData, _loadType, _sceneName, 
+            var loadDataHandler = new RestoreSnapshotHandler(_rootSaveData, leafSaveData, _loadType, $"{_sceneOrigin}/{identifier}", _sceneName, 
                 _saveFileContext, _saveMateManager);
             
             
@@ -347,7 +362,7 @@ namespace SaveMate.Core.StateSnapshot
                 return true;
             }
 
-            return CreateObjectNewtonsoft(leafSaveData, type, guidPath, out reference);
+            return CreateObjectNewtonsoft(leafSaveData, type, guidPath, identifier, out reference);
         }
 
         private bool TryGetLeafSaveData(GuidPath guidPath, out LeafSaveData leafSaveData)
@@ -386,7 +401,7 @@ namespace SaveMate.Core.StateSnapshot
             converter.OnRestoreState(reference, restoreSnapshotHandler);
         }
 
-        private bool CreateObjectNewtonsoft(LeafSaveData leafSaveData, Type type, GuidPath guidPath, out object reference)
+        private bool CreateObjectNewtonsoft(LeafSaveData leafSaveData, Type type, GuidPath guidPath, string identifier, out object reference)
         {
             reference = default;
             
@@ -400,7 +415,8 @@ namespace SaveMate.Core.StateSnapshot
                     return true;
                 }
 
-                Debug.LogError($"Wasn't able to find the object of type '{type.FullName}' for GUID path '{guidPath.ToString()}' inside the save data!");
+                Debug.LogWarning($"[SaveMate - Internal Error] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                 $"Wasn't able to find the save data object. This is likely a bug!");
                 return false;
             }
             catch (Exception e)
@@ -410,12 +426,14 @@ namespace SaveMate.Core.StateSnapshot
                 // Handle UnityEngine.Object serialization specifically
                 if (typeof(Object).IsAssignableFrom(type))
                 {
-                    errorMessage = $"Error serializing UnityEngine.Object '{type.FullName}' using '{nameof(Newtonsoft.Json)}'. ";
-                    errorMessage += "Ensure that the object implements ISaveStateHandler or a custom SaveMateConverter is used. ";
+                    errorMessage = $"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                   $"Error serializing UnityEngine.Object '{type.Name}' using '{nameof(Newtonsoft.Json)}'. " +
+                                   $"Please implement the ISaveStateHandler or a create custom SaveMateConverter for the object of type '{type.Name}'!";
                 }
                 else
                 {
-                    errorMessage = $"Error serializing object of type '{type.FullName}' using '{nameof(Newtonsoft.Json)}'. ";
+                    errorMessage = $"[SaveMate] Restore Snapshot Error at '{_sceneOrigin}' for identifier '{identifier}': " +
+                                   $"Error serializing object of type '{type.Name}' using '{nameof(Newtonsoft.Json)}'. ";
                 }
                 
                 errorMessage += $"Exception: {e.GetType().Name} - {e.Message}\n{e.StackTrace}";

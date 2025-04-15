@@ -1,10 +1,10 @@
 namespace SaveMate.Core.SaveComponents.SceneScope
 {
-    public enum SaveSceneManagerDestroyType
+    public enum SaveSceneManagerDisableType
     {
         None,
-        SnapshotSingleScene,
-        SnapshotActiveScenes,
+        CreateSnapshotSingleScene,
+        CreateSnapshotActiveScenes,
         SaveSingleScene,
         SaveActiveScenes,
     }

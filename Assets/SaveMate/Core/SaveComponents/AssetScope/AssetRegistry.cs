@@ -8,7 +8,7 @@ using Object = UnityEngine.Object;
 
 namespace SaveMate.Core.SaveComponents.AssetScope
 {
-    [CreateAssetMenu(fileName = "AssetRegistry", menuName = "SaveMate/Asset Registry")]
+    [CreateAssetMenu(fileName = "AssetRegistry", menuName = "Save Mate/Asset Registry")]
     public class AssetRegistry : ScriptableObject
     {
         #region Fields & Properties

@@ -8,22 +8,21 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
-using UnityEngine.Serialization;
 
 namespace SaveMate.Core.SaveComponents.SceneScope
 {
     public class SceneSaveManager : SimpleSceneSaveManager, INestableSaveGroupHandler, INestableLoadGroupHandler
     {
-        [FormerlySerializedAs("saveLoadManager")] [SerializeField] private SaveMateManager saveMateManager;
+        [SerializeField] private SaveMateManager saveMateManager;
         [SerializeField] private LoadType defaultLoadType;
         
-        [Header("OnCaptureState and OnRestoreState Link")]
-        [SerializeField] private ScriptableObjectSaveGroupElement scriptableObjectsToSave;
-        [SerializeField] private bool additionallySaveDontDestroyOnLoad;
+        [Header("Save and Load Link")]
+        [SerializeField] private ScriptableObjectSaveGroup scriptableObjectsToSnapshot;
+        [SerializeField] private bool additionallySnapshotDontDestroyOnLoad;
 
         [Header("Unity Lifecycle Events")] 
-        [SerializeField] private bool loadSceneOnEnable;        //TODO: exchange with enum similar to saveSceneOnDisable
-        [SerializeField] private SaveSceneManagerDestroyType saveSceneOnDisable;
+        [SerializeField] private SaveSceneManagerEnableType onEnableAction;
+        [SerializeField] private SaveSceneManagerDisableType onDisableAction;
         [SerializeField] private bool saveActiveScenesOnApplicationQuit;
         
         [Header("OnCaptureState Events")]
@@ -44,9 +43,24 @@ namespace SaveMate.Core.SaveComponents.SceneScope
         
         private void OnEnable()
         {
-            if (loadSceneOnEnable)
+            switch (onEnableAction)
             {
-                LoadScene();
+                case SaveSceneManagerEnableType.None:
+                    break;
+                case SaveSceneManagerEnableType.RestoreSnapshotSingleScene:
+                    RestoreSceneSnapshot();
+                    break;
+                case SaveSceneManagerEnableType.RestoreSnapshotActiveScenes:
+                    saveMateManager.RestoreSnapshotActiveScenes();
+                    break;
+                case SaveSceneManagerEnableType.LoadSingleScene:
+                    LoadScene();
+                    break;
+                case SaveSceneManagerEnableType.LoadActiveScenes:
+                    saveMateManager.LoadActiveScenes();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
         
@@ -71,25 +85,25 @@ namespace SaveMate.Core.SaveComponents.SceneScope
 
         private void OnDisable()
         {
-            switch (saveSceneOnDisable)
+            switch (onDisableAction)
             {
-                case SaveSceneManagerDestroyType.SnapshotSingleScene:
+                case SaveSceneManagerDisableType.CreateSnapshotSingleScene:
                     CaptureSceneSnapshot();
                     break;
-                case SaveSceneManagerDestroyType.SnapshotActiveScenes:
+                case SaveSceneManagerDisableType.CreateSnapshotActiveScenes:
                     saveMateManager.CaptureSnapshotActiveScenes();
                     break;
-                case SaveSceneManagerDestroyType.SaveSingleScene:
+                case SaveSceneManagerDisableType.SaveSingleScene:
                     saveMateManager.Save(this);
                     break;
-                case SaveSceneManagerDestroyType.SaveActiveScenes:
+                case SaveSceneManagerDisableType.SaveActiveScenes:
                     if (!_hasSavedActiveScenesThisFrame)
                     {
                         saveMateManager.SaveActiveScenes();
                         _hasSavedActiveScenesThisFrame = true;
                     }
                     break;
-                case SaveSceneManagerDestroyType.None:
+                case SaveSceneManagerDisableType.None:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -119,12 +133,12 @@ namespace SaveMate.Core.SaveComponents.SceneScope
         {
             var captureSnapshotGroupElements = new List<ISavableGroupHandler>();
             
-            if (scriptableObjectsToSave)
+            if (scriptableObjectsToSnapshot)
             {
-                captureSnapshotGroupElements.Add(scriptableObjectsToSave);
+                captureSnapshotGroupElements.Add(scriptableObjectsToSnapshot);
             }
             
-            if (additionallySaveDontDestroyOnLoad)
+            if (additionallySnapshotDontDestroyOnLoad)
             {
                 captureSnapshotGroupElements.Add(SaveMateManager.GetDontDestroyOnLoadSceneManager());
             }
@@ -136,12 +150,12 @@ namespace SaveMate.Core.SaveComponents.SceneScope
         {
             var restoreSnapshotGroupElements = new List<ILoadableGroupHandler>();
             
-            if (scriptableObjectsToSave)
+            if (scriptableObjectsToSnapshot)
             {
-                restoreSnapshotGroupElements.Add(scriptableObjectsToSave);
+                restoreSnapshotGroupElements.Add(scriptableObjectsToSnapshot);
             }
             
-            if (additionallySaveDontDestroyOnLoad)
+            if (additionallySnapshotDontDestroyOnLoad)
             {
                 restoreSnapshotGroupElements.Add(SaveMateManager.GetDontDestroyOnLoadSceneManager());
             }

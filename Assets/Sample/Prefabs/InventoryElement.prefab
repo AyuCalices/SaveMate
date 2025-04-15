@@ -179,7 +179,11 @@ MonoBehaviour:
     value: 
     valid: 1
   saveStateHandlers:
-    values: []
+    values:
+    - guid: Component_ePjB5
+      unityObject: {fileID: 486862100594609039}
+    - guid: Component_vG2iQ
+      unityObject: {fileID: 2918653190320057826}
   duplicateComponentLookup:
     values: []
 --- !u!114 &486862100594609039

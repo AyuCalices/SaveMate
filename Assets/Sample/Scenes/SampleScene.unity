@@ -821,10 +821,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   saveMateManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
   defaultLoadType: 0
-  scriptableObjectsToSave: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
-  additionallySaveDontDestroyOnLoad: 0
-  loadSceneOnEnable: 0
-  saveSceneOnDisable: 0
+  scriptableObjectsToSnapshot: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
+  additionallySnapshotDontDestroyOnLoad: 0
+  onEnableAction: 0
+  onDisableAction: 0
   saveActiveScenesOnApplicationQuit: 0
   sceneManagerEvents:
     onBeforeCaptureSnapshot:
@@ -1344,7 +1344,9 @@ MonoBehaviour:
     value: GameObject_Canvas_pcuDj
     valid: 1
   saveStateHandlers:
-    values: []
+    values:
+    - guid: Component_I8vG3
+      unityObject: {fileID: 1042050944}
   duplicateComponentLookup:
     values: []
 --- !u!1 &1073139036

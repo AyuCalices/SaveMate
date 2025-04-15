@@ -87,7 +87,7 @@ namespace SaveMate.Core.StateSnapshot.Converter
 
             if (converterType == null)
             {
-                throw new NotSupportedException($"No converter found or supported for type {type.FullName}");
+                throw new NotSupportedException($"No converter found or supported for type {type.Name}");
             }
 
             // Create the converter dynamically and cache it

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Sample.Scripts;
-using SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot;
 using SaveMate.Core.StateSnapshot;
 using UnityEngine;
 
@@ -46,7 +45,7 @@ namespace Tests.MultiSceneReferenceTest.Scripts
 
         public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            if (restoreSnapshotHandler.TryLoad("StoredItem", out Item storedItem))
+            if (restoreSnapshotHandler.TryLoad("StoredItem2", out Item storedItem))
             {
                 this.storedItem = storedItem;
             }

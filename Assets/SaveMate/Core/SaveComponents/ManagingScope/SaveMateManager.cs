@@ -21,7 +21,7 @@ using UnityEngine.SceneManagement;
 
 namespace SaveMate.Core.SaveComponents.ManagingScope
 {
-    [CreateAssetMenu]
+    [CreateAssetMenu(fileName = "SaveMateManager", menuName = "Save Mate/Manager")]
     public class SaveMateManager : ScriptableObject, ISaveConfig, ISaveStrategy
     {
         [Header("Version")] 
@@ -218,7 +218,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             var customMetaData = saveMetaData.CustomData;
             if (customMetaData?[identifier] == null)
             {
-                Debug.LogWarning($"Wasn't able to find the object of type '{typeof(T).FullName}' for identifier '{identifier}' inside the meta data!");
+                Debug.LogWarning($"Wasn't able to find the object of type '{typeof(T).Name}' for identifier '{identifier}' inside the meta data!");
                 return false;
             }
             

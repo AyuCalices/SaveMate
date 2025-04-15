@@ -76,7 +76,10 @@ namespace SaveMate.Core.SaveComponents.GameObjectScope
             //update prefab guid
             OnValidateSavable?.Invoke(this);
             
-            CheckUniqueISavableGuidOnInspectorInput();
+            UpdateISaveStateComponents();
+            CheckUniqueISaveStateGuidOnInspectorInput();
+            
+            UpdateDuplicateComponents();
             CheckUniqueDuplicateComponentGuidOnInspectorInput();
             
             SaveLoadUtility.SetDirty(this);
@@ -88,8 +91,8 @@ namespace SaveMate.Core.SaveComponents.GameObjectScope
          */
         void IChangeGameObjectStructure.OnChangeGameObjectStructure()
         {
-            UpdateSavableComponents();
-            UpdateSavableReferenceComponents();
+            UpdateISaveStateComponents();
+            UpdateDuplicateComponents();
             
             SaveLoadUtility.SetDirty(this);
         }
@@ -139,7 +142,7 @@ namespace SaveMate.Core.SaveComponents.GameObjectScope
             }
         }
 
-        private void CheckUniqueISavableGuidOnInspectorInput()
+        private void CheckUniqueISaveStateGuidOnInspectorInput()
         {
             SaveLoadUtility.CheckUniqueGuidOnInspectorInput(saveStateHandlers.values,
                 obj => obj.unityObject,
@@ -155,7 +158,7 @@ namespace SaveMate.Core.SaveComponents.GameObjectScope
                 $"Duplicate Guid on GameObject '{gameObject.name}' for different 'Duplicated Components' detected!");
         }
 
-        private void UpdateSavableComponents()
+        private void UpdateISaveStateComponents()
         {
             //if setting this dirty, the hierarchy changed event will trigger, resulting in an update behaviour
             var foundElements = SaveLoadUtility.GetComponentsWithTypeCondition(gameObject, SaveLoadUtility.ContainsType<ISaveStateHandler>);
@@ -189,7 +192,7 @@ namespace SaveMate.Core.SaveComponents.GameObjectScope
             }
         }
         
-        private void UpdateSavableReferenceComponents()
+        private void UpdateDuplicateComponents()
         {
             var duplicates = SaveLoadUtility.GetDuplicateComponents(gameObject);
 

@@ -55,8 +55,8 @@ namespace SaveMate.Editor
             EditorGUILayout.PropertyField(_prefabPathProperty);
             EditorGUILayout.PropertyField(_sceneGuidProperty);
             
-            ComponentContainerListLayout(_saveStateHandlersProperty.FindPropertyRelative("values"), "Tracked ISavables", ref _showCurrentSavableList);
-            ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components (No ISavables)", ref _showSavableReferenceList);
+            ComponentContainerListLayout(_saveStateHandlersProperty.FindPropertyRelative("values"), "Tracked ISaveStateHandlers", ref _showCurrentSavableList);
+            ComponentContainerListLayout(_savableReferenceListProperty.FindPropertyRelative("values"), "Duplicate Components (No ISaveStateHandlers)", ref _showSavableReferenceList);
 
             serializedObject.ApplyModifiedProperties();
         }

@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -244,13 +244,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31bfa4fc0a77e0649bdde51706910c6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
+  saveMateManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
   defaultLoadType: 1
-  scriptableObjectsToSave: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
-  additionallySaveDontDestroyOnLoad: 0
-  loadSceneOnEnable: 1
-  saveSceneOnDisable: 0
-  saveActiveScenesOnApplicationQuit: 0
+  scriptableObjectsToSnapshot: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
+  additionallySnapshotDontDestroyOnLoad: 0
+  onEnableAction: 3
+  onDisableAction: 0
+  saveActiveScenesOnApplicationQuit: 1
   sceneManagerEvents:
     onBeforeCaptureSnapshot:
       m_PersistentCalls:
@@ -468,16 +468,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f4781fd0339ae4479038ff246e953de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dynamicPrefabSpawningDisabled: 0
+  disablePrefabSpawning: 0
   prefabGuid:
     value: 
     valid: 1
   sceneGuid:
     value: GameObject_Reference1_h6pDP
     valid: 1
-  savableLookup:
+  saveStateHandlers:
     values:
-    - guid: Component_9AiDi
+    - guid: Component_lp4dk
       unityObject: {fileID: 1208303073}
   duplicateComponentLookup:
     values: []
