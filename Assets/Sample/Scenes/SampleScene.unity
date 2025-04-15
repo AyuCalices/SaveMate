@@ -819,7 +819,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 31bfa4fc0a77e0649bdde51706910c6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  saveLoadManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
+  saveMateManager: {fileID: 11400000, guid: f3f2a02188fb1db498f576cce6044b1e, type: 2}
   defaultLoadType: 0
   scriptableObjectsToSave: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
   additionallySaveDontDestroyOnLoad: 0

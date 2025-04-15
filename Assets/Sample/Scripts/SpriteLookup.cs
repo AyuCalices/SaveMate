@@ -1,6 +1,7 @@
 using System.Collections.Generic;
-using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.UnityComponent.SavableConverter;
+using SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot;
+using SaveMate.Core.StateSnapshot.Interface;
+using SaveMate.Core.StateSnapshot.SnapshotHandler;
 using UnityEngine;
 
 namespace Sample.Scripts

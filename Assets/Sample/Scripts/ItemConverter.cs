@@ -1,11 +1,11 @@
 using JetBrains.Annotations;
-using SaveLoadSystem.Core;
-using SaveLoadSystem.Core.Converter;
+using SaveMate.Core.StateSnapshot.Converter;
+using SaveMate.Core.StateSnapshot.SnapshotHandler;
 
 namespace Sample.Scripts
 {
     [UsedImplicitly]
-    public class ItemConverter : BaseConverter<Item>
+    public class ItemConverter : BaseSaveMateConverter<Item>
     {
         protected override void OnCaptureState(Item input, CreateSnapshotHandler createSnapshotHandler)
         {

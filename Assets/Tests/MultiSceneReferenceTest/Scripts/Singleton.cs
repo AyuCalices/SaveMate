@@ -1,42 +1,45 @@
 using UnityEngine;
 
-public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
+namespace Tests.MultiSceneReferenceTest.Scripts
 {
-    private static T _instance;
-    private static readonly object _lock = new object();
-
-    public static T Instance
+    public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
     {
-        get
+        private static T _instance;
+        private static readonly object _lock = new object();
+
+        public static T Instance
         {
-            lock (_lock)
+            get
             {
-                if (_instance == null)
+                lock (_lock)
                 {
-                    _instance = FindObjectOfType<T>();
-                    
                     if (_instance == null)
                     {
-                        GameObject singletonObject = new GameObject(typeof(T).Name);
-                        _instance = singletonObject.AddComponent<T>();
-                        //DontDestroyOnLoad(singletonObject);
+                        _instance = FindObjectOfType<T>();
+                    
+                        if (_instance == null)
+                        {
+                            GameObject singletonObject = new GameObject(typeof(T).Name);
+                            _instance = singletonObject.AddComponent<T>();
+                            //DontDestroyOnLoad(singletonObject);
+                        }
                     }
+                    return _instance;
                 }
-                return _instance;
             }
         }
-    }
 
-    protected virtual void Awake()
-    {
-        if (_instance == null)
+        protected virtual void Awake()
         {
-            _instance = this as T;
-            //DontDestroyOnLoad(gameObject);
-        }
-        else if (_instance != this)
-        {
-            Destroy(gameObject);
+            if (_instance == null)
+            {
+                _instance = this as T;
+                //DontDestroyOnLoad(gameObject);
+            }
+            else if (_instance != this)
+            {
+                Destroy(gameObject);
+            }
         }
     }
 }
