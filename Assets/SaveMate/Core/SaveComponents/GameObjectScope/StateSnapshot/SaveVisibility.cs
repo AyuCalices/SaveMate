@@ -1,5 +1,4 @@
-using SaveMate.Core.StateSnapshot.Interface;
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
+using SaveMate.Core.StateSnapshot;
 using UnityEngine;
 
 namespace SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot

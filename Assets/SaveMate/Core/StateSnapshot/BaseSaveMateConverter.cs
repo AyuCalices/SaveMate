@@ -1,6 +1,6 @@
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
+using SaveMate.Core.StateSnapshot.Converter;
 
-namespace SaveMate.Core.StateSnapshot.Converter
+namespace SaveMate.Core.StateSnapshot
 {
     public abstract class BaseSaveMateConverter<T> : ISaveMateConverter
     {

@@ -1,5 +1,4 @@
 using JetBrains.Annotations;
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
 using UnityEngine;
 
 namespace SaveMate.Core.StateSnapshot.Converter.UnityTypes

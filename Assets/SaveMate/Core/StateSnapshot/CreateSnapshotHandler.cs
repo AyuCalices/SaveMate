@@ -2,12 +2,11 @@ using Newtonsoft.Json.Linq;
 using SaveMate.Core.DataTransferObject;
 using SaveMate.Core.SaveComponents.ManagingScope;
 using SaveMate.Core.StateSnapshot.Converter;
-using SaveMate.Core.StateSnapshot.Interface;
 using SaveMate.Utility;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace SaveMate.Core.StateSnapshot.SnapshotHandler
+namespace SaveMate.Core.StateSnapshot
 {
     /// <summary>
     /// The <see cref="CreateSnapshotHandler"/> class is responsible for managing the serialization and storage of data

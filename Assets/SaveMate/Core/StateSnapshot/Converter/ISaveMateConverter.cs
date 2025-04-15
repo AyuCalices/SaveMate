@@ -1,5 +1,3 @@
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
-
 namespace SaveMate.Core.StateSnapshot.Converter
 {
     internal interface ISaveMateConverter

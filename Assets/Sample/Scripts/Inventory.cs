@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot;
-using SaveMate.Core.StateSnapshot.Interface;
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
+using SaveMate.Core.StateSnapshot;
 using UnityEngine;
 
 namespace Sample.Scripts

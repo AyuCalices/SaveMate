@@ -4,7 +4,7 @@ using System.Linq;
 using SaveMate.Core.ObjectChangeEvents;
 using SaveMate.Core.SaveComponents.ManagingScope;
 using SaveMate.Core.SaveComponents.SceneScope;
-using SaveMate.Core.StateSnapshot.Interface;
+using SaveMate.Core.StateSnapshot;
 using SaveMate.Utility;
 using SaveMate.Utility.PreventReset;
 using UnityEditor;

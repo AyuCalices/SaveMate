@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
 
 namespace SaveMate.Core.StateSnapshot.Converter.Collections
 {

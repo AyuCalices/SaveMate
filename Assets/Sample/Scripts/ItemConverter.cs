@@ -1,6 +1,5 @@
 using JetBrains.Annotations;
-using SaveMate.Core.StateSnapshot.Converter;
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
+using SaveMate.Core.StateSnapshot;
 
 namespace Sample.Scripts
 {

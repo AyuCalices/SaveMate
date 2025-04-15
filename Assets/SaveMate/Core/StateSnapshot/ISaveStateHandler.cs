@@ -1,6 +1,4 @@
-using SaveMate.Core.StateSnapshot.SnapshotHandler;
-
-namespace SaveMate.Core.StateSnapshot.Interface
+namespace SaveMate.Core.StateSnapshot
 {
     public interface ISaveStateHandler
     {
