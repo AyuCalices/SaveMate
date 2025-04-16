@@ -45,7 +45,7 @@ namespace Tests.MultiSceneReferenceTest.Scripts
 
         public void OnRestoreState(RestoreSnapshotHandler restoreSnapshotHandler)
         {
-            if (restoreSnapshotHandler.TryLoad("StoredItem2", out Item storedItem))
+            if (restoreSnapshotHandler.TryLoad("StoredItem", out Item storedItem))
             {
                 this.storedItem = storedItem;
             }

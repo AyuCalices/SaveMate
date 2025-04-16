@@ -171,8 +171,8 @@ MonoBehaviour:
   defaultLoadType: 1
   scriptableObjectsToSnapshot: {fileID: 11400000, guid: 72a99e2814521e64f93542d006306ed3, type: 2}
   additionallySnapshotDontDestroyOnLoad: 0
-  onEnableAction: 3
-  onDisableAction: 0
+  onStartAction: 3
+  onDestroyAction: 0
   saveActiveScenesOnApplicationQuit: 1
   sceneManagerEvents:
     onBeforeCaptureSnapshot:

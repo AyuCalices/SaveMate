@@ -161,14 +161,14 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             SavableGameObjectToGuidLookup.TryAdd(savable.gameObject, savableGuid);
             
             //Savable-Component registration
-            foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
+            foreach (var unityObjectIdentification in savable.SaveStateHandlers)
             {
                 var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                 ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
                 GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
             }
-                
-            foreach (var unityObjectIdentification in savable.SaveStateHandlers)
+            
+            foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
             {
                 var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                 ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
@@ -187,15 +187,15 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             SavableGameObjectToGuidLookup.Remove(savable.gameObject);
             
             //Savable-Component unregistration
-            foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
+            foreach (var unityObjectIdentification in savable.SaveStateHandlers)
             {
                 ComponentToGuidLookup.Remove((Component)unityObjectIdentification.unityObject);
                     
                 var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
                 GuidToComponentLookup.Remove(componentGuidPath);
             }
-
-            foreach (var unityObjectIdentification in savable.SaveStateHandlers)
+            
+            foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
             {
                 ComponentToGuidLookup.Remove((Component)unityObjectIdentification.unityObject);
                     

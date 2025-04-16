@@ -21,8 +21,8 @@ namespace SaveMate.Core.SaveComponents.SceneScope
         [SerializeField] private bool additionallySnapshotDontDestroyOnLoad;
 
         [Header("Unity Lifecycle Events")] 
-        [SerializeField] private SaveSceneManagerEnableType onEnableAction;
-        [SerializeField] private SaveSceneManagerDisableType onDisableAction;
+        [SerializeField] private SaveSceneManagerStartType onStartAction;
+        [SerializeField] private SaveSceneManagerDestroyType onDestroyAction;
         [SerializeField] private bool saveActiveScenesOnApplicationQuit;
         
         [Header("OnCaptureState Events")]
@@ -40,30 +40,30 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             
             saveMateManager.RegisterSaveSceneManager(this);
         }
-        
-        private void OnEnable()
+
+        private void Start()
         {
-            switch (onEnableAction)
+            switch (onStartAction)
             {
-                case SaveSceneManagerEnableType.None:
+                case SaveSceneManagerStartType.None:
                     break;
-                case SaveSceneManagerEnableType.RestoreSnapshotSingleScene:
+                case SaveSceneManagerStartType.RestoreSnapshotSingleScene:
                     RestoreSceneSnapshot();
                     break;
-                case SaveSceneManagerEnableType.RestoreSnapshotActiveScenes:
+                case SaveSceneManagerStartType.RestoreSnapshotActiveScenes:
                     saveMateManager.RestoreSnapshotActiveScenes();
                     break;
-                case SaveSceneManagerEnableType.LoadSingleScene:
+                case SaveSceneManagerStartType.LoadSingleScene:
                     LoadScene();
                     break;
-                case SaveSceneManagerEnableType.LoadActiveScenes:
+                case SaveSceneManagerStartType.LoadActiveScenes:
                     saveMateManager.LoadActiveScenes();
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
-        
+
         protected override void OnValidate()
         {
             base.OnValidate();
@@ -82,36 +82,38 @@ namespace SaveMate.Core.SaveComponents.SceneScope
                 _hasSavedActiveScenesThisFrame = false;
             }
         }
-
-        private void OnDisable()
+        
+        private void OnDestroy()
         {
-            switch (onDisableAction)
+            switch (onDestroyAction)
             {
-                case SaveSceneManagerDisableType.CreateSnapshotSingleScene:
+                case SaveSceneManagerDestroyType.CreateSnapshotSingleScene:
                     CaptureSceneSnapshot();
                     break;
-                case SaveSceneManagerDisableType.CreateSnapshotActiveScenes:
+                case SaveSceneManagerDestroyType.CreateSnapshotActiveScenes:
                     saveMateManager.CaptureSnapshotActiveScenes();
                     break;
-                case SaveSceneManagerDisableType.SaveSingleScene:
-                    saveMateManager.Save(this);
+                case SaveSceneManagerDestroyType.SaveSingleScene:
+                    if (!_hasSavedActiveScenesThisFrame)
+                    {
+                        saveMateManager.Save(this);
+                        _hasSavedActiveScenesThisFrame = true;
+                    }
+                    
                     break;
-                case SaveSceneManagerDisableType.SaveActiveScenes:
+                case SaveSceneManagerDestroyType.SaveActiveScenes:
                     if (!_hasSavedActiveScenesThisFrame)
                     {
                         saveMateManager.SaveActiveScenes();
                         _hasSavedActiveScenesThisFrame = true;
                     }
                     break;
-                case SaveSceneManagerDisableType.None:
+                case SaveSceneManagerDestroyType.None:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-        }
-        
-        private void OnDestroy()
-        {
+            
             saveMateManager.UnregisterSaveSceneManager(this);
         }
 
@@ -169,7 +171,7 @@ namespace SaveMate.Core.SaveComponents.SceneScope
         #region SaveLoad Methods
 
         
-        [ContextMenu("Capture Scene Snapshot")]
+        [ContextMenu("Capture Snapshot")]
         public void CaptureSceneSnapshot()
         {
             saveMateManager.CaptureSnapshot(this);
@@ -181,13 +183,13 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             saveMateManager.WriteToDisk();
         }
         
-        [ContextMenu("OnCaptureState Scene")]
+        [ContextMenu("Save")]
         public void SaveScene()
         {
             saveMateManager.Save(this);
         }
 
-        [ContextMenu("Restore Scene Snapshot")]
+        [ContextMenu("Restore Snapshot")]
         public void RestoreSceneSnapshot()
         {
             saveMateManager.RestoreSnapshot(defaultLoadType, this);
@@ -198,7 +200,7 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             saveMateManager.RestoreSnapshot(loadType, this);
         }
         
-        [ContextMenu("OnRestoreState Scene")]
+        [ContextMenu("Load Scene")]
         public void LoadScene()
         {
             saveMateManager.Load(defaultLoadType, this);
@@ -209,14 +211,14 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             saveMateManager.Load(loadType, this);
         }
         
-        [ContextMenu("Delete Scene Snapshot Data")]
-        public void DeleteSceneSnapshotData()
+        [ContextMenu("Delete Snapshot Data")]
+        public void DeleteSnapshotData()
         {
             saveMateManager.DeleteSnapshotData(SceneName);
         }
         
         [ContextMenu("Delete Scene Disk Data")]
-        public void DeleteSceneDiskData()
+        public void DeleteDiskData()
         {
             saveMateManager.DeleteDiskData(SceneName);
         }
@@ -227,7 +229,7 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             await saveMateManager.ReloadScenes(this);
         }
         
-        [ContextMenu("UnloadScene")]
+        [ContextMenu("Unload Scene")]
         public void UnloadSceneAsync()
         {
             SceneManager.UnloadSceneAsync(SceneName);
