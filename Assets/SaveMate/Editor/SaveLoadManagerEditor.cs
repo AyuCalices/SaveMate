@@ -26,7 +26,7 @@ namespace SaveMate.Editor
                 }
                 else
                 {
-                    Debug.LogWarning("The specified path does not exist: " + path);
+                    Debug.LogWarning("[SaveMate] The specified path does not exist: " + path);
                 }
             }
         
@@ -41,7 +41,7 @@ namespace SaveMate.Editor
                 }
                 else
                 {
-                    Debug.LogWarning("The specified path does not exist: " + path);
+                    Debug.LogWarning("[SaveMate] The specified path does not exist: " + path);
                 }
             }
             
@@ -60,13 +60,13 @@ namespace SaveMate.Editor
         {
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(fileExtension))
             {
-                Debug.LogWarning("Path or file extension is empty.");
+                Debug.LogWarning("[SaveMate] Path or file extension is empty.");
                 return;
             }
 
             if (!Directory.Exists(path))
             {
-                Debug.LogWarning($"Path does not exist: {path}");
+                Debug.LogWarning($"[SaveMate] Path does not exist: {path}");
                 return;
             }
 
@@ -77,11 +77,11 @@ namespace SaveMate.Editor
                 try
                 {
                     File.Delete(file);
-                    Debug.Log($"Deleted file: {file}");
+                    Debug.Log($"[SaveMate] Deleted file: {file}");
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogError($"Failed to delete file: {file}. Error: {ex.Message}");
+                    Debug.LogError($"[SaveMate] Failed to delete file: {file}. Error: {ex.Message}");
                 }
             }
 

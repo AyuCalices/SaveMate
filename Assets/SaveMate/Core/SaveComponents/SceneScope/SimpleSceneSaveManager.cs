@@ -44,7 +44,7 @@ namespace SaveMate.Core.SaveComponents.SceneScope
         {
             if (gameObject.scene.name != SceneName)
             {
-                Debug.LogWarning($"The scene in {nameof(SimpleSceneSaveManager)} ('{gameObject.name}') from scene " +
+                Debug.LogWarning($"[SaveMate] The scene in {nameof(SimpleSceneSaveManager)} ('{gameObject.name}') from scene " +
                                  $"'{gameObject.scene.name}' has changed. Despite the switch, {nameof(SimpleSceneSaveManager)} " +
                                  $"remains responsible for '{SceneName}'.");
             }
@@ -99,9 +99,10 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             // Case 2: If another object with the same SceneGuid exists, assign a new unique ID
             if (_trackedSavables != null && _trackedSavables.TryGetValue(savable.SceneGuid, out var registeredSavable) && registeredSavable != savable)
             {
+                //TODO: maybe this is to disruptive
                 var id = GetUniqueID(savable);
                 savable.SceneGuid = id;
-                Debug.LogWarning($"Assigning a new unique ID to '{savable.gameObject.name}' in scene '{SceneName}'" +
+                Debug.LogWarning($"[SaveMate] Assigned a new unique ID to '{savable.gameObject.name}' in scene '{SceneName}'" +
                                  $" as the existing GUID was duplicated.");
             }
         }
@@ -119,13 +120,14 @@ namespace SaveMate.Core.SaveComponents.SceneScope
                     return false;
                 }
 
-                Debug.LogError("Tried to add an id to a non prefab! This is only allowed inside the EditorApplication");
+                Debug.LogError("[SaveMate] Tried to add an id to a non prefab! This is only allowed inside the EditorApplication");
                 return false;
             }
             
             if (_trackedSavables != null && _trackedSavables.TryGetValue(savable.SceneGuid, out var registeredSavable) && registeredSavable != savable)
             {
-                Debug.LogError($"Found a duplicated id at runtime! You might applied duplicated guids inside the EditorApplication. This may also occur, when two objects from different scenes with same id's are moved into the same scene!");
+                Debug.LogError($"[SaveMate] Found a duplicated id at runtime! You might applied duplicated guids inside the EditorApplication." +
+                               $" This may also occur, when two objects from different scenes with same id's are moved into the same scene!");
                 return false;
             }
 

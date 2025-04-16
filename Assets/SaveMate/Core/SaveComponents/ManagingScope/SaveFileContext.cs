@@ -61,7 +61,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
                     
                     if (savableGroupHandler.SceneName != "DontDestroyOnLoad" && SaveLoadUtility.IsSceneUnloaded(savableGroupHandler.SceneName))
                     {
-                        Debug.LogWarning($"[OnCaptureState Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{savableGroupHandler.SceneName}': scene is not currently loaded.");
+                        Debug.LogWarning($"[SaveMate] Skipped '{nameof(RestoreSnapshot)}' for scene '{savableGroupHandler.SceneName}': scene is not currently loaded.");
                         continue;
                     }
                     
@@ -73,7 +73,6 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
                 }
                 
                 InternalCaptureSnapshot(combinedSavableGroupHandlers);
-                
                 return Task.CompletedTask;
             });
         }
@@ -84,7 +83,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             {
                 if (!_hasPendingData)
                 {
-                    Debug.LogWarning($"[OnCaptureState Mate] {nameof(WriteToDisk)} aborted: No pending data to save on disk!");
+                    Debug.LogWarning($"[SaveMate] {nameof(WriteToDisk)} aborted: No pending data to save on disk!");
                     return;
                 }
                 
@@ -103,7 +102,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
 
                 OnAfterWriteToDisk();
                 
-                Debug.Log($"[OnCaptureState Mate] {nameof(WriteToDisk)} successful!");
+                Debug.Log($"[SaveMate] {nameof(WriteToDisk)} successful!");
             });
         }
         
@@ -116,7 +115,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
 
                 if (!IsPersistent)
                 {
-                    Debug.LogWarning($"[OnCaptureState Mate] '{nameof(ReadFromDisk)}' aborted: No persistent save data found on disk.");
+                    Debug.LogWarning($"[SaveMate] '{nameof(ReadFromDisk)}' aborted: No persistent save data found on disk.");
                 }
                 
                 //only load saveData, if it is persistent and not initialized
@@ -131,7 +130,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
                     
                     OnAfterReadFromDisk();
                     
-                    Debug.Log($"[OnCaptureState Mate] {nameof(ReadFromDisk)} successful!");
+                    Debug.Log($"[SaveMate] {nameof(ReadFromDisk)} successful!");
                 }
             });
         }
@@ -142,7 +141,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             {
                 if (RootSaveData == null)
                 {
-                    Debug.LogWarning($"[OnCaptureState Mate] {nameof(RestoreSnapshot)} aborted: No save data found in memory. Ensure '{nameof(ReadFromDisk)}' was called before attempting to load.");
+                    Debug.LogWarning($"[SaveMate] {nameof(RestoreSnapshot)} aborted: No save data found in memory. Ensure '{nameof(ReadFromDisk)}' was called before attempting to load.");
                     return Task.CompletedTask;
                 }
 
@@ -154,7 +153,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
                     
                     if (loadableGroupHandler.SceneName != "DontDestroyOnLoad" && SaveLoadUtility.IsSceneUnloaded(loadableGroupHandler.SceneName))
                     {
-                        Debug.LogWarning($"[OnCaptureState Mate] Skipped '{nameof(RestoreSnapshot)}' for scene '{loadableGroupHandler.SceneName}': scene is not currently loaded.");
+                        Debug.LogWarning($"[SaveMate] Skipped '{nameof(RestoreSnapshot)}' for scene '{loadableGroupHandler.SceneName}': scene is not currently loaded.");
                         continue;
                     }
                     
@@ -186,6 +185,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
                 
                 OnAfterDeleteSnapshotData();
 
+                Debug.Log($"[SaveMate] {nameof(DeleteSnapshotData)} successful!");
                 return Task.CompletedTask;
             });
         }
@@ -200,7 +200,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
 
                 OnAfterDeleteDiskData();
                 
-                Debug.Log("Delete Completed!");
+                Debug.Log($"[SaveMate] {nameof(DeleteDiskData)} successful!");
             });
         }
         
@@ -399,17 +399,18 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             OnAfterCaptureSnapshot(savableGroupHandlers);
             
             stopwatch.Stop();
+            
             if (savableGroupHandlers.Count == 0)
             {
-                Debug.Log($"Performed Snapshotting for no scene!");
+                Debug.Log($"[SaveMate] {nameof(CaptureSnapshot)} successful!");
             }
             else if (savableGroupHandlers.Count == 1)
             {
-                Debug.Log($"Snapshotting Completed for scene {savableGroupHandlers[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                Debug.Log($"[SaveMate] {nameof(CaptureSnapshot)} for scene {savableGroupHandlers[0].SceneName} successful! Time taken: {stopwatch.ElapsedMilliseconds} ms");
             }
             else
             {
-                Debug.Log($"Snapshotting Completed for {savableGroupHandlers.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                Debug.Log($"[SaveMate] {nameof(CaptureSnapshot)} for {savableGroupHandlers.Count} scenes successful! Time taken: {stopwatch.ElapsedMilliseconds} ms");
             }
         }
         
@@ -439,15 +440,15 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             stopwatch.Stop();
             if (loadableGroupHandlers.Count == 0)
             {
-                Debug.Log($"Performed Loading for no scene!");
+                Debug.Log($"[SaveMate] {nameof(RestoreSnapshot)} successful!");
             }
             else if (loadableGroupHandlers.Count == 1)
             {
-                Debug.Log($"Loading Completed for scene {loadableGroupHandlers[0].SceneName}! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                Debug.Log($"[SaveMate] {nameof(RestoreSnapshot)} for scene {loadableGroupHandlers[0].SceneName} successful! Time taken: {stopwatch.ElapsedMilliseconds} ms");
             }
             else
             {
-                Debug.Log($"Loading Completed for {loadableGroupHandlers.Count} scenes! Time taken: {stopwatch.ElapsedMilliseconds} ms");
+                Debug.Log($"[SaveMate] {nameof(RestoreSnapshot)} for {loadableGroupHandlers.Count} scenes successful! Time taken: {stopwatch.ElapsedMilliseconds} ms");
             }
         }
 

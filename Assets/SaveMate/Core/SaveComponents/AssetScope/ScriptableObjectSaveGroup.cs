@@ -254,7 +254,7 @@ namespace SaveMate.Core.SaveComponents.AssetScope
             {
                 if (!ScenesForGlobalLeafSaveDataAreLoaded(saveMateManager.GetTrackedSaveSceneManagers(), leafSaveData))
                 {
-                    Debug.LogWarning($"Skipped ScriptableObject '{scriptableObject.name}' for saving, because of a scene requirement. ScriptableObject GUID: '{guidPath.ToString()}'");
+                    Debug.LogWarning($"[SaveMate] Skipped ScriptableObject '{scriptableObject.name}' for saving, because of a scene requirement. ScriptableObject GUID: '{guidPath.ToString()}'");
                     return;
                 }
             }

@@ -74,7 +74,7 @@ namespace SaveMate.Utility
             }
             catch (Exception e)
             {
-                Debug.LogError(e);
+                Debug.LogError("[SaveMate] An error occurred: " + e);
             }
         }
         
@@ -86,7 +86,7 @@ namespace SaveMate.Utility
             if (!MetaDataExists(saveConfig, fileName) ||
                 !SaveDataExists(saveConfig, fileName))
             {
-                Debug.LogWarning("OnCaptureState data or meta data file not found.");
+                Debug.LogWarning("[SaveMate] Save data or meta data file not found.");
                 return;
             }
             
@@ -133,12 +133,12 @@ namespace SaveMate.Utility
         {
             if (metaData.SaveVersion < currentVersion)
             {
-                Debug.LogWarning($"The version of the loaded save '{metaData.SaveVersion}' is older than the local version '{currentVersion}'");
+                Debug.LogWarning($"[SaveMate] The version of the loaded save '{metaData.SaveVersion}' is older than the local version '{currentVersion}'");
                 return false;
             }
             if (metaData.SaveVersion > currentVersion)
             {
-                Debug.LogWarning($"The version of the loaded save '{metaData.SaveVersion}' is newer than the local version '{currentVersion}'");
+                Debug.LogWarning($"[SaveMate] The version of the loaded save '{metaData.SaveVersion}' is newer than the local version '{currentVersion}'");
                 return false;
             }
 
@@ -149,7 +149,7 @@ namespace SaveMate.Utility
         {
             if (!File.Exists(saveDataPath))
             {
-                Debug.LogError("OnCaptureState file not found in " + saveDataPath);
+                Debug.LogError("[SaveMate] Save file not found in " + saveDataPath);
                 return null;
             }
     
@@ -166,7 +166,7 @@ namespace SaveMate.Utility
                     {
                         if (checksum != saveStrategy.GetIntegrityStrategy().ComputeChecksum(encryptedData))
                         {
-                            Debug.LogError("The save data didn't pass the data integrity check!");
+                            Debug.LogError("[SaveMate] The save data didn't pass the data integrity check!");
                             return null;
                         }
                     }
@@ -178,7 +178,7 @@ namespace SaveMate.Utility
             }
             catch (Exception ex)
             {
-                Debug.LogError("An error occurred: " + ex.Message);
+                Debug.LogError("[SaveMate] An error occurred: " + ex.Message);
                 return null;
             }
         }

@@ -126,7 +126,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             if (string.IsNullOrEmpty(fileName))
             {
                 _activeSaveFile = defaultFileName;
-                Debug.Log($"[OnCaptureState Mate] {nameof(fileName)} missing: Swapped to the default file name: {fileName}.");
+                Debug.Log($"[SaveMate] {nameof(fileName)} missing: Swapped to the default file name: {fileName}.");
             }
             
             _activeSaveFile = fileName;
@@ -218,7 +218,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             var customMetaData = saveMetaData.CustomData;
             if (customMetaData?[identifier] == null)
             {
-                Debug.LogWarning($"Wasn't able to find the object of type '{typeof(T).Name}' for identifier '{identifier}' inside the meta data!");
+                Debug.LogWarning($"[SaveMate] Wasn't able to find the object of type '{typeof(T).Name}' for identifier '{identifier}' inside the meta data!");
                 return false;
             }
             
@@ -502,7 +502,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         {
             if (!_dontDestroyOnLoadManager)
             {
-                UnityEngine.GameObject newObject = new UnityEngine.GameObject("DontDestroyOnLoadObject");
+                var newObject = new GameObject("DontDestroyOnLoadObject");
                 DontDestroyOnLoad(newObject);
                 _dontDestroyOnLoadManager = newObject.AddComponent<SimpleSceneSaveManager>();
             }
@@ -569,7 +569,7 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             if (string.IsNullOrEmpty(fileName))
             {
                 fileName = _activeSaveFile;
-                Debug.Log($"[OnCaptureState Mate] {nameof(fileName)} missing: Swapped to the file with the name: {fileName}.");
+                Debug.Log($"[SaveMate] {nameof(fileName)} missing: Swapped to the file with the name: {fileName}.");
             }
             
             ChangeSaveFileContext(new SaveFileContext(this, assetRegistry, fileName));
@@ -593,9 +593,6 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             
             OnAfterSaveFileContextChange?.Invoke(oldSaveFileContext, newSaveFileContext);
         }
-        
-        #region Private Scene Loading
-        
         
         private Task<AsyncOperation> UnloadSceneAsync(string sceneName)
         {
@@ -640,9 +637,6 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             // Return the task
             return tcs.Task;
         }
-
-        
-        #endregion
         
 
         #endregion

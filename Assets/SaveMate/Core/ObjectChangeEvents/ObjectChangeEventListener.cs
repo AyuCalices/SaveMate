@@ -28,12 +28,8 @@ namespace SaveMate.Core.ObjectChangeEvents
         {
             stream.GetChangeGameObjectStructureEvent(i, out var changeGameObjectStructure);
             var gameObjectStructure = EditorUtility.InstanceIDToObject(changeGameObjectStructure.instanceId) as GameObject;
-            if (gameObjectStructure.IsDestroyed()) return;
-
-            if (debug)
-            {
-                Debug.Log($"{type}: {gameObjectStructure} in scene {changeGameObjectStructure.scene}.");
-            }
+            
+            if (gameObjectStructure == null || gameObjectStructure.IsDestroyed()) return;
             
             if (gameObjectStructure.TryGetComponent(out IChangeGameObjectStructure changeGameObjectStructureEvent))
             {
