@@ -399,7 +399,7 @@ namespace SaveMate.Core.SaveComponents.SceneScope
                         if (savableComponent.unityObject is not ISaveStateHandler iSavable) return;
                     
                         var loadDataHandler = new RestoreSnapshotHandler(saveFileContext.RootSaveData, instanceSaveData, loadType, 
-                            "GameObject: " + savableComponent.unityObject.name, SceneName, saveFileContext, saveMateManager);
+                            componentGuidPath, saveFileContext, saveMateManager);
                         
                         iSavable.OnRestoreState(loadDataHandler);
                         softLoadedObjects.Add(savableComponent.unityObject);

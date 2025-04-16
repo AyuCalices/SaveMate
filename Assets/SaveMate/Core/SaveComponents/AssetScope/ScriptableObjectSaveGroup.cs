@@ -264,8 +264,8 @@ namespace SaveMate.Core.SaveComponents.AssetScope
             
             if (scriptableObject is not ISaveStateHandler targetSavable) return;
                     
-            var loadDataHandler = new RestoreSnapshotHandler(rootSaveData, instanceSaveData, loadType, "ScriptableObject: " + scriptableObject.name, 
-                SaveLoadUtility.ScriptableObjectDataName, saveFileContext, saveMateManager);
+            var loadDataHandler = new RestoreSnapshotHandler(rootSaveData, instanceSaveData, loadType, guidPath, 
+                saveFileContext, saveMateManager);
             
             targetSavable.OnRestoreState(loadDataHandler);
                     

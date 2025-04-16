@@ -1,5 +1,8 @@
+using System;
 using Newtonsoft.Json.Linq;
 using SaveMate.Core.DataTransferObject;
+using SaveMate.Core.SaveComponents.AssetScope;
+using SaveMate.Core.SaveComponents.GameObjectScope;
 using SaveMate.Core.SaveComponents.ManagingScope;
 using SaveMate.Core.StateSnapshot.Converter;
 using SaveMate.Utility;
@@ -57,10 +60,13 @@ namespace SaveMate.Core.StateSnapshot
             if (obj.IsUnityNull())
             {
                 _leafSaveData.Values[uniqueIdentifier] = null;
+                return;
             }
-            else if (obj is UnityEngine.Object)
+
+            if (obj is Object)
             {
-                Debug.LogError($"You can't save an object of type {typeof(Object)} as a value!");
+                Debug.LogWarning($"[SaveMate] Create Snapshot Error at '{_guidPath.ToString()}' for identifier '{uniqueIdentifier}': " +
+                                 $"You tried to save an object of type {typeof(Object)} as a value! This is not allowed!");
             }
             else if (obj is ISaveStateHandler savable)
             {
@@ -72,6 +78,7 @@ namespace SaveMate.Core.StateSnapshot
                 
                 _leafSaveData.Values[uniqueIdentifier] = JToken.FromObject(leafSaveData);
             }
+
             else if (ConverterServiceProvider.ExistsAndCreate(typeof(T)))
             {
                 var newPath = new GuidPath("", uniqueIdentifier);
@@ -85,7 +92,18 @@ namespace SaveMate.Core.StateSnapshot
             }
             else
             {
-                _leafSaveData.Values[uniqueIdentifier] = JToken.FromObject(obj);
+                try
+                {
+                    _leafSaveData.Values[uniqueIdentifier] = JToken.FromObject(obj);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[SaveMate] Create Snapshot Error at '{_guidPath.ToString()}' for identifier '{uniqueIdentifier}': " +
+                                   $"Error serializing UnityEngine.Object '{typeof(T)}' using '{nameof(Newtonsoft.Json)}'. " +
+                                   $"Please implement the ISaveStateHandler or a create custom Converter for the object of type '{typeof(T)}'!" +
+                                   $"Exception: {e.GetType().Name} - {e.Message}\n{e.StackTrace}");
+                    throw;
+                }
             }
         }
         
@@ -109,40 +127,31 @@ namespace SaveMate.Core.StateSnapshot
             }
             
             //search for a unity reference
-            GuidPath guidPath;
             if (objectToSave is Component component)
             {
                 //components with a guid must be processed because: 1. prevent ambiguity between duplicates 2. clearly identify components that inherit from ISaveStateHandler
-                if (GetComponentGuidPath(component, out var convertedToPath)) return convertedToPath;
-                if (GetGameObjectGuidPath(component.gameObject, out var convertToPath)) return convertToPath;
-                
-                //TODO: debug
+                if (GetComponentGuidPath(component, uniqueIdentifier, out var convertedToPath)) return convertedToPath;
+                if (GetGameObjectGuidPath(component.gameObject, uniqueIdentifier, out var convertToPath)) return convertToPath;
             }
             else if (objectToSave is GameObject gameObject)
             {
-                if (GetGameObjectGuidPath(gameObject, out var convertToPath))
-                {
-                    return convertToPath;
-                }
-                
-                //TODO: debug
+                if (GetGameObjectGuidPath(gameObject, uniqueIdentifier, out var convertToPath)) return convertToPath;
             }
             else if (objectToSave is ScriptableObject scriptableObject)
             {
-                if (_saveMateManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out guidPath))
-                {
-                    return guidPath;
-                }
+                if (_saveMateManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out var guidPath)) return guidPath;
                 
-                //TODO: debug
+                Debug.LogWarning($"[SaveMate] Create Snapshot Error at '{_guidPath.ToString()}' for identifier '{uniqueIdentifier}': " +
+                                 $"Referencing for {nameof(ScriptableObject)} {scriptableObject.name} is not enabled. " +
+                                 $"Please make sure it is added to a {nameof(AssetRegistry)}, which is added to the {nameof(_saveMateManager)}.");
             }
             else
             {
                 //make sure there is a unique id for each Non-Unity-Object
+                GuidPath guidPath;
                 if (!_saveFileContext.SavedNonUnityObjectToGuidLookup.TryGetValue(objectToSave, out var stringPath))
                 {
                     guidPath = new GuidPath(_guidPath, uniqueIdentifier);
-                
                     _saveFileContext.SavedNonUnityObjectToGuidLookup.Add(objectToSave, guidPath.ToString());
                     _saveFileContext.GuidToCreatedNonUnityObjectLookup.Upsert(guidPath, objectToSave);
                 }
@@ -153,16 +162,16 @@ namespace SaveMate.Core.StateSnapshot
 
                 if (guidPath.SceneName == _sceneName)
                 {
-                    UpsertNonUnityObject(objectToSave, guidPath);
+                    UpsertNonUnityObject(objectToSave, uniqueIdentifier, guidPath);
                 }
-            
+                
                 return guidPath;
             }
-            
+
             return null;
         }
 
-        private bool GetGameObjectGuidPath(GameObject gameObject, out GuidPath convertToPath)
+        private bool GetGameObjectGuidPath(GameObject gameObject, string uniqueIdentifier, out GuidPath convertToPath)
         {
             convertToPath = default;
             
@@ -178,10 +187,12 @@ namespace SaveMate.Core.StateSnapshot
                 return false;
             }
 
+            Debug.LogWarning($"[SaveMate] Create Snapshot Error at '{_guidPath.ToString()}' for identifier '{uniqueIdentifier}': " +
+                             $"Referencing for {nameof(gameObject)} {gameObject.name} is not enabled. Please add a {nameof(Savable)} {nameof(Component)}.");
             return false;
         }
         
-        private bool GetComponentGuidPath(Component component, out GuidPath convertToPath)
+        private bool GetComponentGuidPath(Component component, string uniqueIdentifier, out GuidPath convertToPath)
         {
             convertToPath = default;
             
@@ -197,36 +208,41 @@ namespace SaveMate.Core.StateSnapshot
                 return false;
             }
 
+            Debug.LogWarning($"[SaveMate] Create Snapshot Error at '{_guidPath.ToString()}' for identifier '{uniqueIdentifier}': " +
+                             $"Referencing for GameObject {component.gameObject.name} is not enabled. Please add a {nameof(Savable)} {nameof(Component)}.");
             return false;
         }
 
-        private void UpsertNonUnityObject<T>(T objectToSave, GuidPath guidPath)
+        private void UpsertNonUnityObject<T>(T objectToSave, string uniqueIdentifier, GuidPath guidPath)
         {
+            var leafSaveData = new LeafSaveData();
+            _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
+            
             if (objectToSave is ISaveStateHandler targetSavable)
             {
-                var leafSaveData = new LeafSaveData();
-                _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
-            
                 targetSavable.OnCaptureState(new CreateSnapshotHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, 
                     _saveFileContext, _saveMateManager));
             }
             else if (ConverterServiceProvider.ExistsAndCreate(typeof(T)))
             {
-                var leafSaveData = new LeafSaveData();
-                
-                _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
-                        
                 var saveDataHandler = new CreateSnapshotHandler(_branchSaveData, leafSaveData, guidPath, _sceneName, 
                     _saveFileContext, _saveMateManager);
                 ConverterServiceProvider.GetConverter(typeof(T)).OnCaptureState(objectToSave, saveDataHandler);
             }
             else
             {
-                var leafSaveData = new LeafSaveData();
-                
-                _branchSaveData.UpsertLeafSaveData(guidPath, leafSaveData);
-                
-                leafSaveData.Values.Add("SerializeRef", JToken.FromObject(objectToSave));
+                try
+                {
+                    leafSaveData.Values.Add(uniqueIdentifier, JToken.FromObject(objectToSave));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[SaveMate] Create Snapshot Error at '{_guidPath.ToString()}' for identifier '{uniqueIdentifier}': " +
+                                   $"Error serializing UnityEngine.Object '{typeof(T)}' using '{nameof(Newtonsoft.Json)}'. " +
+                                   $"Please implement the ISaveStateHandler or a create custom Converter for the object of type '{typeof(T)}'!" +
+                                   $"Exception: {e.GetType().Name} - {e.Message}\n{e.StackTrace}");
+                    throw;
+                }
             }
         }
     }
