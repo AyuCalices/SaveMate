@@ -1,7 +1,7 @@
 {
   "name": "com.ayucalices.savemate",
   "version": "1.0.0",
-  "displayName": "Save and Load System",
+  "displayName": "SaveMate",
   "description": "A simple save and load system for Unity.",
   "unity": "2022.3",
   "license": "MIT",

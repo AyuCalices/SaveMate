@@ -125,6 +125,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.ManagingScope
 
             foreach (var prefabSavable in assetRegistry.PrefabSavables)
             {
+                if (prefabSavable == null) continue;
+                
                 GuidToSavablePrefabsLookup.TryAdd(prefabSavable.PrefabGuid, prefabSavable);
             }
         }
