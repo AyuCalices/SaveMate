@@ -12,8 +12,9 @@ using Object = UnityEngine.Object;
 namespace SaveMate.Core.StateSnapshot
 {
     /// <summary>
-    /// The <see cref="CreateSnapshotHandler"/> class is responsible for managing the serialization and storage of data
-    /// within the save/load system, specifically handling the addition and reference management of savable objects.
+    /// The <see cref="CreateSnapshotHandler"/> struct handles the creation of snapshots for savable objects in the SaveMate system.
+    /// Responsible for serializing data into either direct values or by a referenceable GUID,
+    /// depending on the type and context of the object.
     /// </summary>
     public readonly struct CreateSnapshotHandler
     {
@@ -25,7 +26,7 @@ namespace SaveMate.Core.StateSnapshot
         private readonly SaveFileContext _saveFileContext;
         private readonly SaveMateManager _saveMateManager;
 
-        public CreateSnapshotHandler(BranchSaveData branchSaveData, LeafSaveData leafSaveData, GuidPath guidPath, string sceneName, 
+        internal CreateSnapshotHandler(BranchSaveData branchSaveData, LeafSaveData leafSaveData, GuidPath guidPath, string sceneName, 
             SaveFileContext saveFileContext, SaveMateManager saveMateManagers)
         {
             _branchSaveData = branchSaveData;
@@ -37,6 +38,13 @@ namespace SaveMate.Core.StateSnapshot
             _saveMateManager = saveMateManagers;
         }
 
+        /// <summary>
+        /// Saves an object to the snapshot using a unique identifier. Chooses between
+        /// value-based saving or referencable saving based on the object's type.
+        /// </summary>
+        /// <typeparam name="T">The type of the object to save.</typeparam>
+        /// <param name="uniqueIdentifier">The unique key for saving the object.</param>
+        /// <param name="obj">The object to save.</param>
         public void Save<T>(string uniqueIdentifier, T obj)
         {
             if (typeof(T).IsValueType || obj is string)
@@ -50,11 +58,12 @@ namespace SaveMate.Core.StateSnapshot
         }
 
         /// <summary>
-        /// Adds an object to the save data buffer using a unique identifier.
-        /// Supports all valid types for Newtonsoft Json. Uses less disk space and is faster than Referencable Saving and Loading.
+        /// Saves an object as a direct value in the save data. This method is optimized for 
+        /// primitive types, strings, and other directly serializable objects.
         /// </summary>
-        /// <param name="uniqueIdentifier">The unique identifier for the object to be serialized.</param>
-        /// <param name="obj">The object to be serialized and added to the buffer.</param>
+        /// <typeparam name="T">The type of the object to save.</typeparam>
+        /// <param name="uniqueIdentifier">The unique key for saving the object.</param>
+        /// <param name="obj">The object to serialize and store.</param>
         public void SaveAsValue<T>(string uniqueIdentifier, T obj)
         {
             if (obj.IsUnityNull())
@@ -107,18 +116,18 @@ namespace SaveMate.Core.StateSnapshot
             }
         }
         
+        /// <summary>
+        /// Saves an object as a reference by attempting to resolve it by a GUID.
+        /// This method is typically used for Unity objects or other complex savables.
+        /// </summary>
+        /// <typeparam name="T">The type of the object to save.</typeparam>
+        /// <param name="uniqueIdentifier">The unique key for referencing the object.</param>
+        /// <param name="obj">The object to be referenced.</param>
         public void SaveAsReferencable<T>(string uniqueIdentifier, T obj)
         {
             _leafSaveData.References[uniqueIdentifier] = ConvertToPath(uniqueIdentifier, obj);
         }
         
-        /// <summary>
-        /// Attempts to convert an object to a GUID path, so the reference can be identified at deserialization.
-        /// </summary>
-        /// <param name="uniqueIdentifier">The unique identifier for the object.</param>
-        /// <param name="objectToSave">The object to convert to a GUID path.</param>
-        /// <param name="guidPath">The resulting GUID path if the conversion is successful.</param>
-        /// <returns><c>true</c> if the object was successfully converted to a GUID path; otherwise, <c>false</c>.</returns>
         private GuidPath? ConvertToPath<T>(string uniqueIdentifier, T objectToSave)
         {
             if (objectToSave.IsUnityNull())

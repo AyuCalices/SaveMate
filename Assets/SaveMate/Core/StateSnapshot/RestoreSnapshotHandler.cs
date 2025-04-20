@@ -11,9 +11,10 @@ using Object = UnityEngine.Object;
 
 namespace SaveMate.Core.StateSnapshot
 {
-    /// <summary>
-    /// The <see cref="RestoreSnapshotHandler"/> class is responsible for managing the deserialization and retrieval of
-    /// serialized data, as well as handling reference building for complex object graphs.
+    //// <summary>
+    /// The <see cref="RestoreSnapshotHandler"/> struct is responsible for restoring serialized snapshot data into
+    /// in-memory objects. It supports loading both value types and reference types, resolving Unity components, 
+    /// and applying custom converters or state handlers.
     /// </summary>
     public readonly struct RestoreSnapshotHandler
     {
@@ -28,7 +29,7 @@ namespace SaveMate.Core.StateSnapshot
         private readonly SaveMateManager _saveMateManager;
         private readonly SaveFileContext _saveFileContext;
 
-        public RestoreSnapshotHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, LoadType loadType, GuidPath guidPath, 
+        internal RestoreSnapshotHandler(RootSaveData rootSaveData, LeafSaveData leafSaveData, LoadType loadType, GuidPath guidPath, 
             SaveFileContext saveFileContext, SaveMateManager saveMateManager)
         {
             _rootSaveData = rootSaveData;
@@ -41,6 +42,13 @@ namespace SaveMate.Core.StateSnapshot
             _saveFileContext = saveFileContext;
         }
 
+        /// <summary>
+        /// Tries to load a value of type <typeparamref name="T"/> associated with the given unique identifier.
+        /// </summary>
+        /// <typeparam name="T">The expected type of the loaded object.</typeparam>
+        /// <param name="uniqueIdentifier">The identifier used to look up the object in the snapshot.</param>
+        /// <param name="obj">The resulting object if found and successfully deserialized.</param>
+        /// <returns>True if the object was successfully loaded; otherwise, false.</returns>
         public bool TryLoad<T>(string uniqueIdentifier, out T obj)
         {
             var res = TryLoad(typeof(T), uniqueIdentifier, out var innerObj);
@@ -57,11 +65,25 @@ namespace SaveMate.Core.StateSnapshot
             return res;
         }
         
+        /// <summary>
+        /// Tries to load a value of the specified type associated with the given unique identifier.
+        /// </summary>
+        /// <param name="type">The type of the object to load.</param>
+        /// <param name="uniqueIdentifier">The unique identifier of the object to load.</param>
+        /// <param name="obj">The resulting object if successful.</param>
+        /// <returns>True if the object was found and successfully loaded; otherwise, false.</returns>
         public bool TryLoad(Type type, string uniqueIdentifier, out object obj)
         {
             return type.IsValueType || type ==  typeof(string) ? TryLoadValue(type, uniqueIdentifier, out obj) : TryLoadReference(type, uniqueIdentifier, out obj);
         }
 
+        /// <summary>
+        /// Tries to load a value type of type <typeparamref name="T"/> from the snapshot using the unique identifier.
+        /// </summary>
+        /// <typeparam name="T">The value type to retrieve.</typeparam>
+        /// <param name="uniqueIdentifier">The identifier of the value to load.</param>
+        /// <param name="value">The resulting value if successful.</param>
+        /// <returns>True if the value was found and successfully loaded; otherwise, false.</returns>
         public bool TryLoadValue<T>(string uniqueIdentifier, out T value)
         {
             var res = TryLoadValue(typeof(T), uniqueIdentifier, out var obj);
@@ -77,7 +99,7 @@ namespace SaveMate.Core.StateSnapshot
             
             return res;
         }
-
+        
         private bool TryLoadValue(Type type, string uniqueIdentifier, out object value)
         {
             if (_leafSaveData == null || !_leafSaveData.Values.TryGetValue(uniqueIdentifier, out var saveData))
@@ -160,6 +182,13 @@ namespace SaveMate.Core.StateSnapshot
             return true;
         }
         
+        /// <summary>
+        /// Tries to load a reference type of <typeparamref name="T"/> from the snapshot using the unique identifier.
+        /// </summary>
+        /// <typeparam name="T">The reference type to retrieve.</typeparam>
+        /// <param name="uniqueIdentifier">The identifier of the reference to load.</param>
+        /// <param name="reference">The resulting reference if successful.</param>
+        /// <returns>True if the reference was found and successfully loaded; otherwise, false.</returns>
         public bool TryLoadReference<T>(string uniqueIdentifier, out T reference)
         {
             var res = TryLoadReference(typeof(T), uniqueIdentifier, out var obj);

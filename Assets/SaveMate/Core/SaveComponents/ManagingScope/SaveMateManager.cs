@@ -21,6 +21,11 @@ using UnityEngine.SceneManagement;
 
 namespace SaveMate.Core.SaveComponents.ManagingScope
 {
+    /// <summary>
+    /// SaveMateManager is the core manager for handling save and load operations within a Unity project.
+    /// It manages file names, paths, encryption, serialization, compression, metadata handling, and more.
+    /// It also tracks save scene managers and executes various save strategies such as snapshot, load, and restore.
+    /// </summary>
     [CreateAssetMenu(fileName = "SaveMateManager", menuName = "Save Mate/Manager")]
     public class SaveMateManager : ScriptableObject, ISaveConfig, ISaveStrategy
     {
@@ -49,26 +54,39 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         public event Action<SaveFileContext, SaveFileContext> OnBeforeSaveFileContextChange;
         public event Action<SaveFileContext, SaveFileContext> OnAfterSaveFileContextChange;
         
+        /// <summary>
+        /// Gets the current version of the save data format.
+        /// </summary>
         public SaveVersion SaveVersion => new(major, minor, patch);
+        
+        /// <summary>
+        /// Gets or sets the directory path where save files are stored.
+        /// </summary>
         public string SavePath
         {
             get => savePath;
             set => savePath = value;
         }
 
+        /// <summary>
+        /// Gets or sets the file extension used for save data files.
+        /// </summary>
         public string SaveDataExtensionName
         {
             get => saveDataExtensionName;
             set => saveDataExtensionName = value;
         }
 
+        /// <summary>
+        /// Gets or sets the file extension used for save metadata files.
+        /// </summary>
         public string MetaDataExtensionName
         {
             get => metaDataExtensionName;
             set => metaDataExtensionName = value;
         }
         
-        private string _activeSaveFile;
+        private string _activeSaveFile; //TODO: may be need to be changed on file swap
         private SaveFileContext _currentSaveFileContext;
         private JsonSerializerSettings _jsonSerializerSettings;
         private byte[] _aesKey = Array.Empty<byte>();
@@ -120,7 +138,10 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         
         #region File I/O
         
-        
+        /// <summary>
+        /// Sets the name of the active save file. This affects future saves and loads.
+        /// </summary>
+        /// <param name="fileName">The name of the save file to activate.</param>
         public void SetActiveSaveFile(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
@@ -133,11 +154,18 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             UpdateSaveFileContext(fileName);
         }
         
+        /// <summary>
+        /// Retrieves all save files located in the save directory.
+        /// </summary>
         public string[] GetAllSaveFiles()
         {
             return SaveFileUtility.FindAllSaveFiles(this);
         }
 
+        /// <summary>
+        /// Sets custom Newtonsoft Json serializer settings for serialization.
+        /// </summary>
+        /// <param name="settings">The JsonSerializerSettings to use.</param>
         public void SetJsonSerializerSettings(JsonSerializerSettings settings)
         {
             _jsonSerializerSettings = settings;
@@ -147,14 +175,20 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #endregion
 
         #region Encryption
-
         
+        
+        /// <summary>
+        /// Sets AES encryption keys used during saving and loading.
+        /// </summary>
         public void SetAesEncryption(byte[] aesKey, byte[] aesIv)
         {
             _aesKey = aesKey;
             _aesIv = aesIv;
         }
 
+        /// <summary>
+        /// Clears any AES encryption keys in use.
+        /// </summary>
         public void ClearAesEncryption()
         {
             _aesKey = Array.Empty<byte>();
@@ -167,6 +201,9 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region MetaData
         
         
+        /// <summary>
+        /// Asynchronously fetches all available save metadata and invokes a callback when done.
+        /// </summary>
         public async void FetchAllMetaData(Action<SaveMetaData[]> onAllMetaDataFound)
         {
             var saveMetaData = await FetchAllMetaData();
@@ -174,6 +211,9 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             onAllMetaDataFound.Invoke(saveMetaData);
         }
         
+        /// <summary>
+        /// Asynchronously fetches all available save metadata.
+        /// </summary>
         public async Task<SaveMetaData[]> FetchAllMetaData()
         {
             var saveFileNames = GetAllSaveFiles();
@@ -189,6 +229,9 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             return saveMetaData;
         }
         
+        /// <summary>
+        /// Asynchronously fetches metadata for a specific save file and invokes a callback when done.
+        /// </summary>
         public async void FetchMetaData(string saveName, Action<SaveMetaData> onMetaDataFound)
         {
             var metaData = await FetchMetaData(saveName);
@@ -196,21 +239,33 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             onMetaDataFound.Invoke(metaData);
         }
         
+        /// <summary>
+        /// Asynchronously fetches metadata for a specific save file.
+        /// </summary>
         public async Task<SaveMetaData> FetchMetaData(string saveName)
         {
             return await SaveFileUtility.ReadMetaDataAsync(this, this, saveName);
         }
         
+        /// <summary>
+        /// Adds or updates a metadata entry for the current save session.
+        /// </summary>
         public void AddOrUpdateSaveInfo(string identifier, object obj)
         {
             CustomMetaData[identifier] = JToken.FromObject(obj);
         }
 
+        /// <summary>
+        /// Removes a specific metadata entry from the current session.
+        /// </summary>
         public bool RemoveSaveInfo(string identifier)
         {
             return CustomMetaData.Remove(identifier);
         }
         
+        /// <summary>
+        /// Tries to extract and deserialize metadata of a given type from a SaveMetaData object.
+        /// </summary>
         public bool TryGetSaveInfo<T>(SaveMetaData saveMetaData, string identifier, out T obj)
         {
             obj = default;
@@ -232,21 +287,33 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region OnCaptureState
         
         
+        /// <summary>
+        /// Captures and writes the current scene states to the active save file.
+        /// </summary>
         public void SaveActiveScenes()
         {
             Save(_activeSaveFile, _trackedSaveSceneManagers.Cast<ISavableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Captures and writes the current scene states to the specified save file.
+        /// </summary>
         public void SaveActiveScenes(string fileName)
         {
             Save(fileName, _trackedSaveSceneManagers.Cast<ISavableGroup>().ToArray());
         }
         
+        /// <summary>
+        /// Saves the given savable groups to the active save file.
+        /// </summary>
         public void Save(params ISavableGroup[] savableGroups)
         {
             Save(_activeSaveFile, savableGroups);
         }
         
+        /// <summary>
+        /// Saves the given savable groups to the specified file.
+        /// </summary>
         public void Save(string fileName, params ISavableGroup[] savableGroups)
         {
             UpdateSaveFileContext(fileName);
@@ -261,21 +328,33 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region CaptureSnapshot
         
         
+        /// <summary>
+        /// Captures a snapshot of the currently tracked scenes and stores it in memory.
+        /// </summary>
         public void CaptureSnapshotActiveScenes()
         {
             CaptureSnapshot(_activeSaveFile, _trackedSaveSceneManagers.Cast<ISavableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Captures a snapshot of the specified scenes and stores it in memory.
+        /// </summary>
         public void CaptureSnapshotActiveScenes(string fileName)
         {
             CaptureSnapshot(fileName, _trackedSaveSceneManagers.Cast<ISavableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Captures a snapshot of the provided savable groups into memory.
+        /// </summary>
         public void CaptureSnapshot(params ISavableGroup[] savableGroups)
         {
             CaptureSnapshot(_activeSaveFile, savableGroups);
         }
 
+        /// <summary>
+        /// Captures a snapshot of the savable groups into memory for the specified file.
+        /// </summary>
         public void CaptureSnapshot(string fileName, params ISavableGroup[] savableGroups)
         {
             UpdateSaveFileContext(fileName);
@@ -289,11 +368,17 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region WriteToDisk
         
         
+        /// <summary>
+        /// Writes the in-memory snapshot to disk using the specified file name.
+        /// </summary>
         public void WriteToDisk()
         {
             WriteToDisk(_activeSaveFile);
         }
 
+        /// <summary>
+        /// Writes the in-memory snapshot to disk using the specified file name.
+        /// </summary>
         public void WriteToDisk(string fileName)
         {
             UpdateSaveFileContext(fileName);
@@ -307,21 +392,33 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region OnRestoreState
         
         
+        /// <summary>
+        /// Loads and restores scene states from the active save file.
+        /// </summary>
         public void LoadActiveScenes(LoadType loadType = LoadType.Hard)
         {
             Load(_activeSaveFile, loadType, _trackedSaveSceneManagers.Cast<ILoadableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Loads and restores scene states from the specified file.
+        /// </summary>
         public void LoadActiveScenes(string fileName, LoadType loadType = LoadType.Hard)
         {
             Load(fileName, loadType, _trackedSaveSceneManagers.Cast<ILoadableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Loads from the active save file and restores the state of the provided loadable groups.
+        /// </summary>
         public void Load(LoadType loadType = LoadType.Hard, params ILoadableGroup[] loadableGroups)
         {
             Load(_activeSaveFile, loadType, loadableGroups);
         }
 
+        /// <summary>
+        /// Loads from the specified file and restores the state of the provided loadable groups.
+        /// </summary>
         public void Load(string fileName, LoadType loadType = LoadType.Hard, params ILoadableGroup[] loadableGroups)
         {
             UpdateSaveFileContext(fileName);
@@ -336,21 +433,33 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region RestoreSnapshot
         
         
+        /// <summary>
+        /// Restores the in-memory snapshot for active scenes using the current load type.
+        /// </summary>
         public void RestoreSnapshotActiveScenes(LoadType loadType = LoadType.Hard)
         {
             RestoreSnapshot(_activeSaveFile, loadType, _trackedSaveSceneManagers.Cast<ILoadableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Restores the in-memory snapshot from the specified file for active scenes.
+        /// </summary>
         public void RestoreSnapshotActiveScenes(string fileName, LoadType loadType = LoadType.Hard)
         {
             RestoreSnapshot(fileName, loadType, _trackedSaveSceneManagers.Cast<ILoadableGroup>().ToArray());
         }
 
+        /// <summary>
+        /// Restores the in-memory snapshot for the given loadable groups using the active save file.
+        /// </summary>
         public void RestoreSnapshot(LoadType loadType = LoadType.Hard, params ILoadableGroup[] loadableGroups)
         {
             RestoreSnapshot(_activeSaveFile, loadType, loadableGroups);
         }
 
+        /// <summary>
+        /// Restores the in-memory snapshot from the specified file for the given loadable groups.
+        /// </summary>
         public void RestoreSnapshot(string fileName, LoadType loadType = LoadType.Hard, params ILoadableGroup[] loadableGroups)
         {
             UpdateSaveFileContext(fileName);
@@ -364,11 +473,17 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region ReadFromDisk
         
         
+        /// <summary>
+        /// Reads snapshot data from the active save file and applies it to the in-memory snapshot.
+        /// </summary>
         public void ReadFromDisk()
         {
             ReadFromDisk(_activeSaveFile);
         }
 
+        /// <summary>
+        /// Reads snapshot data from the specified file and applies it to the in-memory snapshot.
+        /// </summary>
         public void ReadFromDisk(string fileName)
         {
             UpdateSaveFileContext(fileName);
@@ -382,14 +497,17 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region DeleteSnapshotData
 
         
-        //TODO: make sure in documentary, that snapshots doesnt affect meta data in any way
-        //wont delete meta data
+        /// <summary>
+        /// Deletes in-memory snapshot data from the active fileName. Metadata is preserved.
+        /// </summary>
         public void DeleteSnapshotData()
         {
             DeleteSnapshotData(_activeSaveFile);
         }
 
-        //will delete meta data on the disk
+        /// <summary>
+        /// Deletes in-memory snapshot data from the specified fileName. Metadata is preserved.
+        /// </summary>
         public void DeleteSnapshotData(string fileName)
         {
             UpdateSaveFileContext(fileName);
@@ -403,11 +521,17 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region DeleteDiskData
 
         
+        /// <summary>
+        /// Deletes all disk data from the active save file, including metadata.
+        /// </summary>
         public void DeleteDiskData()
         {
             DeleteDiskData(_activeSaveFile);
         }
 
+        /// <summary>
+        /// Deletes all disk data from the specified file, including metadata.
+        /// </summary>
         public void DeleteDiskData(string fileName)
         {
             UpdateSaveFileContext(fileName);
@@ -421,11 +545,17 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region WipeAll
 
         
+        /// <summary>
+        /// Deletes all data (in-memory data and disk data) for the active save file.
+        /// </summary>
         public void WipeAll()
         {
             UpdateSaveFileContext(_activeSaveFile);
         }
 
+        /// <summary>
+        /// Deletes all data (in-memory data and disk data) for the specified save file.
+        /// </summary>
         public void WipeAll(string fileName)
         {
             UpdateSaveFileContext(fileName);
@@ -440,11 +570,17 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
         #region ReloadScenes
 
         
+        /// <summary>
+        /// Asynchronously reloads all currently tracked save scenes.
+        /// </summary>
         public async Task ReloadActiveScenes()
         {
             await ReloadScenes(_trackedSaveSceneManagers.ToArray());
         }
 
+        /// <summary>
+        /// Asynchronously reloads a given set of scenes.
+        /// </summary>
         public async Task ReloadScenes(params SimpleSceneSaveManager[] scenesToLoad)
         {
             //buffer save paths, because they will be null later on the scene array
