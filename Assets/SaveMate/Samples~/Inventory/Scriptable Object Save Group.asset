@@ -14,7 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   searchInFolders:
   - Assets/Sample
-  pathBasedScriptableObjects:
-  - {fileID: 11400000, guid: 4bbc194549df92441ada2df6806111f8, type: 2}
-  - {fileID: 11400000, guid: 59df1c65cc77538478591ed5cbbe3cca, type: 2}
+  pathBasedScriptableObjects: []
   customAddedScriptableObjects: []

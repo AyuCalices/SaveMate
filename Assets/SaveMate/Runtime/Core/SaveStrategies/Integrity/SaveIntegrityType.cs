@@ -1,4 +1,4 @@
-namespace SaveMate.Core.SaveStrategies.Integrity
+namespace SaveMate.Runtime.Core.SaveStrategies.Integrity
 {
     public enum SaveIntegrityType
     {

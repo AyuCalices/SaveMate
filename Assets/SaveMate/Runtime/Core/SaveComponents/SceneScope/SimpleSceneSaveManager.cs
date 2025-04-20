@@ -1,17 +1,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
-using SaveMate.Core.DataTransferObject;
-using SaveMate.Core.EventHandler;
-using SaveMate.Core.SavableGroupInterfaces;
-using SaveMate.Core.SaveComponents.GameObjectScope;
-using SaveMate.Core.SaveComponents.ManagingScope;
-using SaveMate.Core.StateSnapshot;
-using SaveMate.Utility;
+using SaveMate.Runtime.Core.DataTransferObject;
+using SaveMate.Runtime.Core.EventHandler;
+using SaveMate.Runtime.Core.SavableGroupInterfaces;
+using SaveMate.Runtime.Core.SaveComponents.GameObjectScope;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.StateSnapshot;
+using SaveMate.Runtime.Utility;
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveMate.Core.SaveComponents.SceneScope
+namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
 {
     public class SimpleSceneSaveManager : MonoBehaviour, ISavableGroupHandler, ILoadableGroupHandler
     {
@@ -166,15 +166,22 @@ namespace SaveMate.Core.SaveComponents.SceneScope
             foreach (var unityObjectIdentification in savable.SaveStateHandlers)
             {
                 var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
-                ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
-                GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
+
+                if (unityObjectIdentification.unityObject is Component component)
+                {
+                    ComponentToGuidLookup.TryAdd(component, componentGuidPath);
+                    GuidToComponentLookup.TryAdd(componentGuidPath, component);
+                }
             }
             
             foreach (var unityObjectIdentification in savable.DuplicateComponentLookup)
             {
                 var componentGuidPath = new GuidPath(savableGuid, unityObjectIdentification.guid);
-                ComponentToGuidLookup.TryAdd((Component)unityObjectIdentification.unityObject, componentGuidPath);
-                GuidToComponentLookup.TryAdd(componentGuidPath, (Component)unityObjectIdentification.unityObject);
+                if (unityObjectIdentification.unityObject is Component component)
+                {
+                    ComponentToGuidLookup.TryAdd(component, componentGuidPath);
+                    GuidToComponentLookup.TryAdd(componentGuidPath, component);
+                }
             }
         }
 

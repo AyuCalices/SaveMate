@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace SaveMate.Core.SaveStrategies.Serialization
+namespace SaveMate.Runtime.Core.SaveStrategies.Serialization
 {
     internal interface ISerializationStrategy
     {

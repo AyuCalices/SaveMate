@@ -1,4 +1,4 @@
-using SaveMate.Core.SaveComponents.AssetScope;
+using SaveMate.Runtime.Core.SaveComponents.AssetScope;
 using UnityEditor;
 using UnityEngine;
 

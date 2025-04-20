@@ -1,12 +1,12 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using SaveMate.Core.DataTransferObject;
-using SaveMate.Core.SaveComponents.ManagingScope;
-using SaveMate.Core.SaveStrategies;
+using SaveMate.Runtime.Core.DataTransferObject;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.SaveStrategies;
 using UnityEngine;
 
-namespace SaveMate.Utility
+namespace SaveMate.Runtime.Utility
 {
     internal static class SaveFileUtility
     {

@@ -1,7 +1,7 @@
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.StateSnapshot;
 using UnityEngine;
 
-namespace SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot
+namespace SaveMate.Runtime.Core.SaveComponents.GameObjectScope.StateSnapshot
 {
     public class SavePosition : MonoBehaviour, ISaveStateHandler
     {

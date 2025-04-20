@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SaveMate.Core.DataTransferObject
+namespace SaveMate.Runtime.Core.DataTransferObject
 {
     public struct PrefabGuidGroup
     {

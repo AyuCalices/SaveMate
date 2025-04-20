@@ -1,10 +1,10 @@
 using System.Collections.Generic;
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.StateSnapshot;
 using UnityEngine;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
-    [CreateAssetMenu]
+    [CreateAssetMenu(fileName = "SpriteLookup", menuName = "Sample/Inventory/SpriteLookup")]
     public class SpriteLookup : ScriptableObject, ISaveStateHandler
     {
         [SerializeField] private List<Sprite> sprites = new();

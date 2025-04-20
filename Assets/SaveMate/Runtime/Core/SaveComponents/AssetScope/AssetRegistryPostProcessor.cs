@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using SaveMate.Utility;
+using SaveMate.Runtime.Utility;
 using UnityEditor;
 
-namespace SaveMate.Core.SaveComponents.AssetScope
+namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 {
 #if UNITY_EDITOR
     

@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace SaveMate.Core.SaveStrategies.Encryption
+namespace SaveMate.Runtime.Core.SaveStrategies.Encryption
 {
     internal class NoneEncryptSerializeStrategy : IEncryptionStrategy
     {

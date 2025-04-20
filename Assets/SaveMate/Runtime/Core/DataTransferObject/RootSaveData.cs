@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace SaveMate.Core.DataTransferObject
+namespace SaveMate.Runtime.Core.DataTransferObject
 {
     public class RootSaveData
     {

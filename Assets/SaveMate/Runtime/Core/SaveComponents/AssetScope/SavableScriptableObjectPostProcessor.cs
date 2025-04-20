@@ -1,11 +1,10 @@
 using System.Collections.Generic;
-using SaveMate.Core.SaveComponents.GameObjectScope.StateSnapshot;
-using SaveMate.Core.StateSnapshot;
-using SaveMate.Utility;
+using SaveMate.Runtime.Core.StateSnapshot;
+using SaveMate.Runtime.Utility;
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveMate.Core.SaveComponents.AssetScope
+namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 {
     [InitializeOnLoad]
     internal class SavableScriptableObjectPostProcessor : AssetPostprocessor

@@ -1,4 +1,4 @@
-namespace SaveMate.Core.SaveStrategies.Compression
+namespace SaveMate.Runtime.Core.SaveStrategies.Compression
 {
     public enum SaveCompressionType
     {

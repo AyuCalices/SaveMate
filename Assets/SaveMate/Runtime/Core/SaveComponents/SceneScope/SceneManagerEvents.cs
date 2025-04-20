@@ -1,7 +1,7 @@
 using System;
 using UnityEngine.Events;
 
-namespace SaveMate.Core.SaveComponents.SceneScope
+namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
 {
     [Serializable]
     internal class SceneManagerEvents

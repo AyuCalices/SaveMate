@@ -1,15 +1,15 @@
 using System;
 using Newtonsoft.Json.Linq;
-using SaveMate.Core.DataTransferObject;
-using SaveMate.Core.SaveComponents.AssetScope;
-using SaveMate.Core.SaveComponents.GameObjectScope;
-using SaveMate.Core.SaveComponents.ManagingScope;
-using SaveMate.Core.StateSnapshot.Converter;
-using SaveMate.Utility;
+using SaveMate.Runtime.Core.DataTransferObject;
+using SaveMate.Runtime.Core.SaveComponents.AssetScope;
+using SaveMate.Runtime.Core.SaveComponents.GameObjectScope;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.StateSnapshot.Converter;
+using SaveMate.Runtime.Utility;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace SaveMate.Core.StateSnapshot
+namespace SaveMate.Runtime.Core.StateSnapshot
 {
     /// <summary>
     /// The <see cref="CreateSnapshotHandler"/> struct handles the creation of snapshots for savable objects in the SaveMate system.

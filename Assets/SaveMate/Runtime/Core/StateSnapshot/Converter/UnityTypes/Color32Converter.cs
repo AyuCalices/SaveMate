@@ -1,7 +1,7 @@
 using JetBrains.Annotations;
 using UnityEngine;
 
-namespace SaveMate.Core.StateSnapshot.Converter.UnityTypes
+namespace SaveMate.Runtime.Core.StateSnapshot.Converter.UnityTypes
 {
     [UsedImplicitly]
     internal class Color32Converter : BaseSaveMateConverter<Color32>

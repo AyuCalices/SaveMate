@@ -1,4 +1,4 @@
-namespace SaveMate.Core.EventHandler
+namespace SaveMate.Runtime.Core.EventHandler
 {
     public interface IBeforeCaptureSnapshotHandler
     {

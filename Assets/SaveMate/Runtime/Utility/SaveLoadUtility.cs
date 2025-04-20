@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
-namespace SaveMate.Utility
+namespace SaveMate.Runtime.Utility
 {
     internal static class SaveLoadUtility
     {

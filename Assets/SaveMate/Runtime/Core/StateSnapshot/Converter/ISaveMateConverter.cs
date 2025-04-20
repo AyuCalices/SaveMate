@@ -1,4 +1,4 @@
-namespace SaveMate.Core.StateSnapshot.Converter
+namespace SaveMate.Runtime.Core.StateSnapshot.Converter
 {
     internal interface ISaveMateConverter
     {

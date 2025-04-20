@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.StateSnapshot;
 using UnityEngine;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
     public class InventoryView : MonoBehaviour, ISaveStateHandler
     {

@@ -1,4 +1,4 @@
-namespace SaveMate.Core.DataTransferObject
+namespace SaveMate.Runtime.Core.DataTransferObject
 {
     public class GuidLeafSaveData : LeafSaveData
     {

@@ -1,8 +1,8 @@
-using SaveMate.Utility;
+using SaveMate.Runtime.Utility;
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveMate.Core.ObjectChangeEvents
+namespace SaveMate.Runtime.Core.ObjectChangeEvents
 {
     
 #if UNITY_EDITOR

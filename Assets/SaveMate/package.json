@@ -9,6 +9,13 @@
     "name": "AyuCalices",
     "url": "https://github.com/AyuCalices"
   },
+  "samples": [
+    {
+      "displayName": "Inventory Sample",
+      "description": "Example of using the Save and Load system.",
+      "path": "Samples~/Inventory"
+    }
+  ],
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1"
   }

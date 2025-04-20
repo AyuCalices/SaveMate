@@ -1,17 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SaveMate.Core.ObjectChangeEvents;
-using SaveMate.Core.SaveComponents.ManagingScope;
-using SaveMate.Core.SaveComponents.SceneScope;
-using SaveMate.Core.StateSnapshot;
-using SaveMate.Utility;
-using SaveMate.Utility.PreventReset;
+using SaveMate.Runtime.Core.ObjectChangeEvents;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.SaveComponents.SceneScope;
+using SaveMate.Runtime.Core.StateSnapshot;
+using SaveMate.Runtime.Utility;
+using SaveMate.Runtime.Utility.PreventReset;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace SaveMate.Core.SaveComponents.GameObjectScope
+namespace SaveMate.Runtime.Core.SaveComponents.GameObjectScope
 {
     [DisallowMultipleComponent]
     public class Savable : MonoBehaviour, IChangeGameObjectStructure

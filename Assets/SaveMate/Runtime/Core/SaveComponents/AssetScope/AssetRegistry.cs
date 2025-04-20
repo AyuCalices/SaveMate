@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
-using SaveMate.Core.SaveComponents.GameObjectScope;
-using SaveMate.Utility;
-using SaveMate.Utility.PreventReset;
+using SaveMate.Runtime.Core.SaveComponents.GameObjectScope;
+using SaveMate.Runtime.Utility;
+using SaveMate.Runtime.Utility.PreventReset;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace SaveMate.Core.SaveComponents.AssetScope
+namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 {
     [CreateAssetMenu(fileName = "AssetRegistry", menuName = "Save Mate/Asset Registry")]
     public class AssetRegistry : ScriptableObject

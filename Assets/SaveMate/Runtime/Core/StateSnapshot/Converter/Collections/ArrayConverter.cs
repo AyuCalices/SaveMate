@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 
-namespace SaveMate.Core.StateSnapshot.Converter.Collections
+namespace SaveMate.Runtime.Core.StateSnapshot.Converter.Collections
 {
     [UsedImplicitly]
     internal class ArrayConverter<T> : BaseSaveMateConverter<T>

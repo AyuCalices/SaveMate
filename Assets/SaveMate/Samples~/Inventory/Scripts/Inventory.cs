@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.StateSnapshot;
 using UnityEngine;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
-    [CreateAssetMenu]
+    [CreateAssetMenu(fileName = "Inventory", menuName = "Sample/Inventory/Inventory")]
     public class Inventory : ScriptableObject, ISaveStateHandler
     {
         [SerializeField] private List<Item> items;

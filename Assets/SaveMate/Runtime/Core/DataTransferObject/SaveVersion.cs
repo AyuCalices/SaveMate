@@ -1,7 +1,7 @@
 using System;
 using Newtonsoft.Json;
 
-namespace SaveMate.Core.DataTransferObject
+namespace SaveMate.Runtime.Core.DataTransferObject
 {
     public readonly struct SaveVersion : IComparable<SaveVersion>
     {

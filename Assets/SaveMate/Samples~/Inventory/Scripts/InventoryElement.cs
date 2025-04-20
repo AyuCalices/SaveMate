@@ -1,9 +1,9 @@
-using SaveMate.Core.EventHandler;
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.EventHandler;
+using SaveMate.Runtime.Core.StateSnapshot;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
     public class InventoryElement : MonoBehaviour, IAfterRestoreSnapshotHandler, ISaveStateHandler
     {

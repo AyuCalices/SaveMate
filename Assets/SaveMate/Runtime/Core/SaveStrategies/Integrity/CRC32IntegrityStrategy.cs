@@ -1,6 +1,6 @@
 using System;
 
-namespace SaveMate.Core.SaveStrategies.Integrity
+namespace SaveMate.Runtime.Core.SaveStrategies.Integrity
 {
     /// <summary>
     /// CRC-32

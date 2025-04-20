@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using SaveMate.Core.SaveComponents.GameObjectScope;
-using SaveMate.Utility;
+using SaveMate.Runtime.Core.SaveComponents.GameObjectScope;
+using SaveMate.Runtime.Utility;
 using UnityEditor;
 
-namespace SaveMate.Core.SaveComponents.AssetScope
+namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 {
     [InitializeOnLoad]
     internal class SavablePrefabPostProcessor : AssetPostprocessor

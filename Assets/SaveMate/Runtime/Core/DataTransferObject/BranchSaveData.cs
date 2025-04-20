@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
-using SaveMate.Utility.NewtonsoftJson;
+using SaveMate.Runtime.Utility.NewtonsoftJson;
 
-namespace SaveMate.Core.DataTransferObject
+namespace SaveMate.Runtime.Core.DataTransferObject
 {
     public class BranchSaveData
     {

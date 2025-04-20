@@ -1,15 +1,15 @@
 using System.Collections.Generic;
-using SaveMate.Core.DataTransferObject;
-using SaveMate.Core.EventHandler;
-using SaveMate.Core.SavableGroupInterfaces;
-using SaveMate.Core.SaveComponents.ManagingScope;
-using SaveMate.Core.SaveComponents.SceneScope;
-using SaveMate.Core.StateSnapshot;
-using SaveMate.Utility;
+using SaveMate.Runtime.Core.DataTransferObject;
+using SaveMate.Runtime.Core.EventHandler;
+using SaveMate.Runtime.Core.SavableGroupInterfaces;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.SaveComponents.SceneScope;
+using SaveMate.Runtime.Core.StateSnapshot;
+using SaveMate.Runtime.Utility;
 using UnityEditor;
 using UnityEngine;
 
-namespace SaveMate.Core.SaveComponents.AssetScope
+namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 {
     [CreateAssetMenu(fileName = "ScriptableObjectSaveGroup", menuName = "Save Mate/Scriptable Object Save Group")]
     public class ScriptableObjectSaveGroup : ScriptableObject, ISavableGroupHandler, ILoadableGroupHandler

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using SaveMate.Core.DataTransferObject;
+using SaveMate.Runtime.Core.DataTransferObject;
 
-namespace SaveMate.Core.SaveComponents.ManagingScope
+namespace SaveMate.Runtime.Core.SaveComponents.ManagingScope
 {
     public class GuidToCreatedNonUnityObjectLookup
     {

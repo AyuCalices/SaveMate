@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace SaveMate.Utility.PreventReset
+namespace SaveMate.Runtime.Utility.PreventReset
 {
     [Serializable]
     public class NonResetableList<T> : ISerializationCallbackReceiver

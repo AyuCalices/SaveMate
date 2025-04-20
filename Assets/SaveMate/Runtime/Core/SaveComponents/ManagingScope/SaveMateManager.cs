@@ -5,21 +5,21 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using SaveMate.Core.DataTransferObject;
-using SaveMate.Core.SavableGroupInterfaces;
-using SaveMate.Core.SaveComponents.AssetScope;
-using SaveMate.Core.SaveComponents.GameObjectScope;
-using SaveMate.Core.SaveComponents.SceneScope;
-using SaveMate.Core.SaveStrategies;
-using SaveMate.Core.SaveStrategies.Compression;
-using SaveMate.Core.SaveStrategies.Encryption;
-using SaveMate.Core.SaveStrategies.Integrity;
-using SaveMate.Core.SaveStrategies.Serialization;
-using SaveMate.Utility;
+using SaveMate.Runtime.Core.DataTransferObject;
+using SaveMate.Runtime.Core.SavableGroupInterfaces;
+using SaveMate.Runtime.Core.SaveComponents.AssetScope;
+using SaveMate.Runtime.Core.SaveComponents.GameObjectScope;
+using SaveMate.Runtime.Core.SaveComponents.SceneScope;
+using SaveMate.Runtime.Core.SaveStrategies;
+using SaveMate.Runtime.Core.SaveStrategies.Compression;
+using SaveMate.Runtime.Core.SaveStrategies.Encryption;
+using SaveMate.Runtime.Core.SaveStrategies.Integrity;
+using SaveMate.Runtime.Core.SaveStrategies.Serialization;
+using SaveMate.Runtime.Utility;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace SaveMate.Core.SaveComponents.ManagingScope
+namespace SaveMate.Runtime.Core.SaveComponents.ManagingScope
 {
     /// <summary>
     /// SaveMateManager is the core manager for handling save and load operations within a Unity project.
@@ -114,13 +114,16 @@ namespace SaveMate.Core.SaveComponents.ManagingScope
             foreach (var scriptableObjectSavable in assetRegistry.ScriptableObjectSavables)
             {
                 var guidPath = new GuidPath(SaveLoadUtility.ScriptableObjectDataName, scriptableObjectSavable.guid);
-                ScriptableObjectToGuidLookup.Add((ScriptableObject)scriptableObjectSavable.unityObject, guidPath);
-                GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
+
+                if (ScriptableObjectToGuidLookup.TryAdd((ScriptableObject)scriptableObjectSavable.unityObject, guidPath))
+                {
+                    GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
+                }
             }
 
             foreach (var prefabSavable in assetRegistry.PrefabSavables)
             {
-                GuidToSavablePrefabsLookup.Add(prefabSavable.PrefabGuid, prefabSavable);
+                GuidToSavablePrefabsLookup.TryAdd(prefabSavable.PrefabGuid, prefabSavable);
             }
         }
 

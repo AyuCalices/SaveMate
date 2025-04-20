@@ -1,4 +1,4 @@
-namespace SaveMate.Core.ObjectChangeEvents
+namespace SaveMate.Runtime.Core.ObjectChangeEvents
 {
     internal interface IChangeGameObjectStructure
     {

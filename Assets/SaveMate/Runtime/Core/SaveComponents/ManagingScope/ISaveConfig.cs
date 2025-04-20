@@ -1,4 +1,4 @@
-namespace SaveMate.Core.SaveComponents.ManagingScope
+namespace SaveMate.Runtime.Core.SaveComponents.ManagingScope
 {
     public interface ISaveConfig
     {

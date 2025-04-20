@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SaveMate.Core.SavableGroupInterfaces;
-using SaveMate.Core.SaveComponents.AssetScope;
-using SaveMate.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.SavableGroupInterfaces;
+using SaveMate.Runtime.Core.SaveComponents.AssetScope;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
-namespace SaveMate.Core.SaveComponents.SceneScope
+namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
 {
     public class SceneSaveManager : SimpleSceneSaveManager, INestableSaveGroupHandler, INestableLoadGroupHandler
     {

@@ -1,7 +1,7 @@
 using JetBrains.Annotations;
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.StateSnapshot;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
     [UsedImplicitly]
     public class ItemConverter : BaseSaveMateConverter<Item>

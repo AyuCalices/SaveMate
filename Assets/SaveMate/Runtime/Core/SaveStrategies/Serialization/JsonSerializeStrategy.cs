@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
 
-namespace SaveMate.Core.SaveStrategies.Serialization
+namespace SaveMate.Runtime.Core.SaveStrategies.Serialization
 {
     internal class JsonSerializeStrategy : ISerializationStrategy
     {

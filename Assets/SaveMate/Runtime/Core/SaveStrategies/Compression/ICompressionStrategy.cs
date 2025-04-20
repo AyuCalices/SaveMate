@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace SaveMate.Core.SaveStrategies.Compression
+namespace SaveMate.Runtime.Core.SaveStrategies.Compression
 {
     internal interface ICompressionStrategy
     {

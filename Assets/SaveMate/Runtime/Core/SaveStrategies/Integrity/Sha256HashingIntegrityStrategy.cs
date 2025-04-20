@@ -1,7 +1,7 @@
 using System;
 using System.Security.Cryptography;
 
-namespace SaveMate.Core.SaveStrategies.Integrity
+namespace SaveMate.Runtime.Core.SaveStrategies.Integrity
 {
     /// <summary>
     /// Hashing (SHA-256)

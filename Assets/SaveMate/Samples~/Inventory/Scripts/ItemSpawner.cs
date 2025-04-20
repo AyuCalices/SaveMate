@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
     public class ItemSpawner : MonoBehaviour
     {

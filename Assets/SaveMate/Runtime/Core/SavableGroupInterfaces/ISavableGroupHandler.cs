@@ -1,6 +1,6 @@
-using SaveMate.Core.SaveComponents.ManagingScope;
+using SaveMate.Runtime.Core.SaveComponents.ManagingScope;
 
-namespace SaveMate.Core.SavableGroupInterfaces
+namespace SaveMate.Runtime.Core.SavableGroupInterfaces
 {
     internal interface ISavableGroupHandler : ISavableGroup
     {

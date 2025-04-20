@@ -1,4 +1,4 @@
-namespace SaveMate.Core.SavableGroupInterfaces
+namespace SaveMate.Runtime.Core.SavableGroupInterfaces
 {
     public interface ISavableGroup { }
 }

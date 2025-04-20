@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
     [CreateAssetMenu]
     public class ItemGenerator : ScriptableObject

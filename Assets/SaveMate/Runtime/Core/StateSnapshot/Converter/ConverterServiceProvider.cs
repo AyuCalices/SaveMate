@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using SaveMate.Core.StateSnapshot.Converter.Collections;
+using SaveMate.Runtime.Core.StateSnapshot.Converter.Collections;
 
-namespace SaveMate.Core.StateSnapshot.Converter
+namespace SaveMate.Runtime.Core.StateSnapshot.Converter
 {
     internal static class ConverterServiceProvider
     {

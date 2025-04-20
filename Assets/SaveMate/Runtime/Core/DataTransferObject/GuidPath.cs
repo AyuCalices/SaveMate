@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 
-namespace SaveMate.Core.DataTransferObject
+namespace SaveMate.Runtime.Core.DataTransferObject
 {
     public struct GuidPath : IEquatable<GuidPath>
     {

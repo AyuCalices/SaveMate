@@ -1,4 +1,4 @@
-namespace SaveMate.Core.StateSnapshot
+namespace SaveMate.Runtime.Core.StateSnapshot
 {
     public interface ISaveStateHandler
     {

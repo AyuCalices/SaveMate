@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using SaveMate.Core.DataTransferObject;
+using SaveMate.Runtime.Core.DataTransferObject;
 
-namespace SaveMate.Utility.NewtonsoftJson
+namespace SaveMate.Runtime.Utility.NewtonsoftJson
 {
     public class SaveDataInstanceConverter : JsonConverter
     {

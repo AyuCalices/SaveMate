@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace SaveMate.Utility.PreventReset
+namespace SaveMate.Runtime.Utility.PreventReset
 {
     [Serializable]
     public struct NonResetable<T> : ISerializationCallbackReceiver

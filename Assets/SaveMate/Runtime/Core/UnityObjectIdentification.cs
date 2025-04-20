@@ -1,7 +1,7 @@
 using System;
 using Object = UnityEngine.Object;
 
-namespace SaveMate.Core
+namespace SaveMate.Runtime.Core
 {
     [Serializable]
     public class UnityObjectIdentification

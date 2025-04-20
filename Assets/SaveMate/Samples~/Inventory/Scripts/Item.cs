@@ -1,8 +1,8 @@
 using System;
-using SaveMate.Core.StateSnapshot;
+using SaveMate.Runtime.Core.StateSnapshot;
 using UnityEngine;
 
-namespace Sample.Scripts
+namespace SaveMate.Samples.Inventory.Scripts
 {
     [Serializable]
     public class Item : ISaveStateHandler

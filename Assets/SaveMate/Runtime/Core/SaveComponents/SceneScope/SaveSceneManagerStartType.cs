@@ -1,6 +1,4 @@
-using UnityEngine;
-
-namespace SaveMate.Core.SaveComponents.SceneScope
+namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
 {
     public enum SaveSceneManagerStartType
     {

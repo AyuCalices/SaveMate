@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace SaveMate.Core.SavableGroupInterfaces
+namespace SaveMate.Runtime.Core.SavableGroupInterfaces
 {
     internal interface INestableLoadGroupHandler
     {

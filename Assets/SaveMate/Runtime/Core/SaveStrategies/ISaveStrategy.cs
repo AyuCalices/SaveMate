@@ -1,9 +1,9 @@
-using SaveMate.Core.SaveStrategies.Compression;
-using SaveMate.Core.SaveStrategies.Encryption;
-using SaveMate.Core.SaveStrategies.Integrity;
-using SaveMate.Core.SaveStrategies.Serialization;
+using SaveMate.Runtime.Core.SaveStrategies.Compression;
+using SaveMate.Runtime.Core.SaveStrategies.Encryption;
+using SaveMate.Runtime.Core.SaveStrategies.Integrity;
+using SaveMate.Runtime.Core.SaveStrategies.Serialization;
 
-namespace SaveMate.Core.SaveStrategies
+namespace SaveMate.Runtime.Core.SaveStrategies
 {
     internal interface ISaveStrategy
     {

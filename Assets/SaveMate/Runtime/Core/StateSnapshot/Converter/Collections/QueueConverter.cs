@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
 
-namespace SaveMate.Core.StateSnapshot.Converter.Collections
+namespace SaveMate.Runtime.Core.StateSnapshot.Converter.Collections
 {
     [UsedImplicitly]
     internal class QueueConverter<T> : BaseSaveMateConverter<Queue<T>>
