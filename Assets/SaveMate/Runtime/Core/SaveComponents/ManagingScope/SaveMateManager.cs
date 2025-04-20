@@ -115,9 +115,11 @@ namespace SaveMate.Runtime.Core.SaveComponents.ManagingScope
             {
                 var guidPath = new GuidPath(SaveLoadUtility.ScriptableObjectDataName, scriptableObjectSavable.guid);
 
-                if (ScriptableObjectToGuidLookup.TryAdd((ScriptableObject)scriptableObjectSavable.unityObject, guidPath))
+                if (scriptableObjectSavable.unityObject is not ScriptableObject scriptableObject) continue;
+                
+                if (ScriptableObjectToGuidLookup.TryAdd(scriptableObject, guidPath))
                 {
-                    GuidToScriptableObjectLookup.Add(guidPath, (ScriptableObject)scriptableObjectSavable.unityObject);
+                    GuidToScriptableObjectLookup.Add(guidPath, scriptableObject);
                 }
             }
 
