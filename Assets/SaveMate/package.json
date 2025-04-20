@@ -1,0 +1,15 @@
+{
+  "name": "com.ayucalices.savemate",
+  "version": "1.0.0",
+  "displayName": "Save and Load System",
+  "description": "A simple save and load system for Unity.",
+  "unity": "2022.3",
+  "license": "MIT",
+  "author": {
+    "name": "AyuCalices",
+    "url": "https://github.com/AyuCalices"
+  },
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}
