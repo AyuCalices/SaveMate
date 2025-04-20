@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Scriptable Object Save Group
   m_EditorClassIdentifier: 
   searchInFolders:
-  - Assets/Samples/Save and Load System/1.0.0/Inventory Sample
+  - Assets/Samples/SaveMate/1.0.0/Inventory Sample
   pathBasedScriptableObjects: []
   customAddedScriptableObjects: []
