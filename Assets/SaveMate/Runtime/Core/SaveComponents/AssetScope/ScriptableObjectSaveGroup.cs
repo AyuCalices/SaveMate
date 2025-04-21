@@ -26,6 +26,7 @@ namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
         #region Editor Behaviour
 
         
+#if UNITY_EDITOR
         private void OnValidate()
         {
             UpdateFolderSelectScriptableObject();
@@ -74,6 +75,7 @@ namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 
             return foundObjects;
         }
+#endif
 
         
         #endregion
@@ -152,7 +154,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 
             if (!saveMateManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out var guidPath))
             {
-                //TODO: error handling
+                Debug.LogWarning($"[SaveMate] Wasn't able to find a guid for the scriptable object '{scriptableObject.name}'. " +
+                                 $"Make sure it is registered to the {nameof(AssetRegistry)}");
                 return;
             }
             
@@ -243,7 +246,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 
             if (!saveMateManager.ScriptableObjectToGuidLookup.TryGetValue(scriptableObject, out var guidPath))
             {
-                //TODO: error handling
+                Debug.LogWarning($"[SaveMate] Wasn't able to find a guid for the scriptable object '{scriptableObject.name}'. " +
+                                 $"Make sure it is registered to the {nameof(AssetRegistry)}");
                 return;
             }
             

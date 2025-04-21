@@ -66,7 +66,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.GameObjectScope
         {
             UnregisterFromSceneManager();
         }
-        
+
+#if UNITY_EDITOR
         private void OnValidate()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
@@ -84,6 +85,7 @@ namespace SaveMate.Runtime.Core.SaveComponents.GameObjectScope
             
             SaveLoadUtility.SetDirty(this);
         }
+#endif
         
         /*
          * Currently the system only supports adding savable-components during editor mode.

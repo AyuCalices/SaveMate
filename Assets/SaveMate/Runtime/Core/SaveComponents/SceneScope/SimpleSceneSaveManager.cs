@@ -33,12 +33,14 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
             SceneName = gameObject.scene.name;
         }
 
+#if UNITY_EDITOR
         protected virtual void OnValidate()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
             SceneName = gameObject.scene.name;
         }
+#endif
 
         protected virtual void Update()
         {
@@ -598,8 +600,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
         
         #region Private Classes
 
-#if UNITY_EDITOR
         
+#if UNITY_EDITOR
         [InitializeOnLoad]
         private static class SaveObjectDestructionUpdater
         {
@@ -644,8 +646,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
                 }
             }
         }
-        
 #endif
+        
         
         #endregion
     }

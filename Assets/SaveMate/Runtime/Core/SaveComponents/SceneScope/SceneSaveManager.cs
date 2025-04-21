@@ -64,6 +64,7 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
             }
         }
 
+#if UNITY_EDITOR
         protected override void OnValidate()
         {
             base.OnValidate();
@@ -72,6 +73,7 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
             
             saveMateManager?.RegisterSaveSceneManager(this);
         }
+#endif
         
         protected override void Update()
         {
