@@ -597,7 +597,8 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
         #endregion
         
         #region Private Classes
-        
+
+#if UNITY_EDITOR
         
         [InitializeOnLoad]
         private static class SaveObjectDestructionUpdater
@@ -644,6 +645,7 @@ namespace SaveMate.Runtime.Core.SaveComponents.SceneScope
             }
         }
         
+#endif
         
         #endregion
     }
