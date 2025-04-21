@@ -6,6 +6,8 @@ using UnityEngine;
 
 namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
 {
+#if UNITY_EDITOR
+    
     [InitializeOnLoad]
     internal class SavableScriptableObjectPostProcessor : AssetPostprocessor
     {
@@ -97,4 +99,6 @@ namespace SaveMate.Runtime.Core.SaveComponents.AssetScope
             }
         }
     }
+    
+#endif
 }
